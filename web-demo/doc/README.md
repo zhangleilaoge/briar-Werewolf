@@ -18,4 +18,6 @@
 | [extra-actions.md](extra-actions.md) | 追加行动 |
 | [numeric.md](numeric.md) | 数值设计 |
 | [alignment.md](alignment.md) | 阵营九宫格 |
+| [preset-characters.md](preset-characters.md) | 预设角色 |
+| [traits.md](traits.md) | 特质 |
 | [refer/](refer/) | 外部参考 |

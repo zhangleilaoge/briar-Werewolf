@@ -14,6 +14,8 @@
 | [actions.md](actions.md) | 白天普通行动的详细规则 |
 | [extra-actions.md](extra-actions.md) | 追加行动的详细规则 |
 | [numeric.md](numeric.md) | 属性、关系、压力值、检定等全部数值细节 |
+| [preset-characters.md](preset-characters.md) | 预设角色的概念与设计目的 |
+| [traits.md](traits.md) | 特质：非基础属性的人物效果修正 |
 | [alignment.md](alignment.md) | 阵营九宫格对行动、关系与压力的影响 |
 | [refer/](refer/) | 外部参考 |
 
