@@ -31,6 +31,8 @@
 
 ## 与文档其他部分的关系
 
-- 预设角色的具体数值（属性、关系、压力值）遵循 [numeric.md](numeric.md) 的规则。
-- 预设角色的阵营遵循 [alignment.md](alignment.md) 的九宫格规则。
-- 预设角色在游戏中可用的行动遵循 [actions.md](actions.md) 与 [extra-actions.md](extra-actions.md)。
+- 预设角色的具体数值（属性、关系、压力值）遵循 [numeric.md](../core/numeric.md) 的规则。
+- 预设角色的阵营遵循 [alignment.md](../core/alignment.md) 的九宫格规则。
+- 预设角色的特质与阵营倾向规则遵循 [traits.md](traits.md)。
+- 预设角色在每局游戏中被分配的**职业**遵循 [professions.md](professions.md) 的规则。
+- 预设角色在游戏中可用的行动遵循 [actions.md](../actions/actions.md) 与 [extra-actions.md](../actions/extra-actions.md)。
