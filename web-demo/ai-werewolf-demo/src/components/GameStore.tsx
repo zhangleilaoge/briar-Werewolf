@@ -80,7 +80,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         // schedule first round
         const timer = setTimeout(() => {
           runNextRound(sim);
-        }, sim.state?.speed || 2000);
+        }, 2000);
         timerRef.current = timer;
       });
     },
@@ -100,8 +100,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       winner: winner || prev.winner,
       phase: winner ? 'ended' : prev.phase,
     }));
-    if (!winner && sim.state?.phase === 'running') {
-      const timer = setTimeout(() => runNextRound(sim), sim.state?.speed || 2000);
+    if (!winner) {
+      const timer = setTimeout(() => runNextRound(sim), 2000);
       timerRef.current = timer;
     }
   };

@@ -1,62 +1,68 @@
 import type {
-  Player,
-  Relation,
-  RoleBeliefs,
-  L2TheoryOfMind,
-  L3Social,
-  LogEntry,
-  PublicClaim,
-  CheckResult,
-  OthersBeliefs,
-  Role,
-  Team,
+  Player, Relation, Role, Team, Attributes, Alignment, PublicClaim
 } from './types';
 
 export class BeliefSystem {
   playerId: string;
   playerName: string;
+  myRole: Role | null;
+  myTeam: Team | null;
+  myAttributes: Attributes;
+  myAlignment: Alignment;
 
-  // L0: 原始事实层（不可变）
+  // L0: Raw Facts (immutable truths this agent knows)
   l0Facts: {
-    myRole: Role | null;
-    myAlignment: Team | null;
-    myItems: string[];
     checks: Record<string, 'werewolf' | 'villager'>;
     deaths: string[];
     publicClaims: PublicClaim[];
     thefts: { thiefId: string; targetId: string; item: string }[];
     inspections: { inspectorId: string; targetId: string; items: string[] }[];
+    observations: Record<string, { stress: number; attributes: Record<string, number>; round: number }>;
   };
 
-  // L1: 逻辑推导层
+  // L1: Inferences (probabilistic role beliefs)
   l1Inferences: {
-    roleBeliefs: Record<string, RoleBeliefs>;
-    itemBeliefs: Record<string, Record<string, number>>;
-    trustScore: Record<string, number>;
+    roleBeliefs: Record<string, { werewolf: number; villager: number }>;
+    itemBeliefs: Record<string, Record<string, number>>; // playerId -> itemId -> probability
+    trustScore: Record<string, number>; // -10 to 10, how much we trust this player's claims
   };
 
-  // L2: 元认知（ToM）
-  l2TheoryOfMind: L2TheoryOfMind;
+  // L2: Theory of Mind (what others think)
+  l2TheoryOfMind: {
+    othersBeliefs: Record<string, Record<string, number>>; // observerId -> targetId -> suspicion
+    othersTrustMe: Record<string, number>;
+    othersKnowMyRole: Record<string, number>;
+  };
 
-  // L3: 社交情感层
-  l3Social: L3Social;
+  // L3: Social / Emotional
+  l3Social: {
+    relations: Record<string, Relation>;
+    pressure: number; // -10 to 10
+    emotionalState: 'neutral' | 'anxious' | 'confident' | 'angry';
+  };
 
-  logs: LogEntry[];
-  currentRound: number = 0;
-
-  constructor(playerId: string, playerName: string) {
+  constructor(
+    playerId: string,
+    playerName: string,
+    role: Role,
+    team: Team,
+    attributes: Attributes,
+    alignment: Alignment
+  ) {
     this.playerId = playerId;
     this.playerName = playerName;
+    this.myRole = role;
+    this.myTeam = team;
+    this.myAttributes = attributes;
+    this.myAlignment = alignment;
 
     this.l0Facts = {
-      myRole: null,
-      myAlignment: null,
-      myItems: [],
       checks: {},
       deaths: [],
       publicClaims: [],
       thefts: [],
       inspections: [],
+      observations: {},
     };
 
     this.l1Inferences = {
@@ -76,13 +82,6 @@ export class BeliefSystem {
       pressure: 0,
       emotionalState: 'neutral',
     };
-
-    this.logs = [];
-  }
-
-  setMyRole(role: Role, alignment: Team) {
-    this.l0Facts.myRole = role;
-    this.l0Facts.myAlignment = alignment;
   }
 
   recordCheck(targetId: string, result: 'werewolf' | 'villager') {
@@ -100,8 +99,16 @@ export class BeliefSystem {
       playerId,
       claim,
       content,
-      round: this.currentRound,
+      round: 0, // will be set by caller if available
     });
+  }
+
+  recordObservation(targetId: string, stress: number, attributes: Record<string, number>) {
+    this.l0Facts.observations[targetId] = { stress, attributes, round: 0 };
+  }
+
+  recordInspection(targetId: string, items: string[]) {
+    this.l0Facts.inspections.push({ inspectorId: this.playerId, targetId, items });
   }
 
   initializeRelations(allPlayers: Player[]) {
@@ -109,13 +116,13 @@ export class BeliefSystem {
       if (p.id !== this.playerId) {
         this.l3Social.relations[p.id] = { friendly: 0, trust: 0 };
         this.l1Inferences.roleBeliefs[p.id] = { werewolf: 0.5, villager: 0.5 };
-        this.l1Inferences.trustScore[p.id] = 0.5;
+        this.l1Inferences.trustScore[p.id] = 0;
       }
     });
   }
 
-  updateInferences(allPlayers: Player[]) {
-    // 基于查验结果直接设置信念
+  updateInferences(allPlayers: Player[], self: Player) {
+    // Check results override everything
     Object.entries(this.l0Facts.checks).forEach(([targetId, result]) => {
       if (result === 'werewolf') {
         this.l1Inferences.roleBeliefs[targetId] = { werewolf: 1.0, villager: 0 };
@@ -124,28 +131,40 @@ export class BeliefSystem {
       }
     });
 
-    // 基于死亡信息
+    // Deaths: if someone died, update belief
     this.l0Facts.deaths.forEach((deadId) => {
       const rb = this.l1Inferences.roleBeliefs[deadId];
       if (rb && rb.werewolf > 0.5) {
-        rb.werewolf *= 0.7;
+        // They were suspected wolf, now we know they were not necessarily
+        // Actually we don't know their role on death (unless revealed)
+        // But if killed by wolf, more likely villager
+        rb.werewolf *= 0.6;
         rb.villager = 1 - rb.werewolf;
       }
     });
 
-    // 基于公开声称
+    // Evaluate claims
     this.l0Facts.publicClaims.forEach((claim) => {
       if (claim.claim === 'prophet_check') {
         this._evaluateClaim(claim.playerId, claim);
       }
     });
 
-    // 确保所有存活玩家都有 L1 信念
+    // Initialize missing players
     allPlayers.forEach((p) => {
       if (p.id !== this.playerId && !this.l1Inferences.roleBeliefs[p.id]) {
         this.l1Inferences.roleBeliefs[p.id] = { werewolf: 0.5, villager: 0.5 };
       }
     });
+
+    // Self-knowledge for wolves
+    if (this.myTeam === 'werewolf') {
+      allPlayers.forEach((p) => {
+        if (p.id !== this.playerId && p.team === 'werewolf') {
+          this.l1Inferences.roleBeliefs[p.id] = { werewolf: 1.0, villager: 0 };
+        }
+      });
+    }
   }
 
   _evaluateClaim(claimerId: string, claim: PublicClaim) {
@@ -154,17 +173,23 @@ export class BeliefSystem {
     const result = content.result;
     if (!target || !result) return;
 
-    if (this.l0Facts.checks[target] !== undefined) {
-      const myResult = this.l0Facts.checks[target];
-      if (myResult !== result) {
-        this.l1Inferences.trustScore[claimerId] = Math.max(0, (this.l1Inferences.trustScore[claimerId] ?? 0.5) - 0.4);
-        const rb = this.l1Inferences.roleBeliefs[claimerId] ?? { werewolf: 0.5, villager: 0.5 };
-        rb.werewolf = Math.min(1, rb.werewolf + 0.3);
-      }
+    const myResult = this.l0Facts.checks[target];
+    if (myResult !== undefined && myResult !== result) {
+      // Claim contradicts our known fact -> claimer is lying
+      this.l1Inferences.trustScore[claimerId] = Math.max(-10, (this.l1Inferences.trustScore[claimerId] ?? 0) - 4);
+      const rb = this.l1Inferences.roleBeliefs[claimerId] ?? { werewolf: 0.5, villager: 0.5 };
+      rb.werewolf = Math.min(1, rb.werewolf + 0.3);
+    } else if (myResult !== undefined && myResult === result) {
+      // Claim matches our known fact -> claimer is truthful
+      this.l1Inferences.trustScore[claimerId] = Math.min(10, (this.l1Inferences.trustScore[claimerId] ?? 0) + 2);
     }
   }
 
-  updateTheoryOfMind(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[]) {
+  updateTheoryOfMind(
+    allPlayers: Player[],
+    publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[],
+    self: Player
+  ) {
     allPlayers.forEach((observer) => {
       if (observer.id === this.playerId) return;
       if (!this.l2TheoryOfMind.othersBeliefs[observer.id]) {
@@ -172,17 +197,26 @@ export class BeliefSystem {
       }
 
       const observerVotes = publicActions.filter((a) => a.actorId === observer.id && a.type === 'vote');
+      const observerSuspects = publicActions.filter((a) => a.actorId === observer.id && (a.type === 'suspect' || a.type === 'accuse'));
+      const observerDefends = publicActions.filter((a) => a.actorId === observer.id && (a.type === 'defend' || a.type === 'guarantee'));
 
       allPlayers.forEach((target) => {
         if (target.id === observer.id) return;
         let suspicion = 0.5;
         observerVotes.forEach((v) => {
-          if (v.targetId === target.id) suspicion += 0.3;
+          if (v.targetId === target.id) suspicion += 0.2;
         });
-        this.l2TheoryOfMind.othersBeliefs[observer.id][target.id] = Math.min(1, suspicion);
+        observerSuspects.forEach((s) => {
+          if (s.targetId === target.id) suspicion += 0.3;
+        });
+        observerDefends.forEach((d) => {
+          if (d.targetId === target.id) suspicion -= 0.2;
+        });
+        this.l2TheoryOfMind.othersBeliefs[observer.id][target.id] = Math.max(0, Math.min(1, suspicion));
       });
 
-      const attackedMe = observerVotes.some((v) => v.targetId === this.playerId);
+      const attackedMe = observerVotes.some((v) => v.targetId === this.playerId) ||
+        observerSuspects.some((s) => s.targetId === this.playerId);
       this.l2TheoryOfMind.othersTrustMe[observer.id] = attackedMe ? 0.2 : 0.6;
 
       const myClaims = this.l0Facts.publicClaims.filter((c) => c.playerId === this.playerId);
@@ -194,12 +228,22 @@ export class BeliefSystem {
     if (!this.l3Social.relations[targetId]) {
       this.l3Social.relations[targetId] = { friendly: 0, trust: 0 };
     }
-    this.l3Social.relations[targetId].friendly = Math.max(-1, Math.min(1, this.l3Social.relations[targetId].friendly + friendlyDelta));
-    this.l3Social.relations[targetId].trust = Math.max(-1, Math.min(1, this.l3Social.relations[targetId].trust + trustDelta));
+    const rel = this.l3Social.relations[targetId];
+    rel.friendly = Math.max(-10, Math.min(10, rel.friendly + friendlyDelta));
+    rel.trust = Math.max(-10, Math.min(10, rel.trust + trustDelta));
   }
 
   updatePressure(delta: number) {
-    this.l3Social.pressure = Math.max(0, Math.min(1, this.l3Social.pressure + delta));
+    this.l3Social.pressure = Math.max(-10, Math.min(10, this.l3Social.pressure + delta));
+    if (this.l3Social.pressure >= 10) {
+      this.l3Social.emotionalState = 'anxious';
+    } else if (this.l3Social.pressure <= -5) {
+      this.l3Social.emotionalState = 'confident';
+    } else if (this.l3Social.pressure >= 5) {
+      this.l3Social.emotionalState = 'angry';
+    } else {
+      this.l3Social.emotionalState = 'neutral';
+    }
   }
 
   getCheckResult(targetId: string): 'werewolf' | 'villager' | null {
@@ -232,11 +276,11 @@ export class BeliefSystem {
   getSummary() {
     return {
       player: this.playerName,
-      role: this.l0Facts.myRole,
+      role: this.myRole,
       l0: { checks: this.l0Facts.checks, deaths: this.l0Facts.deaths },
       l1: { topSuspect: this._getTopSuspect() },
       l2: { myExposure: this._calculateExposure() },
-      l3: { relations: this.l3Social.relations },
+      l3: { relations: this.l3Social.relations, pressure: this.l3Social.pressure, emotionalState: this.l3Social.emotionalState },
     };
   }
 

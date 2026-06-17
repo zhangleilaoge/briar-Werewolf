@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
-import type { GameLogItem } from '../lib/ai/types';
+import type { GameLogItem, Player, ItemInstance } from '../lib/ai/types';
+import { getAlignmentName, ITEM_DEFINITIONS } from '../lib/ai/types';
 import type { PlayerState } from './useGameRunner';
 
 export default function GameApp() {
@@ -29,74 +30,57 @@ export default function GameApp() {
     coroner: '验尸官',
   };
 
-  const itemNameMap: Record<string, string> = {
-    crystal_ball: '水晶球',
-    claws: '尖牙利爪',
-    double_sword: '双刃剑',
-    thief_gloves: '小偷手套',
-    coroner_tools: '验尸工具',
-  };
-
   const getLogColor = (type: GameLogItem['type']) => {
     switch (type) {
       case 'phase': return 'text-blue-400';
       case 'action': return 'text-yellow-300';
-      case 'death': return 'text-red-400';
+      case 'death': return 'text-red-400 font-bold';
       case 'victory': return 'text-green-400 font-bold';
+      case 'check': return 'text-purple-400';
+      case 'relation': return 'text-pink-400';
+      case 'stress': return 'text-orange-400';
+      case 'item': return 'text-cyan-400';
       default: return 'text-gray-400';
     }
   };
 
-  const renderBelief = (belief: Record<string, unknown>) => {
-    const l0 = belief.l0 as Record<string, unknown> || {};
-    const l1 = belief.l1 as Record<string, unknown> || {};
-    const l3 = belief.l3 as Record<string, unknown> || {};
-    const l0Checks = l0.checks as Record<string, string> || {};
-    const l1Top = l1.topSuspect as { id: string | null; probability: number } | undefined;
-    const l3Relations = l3.relations as Record<string, { friendly: number; trust: number }> || {};
-
-    return (
-      <div className="space-y-3">
-        {Object.keys(l0Checks).length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-orange-400 mb-1">🔒 L0 查验事实（不可覆盖）</div>
-            {Object.entries(l0Checks).map(([tid, result]) => {
-              const target = game.players.find((p) => p.id === tid);
-              return (
-                <div key={tid} className="text-sm">
-                  {target?.name}: <span className={result === 'werewolf' ? 'text-red-400 font-bold' : 'text-green-400'}>
-                    {result === 'werewolf' ? '狼人' : '村民'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {l1Top && l1Top.id && (
-          <div>
-            <div className="text-xs font-bold text-purple-400 mb-1">🧠 L1 最高嫌疑</div>
-            <div className="text-sm">
-              {game.players.find((p) => p.id === l1Top.id)?.name}: {(l1Top.probability * 100).toFixed(0)}%
-            </div>
-          </div>
-        )}
-        {Object.keys(l3Relations).length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-green-400 mb-1">❤️ L3 社交关系</div>
-            {Object.entries(l3Relations).map(([tid, rel]) => {
-              if (Math.abs(rel.friendly) < 0.1) return null;
-              const target = game.players.find((p) => p.id === tid);
-              return (
-                <div key={tid} className="text-sm">
-                  {target?.name}: {rel.friendly > 0 ? '😊' : '😠'} {rel.friendly.toFixed(1)}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
+  const itemLabel = (item: ItemInstance) => {
+    const def = ITEM_DEFINITIONS[item.definitionId];
+    return `${def?.name || item.definitionId}${item.durability > 0 ? '' : ' [损坏]'}`;
   };
+
+  const attributeLabel = (key: string) => {
+    const labels: Record<string, string> = {
+      affinity: '亲和', logic: '逻辑', leadership: '领导',
+      deception: '诡诈', stealth: '隐蔽', insight: '洞察',
+    };
+    return labels[key] || key;
+  };
+
+  const attributeColor = (value: number) => {
+    if (value >= 8) return 'text-green-400';
+    if (value >= 6) return 'text-green-300';
+    if (value >= 4) return 'text-yellow-300';
+    return 'text-red-300';
+  };
+
+  const stressColor = (value: number) => {
+    if (value <= -5) return 'text-blue-400';
+    if (value <= 2) return 'text-green-400';
+    if (value <= 5) return 'text-yellow-400';
+    if (value <= 8) return 'text-orange-400';
+    return 'text-red-400 font-bold';
+  };
+
+  const stressLabel = (value: number) => {
+    if (value <= -7) return '极度冷静';
+    if (value <= -3) return '冷静';
+    if (value <= 2) return '正常';
+    if (value <= 5) return '轻微紧张';
+    if (value <= 8) return '明显焦虑';
+    return '高度紧张';
+  };
+
 
   return (
     <div className="h-screen flex flex-col">
@@ -176,7 +160,7 @@ export default function GameApp() {
                 </div>
                 {p.items.length > 0 && (
                   <div className="text-xs text-yellow-400 mt-1">
-                    {p.items.map((i) => itemNameMap[i] || i).join(', ')}
+                    {p.items.map((i) => itemLabel(i)).join(', ')}
                   </div>
                 )}
               </button>
@@ -199,7 +183,7 @@ export default function GameApp() {
         </div>
 
         {/* 右侧：选中玩家状态 */}
-        <div className="w-72 bg-card border-l border-border overflow-y-auto p-4">
+        <div className="w-80 bg-card border-l border-border overflow-y-auto p-4">
           {selectedPlayer ? (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -208,6 +192,7 @@ export default function GameApp() {
                   ✕
                 </button>
               </div>
+
               <div className="space-y-3 mb-4">
                 <div className="text-sm">
                   <span className="text-muted-foreground">职业：</span>
@@ -218,7 +203,7 @@ export default function GameApp() {
                 <div className="text-sm">
                   <span className="text-muted-foreground">阵营：</span>
                   <span className={selectedPlayer.team === 'werewolf' ? 'text-red-400' : 'text-green-400'}>
-                    {selectedPlayer.team === 'werewolf' ? '狼人' : '村民'}
+                    {selectedPlayer.team === 'werewolf' ? '狼人' : '村民'} · {getAlignmentName(selectedPlayer.alignment)}
                   </span>
                 </div>
                 <div className="text-sm">
@@ -227,18 +212,63 @@ export default function GameApp() {
                     {selectedPlayer.alive ? '存活' : '死亡'}
                   </span>
                 </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">压力：</span>
+                  <span className={stressColor(selectedPlayer.stress)}>
+                    {selectedPlayer.stress > 0 ? '+' : ''}{selectedPlayer.stress} ({stressLabel(selectedPlayer.stress)})
+                  </span>
+                </div>
+                {selectedPlayer.traits.length > 0 && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">特质：</span>
+                    <span className="text-purple-400">{selectedPlayer.traits.join(', ')}</span>
+                  </div>
+                )}
                 {selectedPlayer.items.length > 0 && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">道具：</span>
                     <span className="text-yellow-400">
-                      {selectedPlayer.items.map((i) => itemNameMap[i] || i).join(', ')}
+                      {selectedPlayer.items.map((i) => itemLabel(i)).join(', ')}
                     </span>
                   </div>
                 )}
               </div>
+
+              {/* 六维属性 */}
+              <div className="border-t border-border pt-4 mb-4">
+                <h4 className="text-sm font-bold mb-2 text-muted-foreground">六维属性</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(selectedPlayer.attributes).map(([key, value]) => (
+                    <div key={key} className="text-sm flex items-center justify-between">
+                      <span className="text-muted-foreground">{attributeLabel(key)}</span>
+                      <span className={`font-mono font-bold ${attributeColor(value)}`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 关系网 */}
               <div className="border-t border-border pt-4">
-                <h4 className="text-sm font-bold mb-2 text-muted-foreground">AI 信念状态</h4>
-                {renderBelief(selectedPlayer.belief)}
+                <h4 className="text-sm font-bold mb-2 text-muted-foreground">关系网</h4>
+                <div className="space-y-1">
+                  {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > 0.5 || Math.abs(rel.friendly) > 0.5).map(([otherId, rel]) => {
+                    const other = game.players.find((p) => p.id === otherId);
+                    if (!other) return null;
+                    return (
+                      <div key={otherId} className="text-sm flex items-center justify-between">
+                        <span className="text-muted-foreground">{other.name}</span>
+                        <span className="text-xs">
+                          <span className={rel.trust > 0 ? 'text-green-400' : 'text-red-400'}>信任{rel.trust > 0 ? '+' : ''}{rel.trust.toFixed(1)}</span>
+                          <span className="mx-1">·</span>
+                          <span className={rel.friendly > 0 ? 'text-green-400' : 'text-red-400'}>友好{rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > 0.5 || Math.abs(rel.friendly) > 0.5).length === 0 && (
+                    <div className="text-xs text-muted-foreground">暂无显著关系变化</div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

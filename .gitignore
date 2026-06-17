@@ -2,3 +2,4 @@
 .godot/
 /android/
 **/node_modules/
+**/dist/

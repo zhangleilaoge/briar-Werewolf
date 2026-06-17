@@ -1,22 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameSimulator, generateGameConfig } from '../lib/game/simulator';
-import type { GameLogItem } from '../lib/ai/types';
-
-export interface PlayerState {
-  id: string;
-  name: string;
-  role: string;
-  team: string;
-  alive: boolean;
-  items: string[];
-  belief: Record<string, unknown>;
-}
+import type { GameLogItem, Player } from '../lib/ai/types';
 
 export interface GameConfig {
   totalPlayers: number;
   werewolfConfig: { role: string; count: number }[];
   villagerConfig: { role: string; count: number }[];
 }
+
+export type PlayerState = Player;
 
 export function useGameRunner() {
   const [phase, setPhase] = useState<'setup' | 'running' | 'paused' | 'ended'>('setup');
@@ -30,6 +22,16 @@ export function useGameRunner() {
   const simulatorRef = useRef<GameSimulator | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pausedRef = useRef(false);
+  const speedRef = useRef(2000);
+  const phaseRef = useRef('setup');
+
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   const syncFromSimulator = useCallback(() => {
     const sim = simulatorRef.current;
@@ -39,24 +41,30 @@ export function useGameRunner() {
     setRound(sim.round);
   }, []);
 
-  const scheduleNext = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    const currentSpeed = speed;
-    timerRef.current = setTimeout(() => {
-      if (pausedRef.current) return;
-      const sim = simulatorRef.current;
-      if (!sim) return;
-      const win = sim.runRound();
-      syncFromSimulator();
+  const runNextStep = useCallback(() => {
+    if (pausedRef.current) return;
+    const sim = simulatorRef.current;
+    if (!sim) return;
+
+    const hasMore = sim.executeNextStep();
+    syncFromSimulator();
+
+    if (!hasMore) {
+      // 一轮步骤执行完毕
+      const win = sim.getWinner();
       if (win) {
         setWinner(win);
         setPhase('ended');
-        timerRef.current = null;
-      } else if (!pausedRef.current) {
-        scheduleNext();
+        return;
       }
-    }, currentSpeed);
-  }, [speed, syncFromSimulator]);
+      // 生成下一轮步骤
+      sim.generateRoundSteps();
+    }
+
+    if (!pausedRef.current && phaseRef.current !== 'ended') {
+      timerRef.current = setTimeout(runNextStep, speedRef.current);
+    }
+  }, [syncFromSimulator]);
 
   const startGame = useCallback(
     (config: GameConfig) => {
@@ -69,9 +77,10 @@ export function useGameRunner() {
       setLogs([]);
       setPlayers(sim.getPlayerStates());
       setPhase('running');
-      scheduleNext();
+      sim.generateRoundSteps();
+      timerRef.current = setTimeout(runNextStep, speedRef.current);
     },
-    [scheduleNext]
+    [runNextStep]
   );
 
   const pauseGame = useCallback(() => {
@@ -86,19 +95,24 @@ export function useGameRunner() {
   const resumeGame = useCallback(() => {
     pausedRef.current = false;
     setPhase('running');
-    scheduleNext();
-  }, [scheduleNext]);
+    timerRef.current = setTimeout(runNextStep, speedRef.current);
+  }, [runNextStep]);
 
   const nextStep = useCallback(() => {
     const sim = simulatorRef.current;
-    if (!sim || phase === 'ended') return;
-    const win = sim.runRound();
+    if (!sim || phaseRef.current === 'ended') return;
+    const hasMore = sim.executeNextStep();
     syncFromSimulator();
-    if (win) {
-      setWinner(win);
-      setPhase('ended');
+    if (!hasMore) {
+      const win = sim.getWinner();
+      if (win) {
+        setWinner(win);
+        setPhase('ended');
+      } else {
+        sim.generateRoundSteps();
+      }
     }
-  }, [phase, syncFromSimulator]);
+  }, [syncFromSimulator]);
 
   const resetGame = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
