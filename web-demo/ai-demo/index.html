@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Briar AI 系统验证</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #e94560;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .panel {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #0f3460;
+        }
+        .panel-title {
+            color: #e94560;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scenario-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #0f3460;
+            color: #e0e0e0;
+            border: 1px solid #e94560;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #e94560;
+            color: white;
+        }
+        button.active {
+            background: #e94560;
+            color: white;
+        }
+        button.run-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            font-size: 16px;
+            padding: 12px 30px;
+        }
+        button.run-btn:hover {
+            background: #27ae60;
+        }
+        .log-container {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+        }
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid #1a1a3e;
+        }
+        .log-phase {
+            color: #3498db;
+            font-weight: bold;
+        }
+        .log-death {
+            color: #e74c3c;
+        }
+        .log-victory {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        .player-card {
+            background: #0f0f23;
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .player-card.alive {
+            border-color: #2ecc71;
+        }
+        .player-card.dead {
+            border-color: #e74c3c;
+            opacity: 0.7;
+        }
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .player-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .player-role {
+            font-size: 12px;
+            color: #888;
+            padding: 2px 8px;
+            background: #1a1a3e;
+            border-radius: 4px;
+        }
+        .player-role.werewolf {
+            color: #e74c3c;
+            background: #3a1a1a;
+        }
+        .player-role.villager {
+            color: #2ecc71;
+            background: #1a3a1a;
+        }
+        .belief-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #1a1a3e;
+        }
+        .belief-title {
+            font-size: 12px;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        .belief-item {
+            font-size: 12px;
+            color: #aaa;
+            margin: 2px 0;
+        }
+        .belief-item.l0 {
+            color: #f39c12;
+        }
+        .belief-item.l1 {
+            color: #9b59b6;
+        }
+        .belief-item.l2 {
+            color: #3498db;
+        }
+        .belief-item.l3 {
+            color: #2ecc71;
+        }
+        .prob-bar {
+            display: inline-block;
+            height: 8px;
+            background: #e74c3c;
+            border-radius: 4px;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        .prob-bar.safe {
+            background: #2ecc71;
+        }
+        .check-result {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .check-result.werewolf {
+            background: #e74c3c;
+            color: white;
+        }
+        .check-result.villager {
+            background: #2ecc71;
+            color: white;
+        }
+        .demo-explanation {
+            background: #1a1a3e;
+            border-left: 4px solid #e94560;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+        .demo-explanation h3 {
+            color: #e94560;
+            margin-bottom: 8px;
+        }
+        .hidden {
+            display: none;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-badge.alive {
+            background: #2ecc71;
+            color: white;
+        }
+        .status-badge.dead {
+            background: #e74c3c;
+            color: white;
+        }
+        .verdict-box {
+            background: #16213e;
+            border: 2px solid #f39c12;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .verdict-box h2 {
+            color: #f39c12;
+            margin-bottom: 10px;
+        }
+        .verdict-box p {
+            color: #ccc;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐺 Briar AI 系统验证</h1>
+        <p class="subtitle">分层信念 + 硬约束决策 | 验证 AI 不会因关系而背叛事实</p>
+
+        <div class="demo-explanation">
+            <h3>核心验证场景</h3>
+            <p><strong>场景1 - 预言家查到狼但关系好：</strong>预言家查验到狼人B，但两人关系值+0.8。验证：预言家<strong>仍然必须投票给狼</strong>（职业义务硬约束），关系值只影响表达方式。</p>
+            <p><strong>场景2 - 狼人队友被查杀：</strong>狼队友被预言家查杀，暴露风险极高。验证：狼人应该<strong>考虑倒钩（投队友）</strong>而非无脑保护（生存策略优先）。</p>
+            <p><strong>场景3 - 村民无信息 tiebreaker：</strong>村民没有任何查验能力，狼嫌疑均匀。验证：用<strong>关系值做社交润滑</strong>，优先投关系差的人。</p>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">选择场景</div>
+            <div class="scenario-buttons">
+                <button onclick="selectScenario(1)" id="btn-s1" class="active">场景1：预言家硬约束</button>
+                <button onclick="selectScenario(2)" id="btn-s2">场景2：狼人倒钩</button>
+                <button onclick="selectScenario(3)" id="btn-s3">场景3：村民关系投票</button>
+            </div>
+            <button class="run-btn" onclick="runSimulation()">▶ 运行模拟</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">📋 游戏日志</div>
+            <div class="log-container" id="log-container">
+                <div style="color: #666;">点击「运行模拟」开始...</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🧠 AI 信念状态</div>
+            <div class="players-grid" id="players-grid">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
+        <div id="verdict" class="verdict-box hidden">
+            <h2>✅ 验证通过</h2>
+            <p id="verdict-text">预言家查验到狼人后，不受关系值影响，必须投票给狼。</p>
+        </div>
+    </div>
+
+    <script src="../ai-system/belief-system.js"></script>
+    <script src="../ai-system/decision-engine.js"></script>
+    <script src="../ai-system/ai-agent.js"></script>
+    <script src="simulation.js"></script>
+    <script>
+        let currentScenario = 1;
+        let currentSimulator = null;
+
+        function selectScenario(n) {
+            currentScenario = n;
+            document.querySelectorAll('.scenario-buttons button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-s' + n).classList.add('active');
+            document.getElementById('verdict').classList.add('hidden');
+        }
+
+        function runSimulation() {
+            const logContainer = document.getElementById('log-container');
+            logContainer.innerHTML = '<div style="color: #3498db;">正在初始化...</div>';
+
+            let configs;
+            switch (currentScenario) {
+                case 1: configs = createScenario1(); break;
+                case 2: configs = createScenario2(); break;
+                case 3: configs = createScenario3(); break;
+            }
+
+            currentSimulator = new GameSimulator(configs);
+
+            // 场景1特殊设置：让预言家和狼人B关系好
+            if (currentScenario === 1) {
+                const prophet = currentSimulator.players.find(p => p.role === 'prophet');
+                const werewolf = currentSimulator.players.find(p => p.name === '狼人B');
+                if (prophet && werewolf) {
+                    prophet.belief.updateRelation(werewolf.id, 0.8, 0.5);
+                }
+            }
+
+            // 场景2特殊设置：预言家查验狼队友
+            if (currentScenario === 2) {
+                const prophet = currentSimulator.players.find(p => p.role === 'prophet');
+                const werewolf = currentSimulator.players.find(p => p.name === '狼队友');
+                if (prophet && werewolf) {
+                    // 模拟预言家查验了狼队友
+                    prophet.belief.recordCheck(werewolf.id, 'werewolf');
+                }
+            }
+
+            // 场景3特殊设置：让村民甲和狼人A关系差，和狼人B关系好
+            if (currentScenario === 3) {
+                const villager = currentSimulator.players.find(p => p.name === '村民甲');
+                const wolfA = currentSimulator.players.find(p => p.name === '狼人A');
+                const wolfB = currentSimulator.players.find(p => p.name === '狼人B');
+                if (villager && wolfA) villager.belief.updateRelation(wolfA.id, -0.6, -0.3);
+                if (villager && wolfB) villager.belief.updateRelation(wolfB.id, 0.4, 0.2);
+            }
+
+            // 运行一轮
+            const winner = currentSimulator.runRound();
+
+            // 渲染日志
+            renderLogs(currentSimulator.getLogs());
+
+            // 渲染玩家状态
+            renderPlayers(currentSimulator.players, currentScenario);
+
+            // 验证结果
+            showVerdict(currentScenario, currentSimulator);
+        }
+
+        function renderLogs(logs) {
+            const container = document.getElementById('log-container');
+            container.innerHTML = '';
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                let msg = log.message;
+                if (msg.includes('=== ')) div.className += ' log-phase';
+                if (msg.includes('死亡') || msg.includes('放逐')) div.className += ' log-death';
+                if (msg.includes('胜利')) div.className += ' log-victory';
+                div.textContent = msg;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderPlayers(players, scenario) {
+            const grid = document.getElementById('players-grid');
+            grid.innerHTML = '';
+
+            players.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'player-card ' + (p.alive ? 'alive' : 'dead');
+
+                const roleClass = p.team === 'werewolf' ? 'werewolf' : 'villager';
+                const statusText = p.alive ? '存活' : '死亡';
+                const statusClass = p.alive ? 'alive' : 'dead';
+
+                let beliefHtml = '';
+
+                // L0 查验结果
+                if (Object.keys(p.belief.l0Facts.checks).length > 0) {
+                    beliefHtml += '<div class="belief-section"><div class="belief-title">L0 查验结果（不可变事实）</div>';
+                    Object.entries(p.belief.l0Facts.checks).forEach(([tid, result]) => {
+                        const tname = players.find(x => x.id === tid)?.name || tid;
+                        const resClass = result === 'werewolf' ? 'werewolf' : 'villager';
+                        beliefHtml += `<div class="belief-item l0">${tname}: <span class="check-result ${resClass}">${result === 'werewolf' ? '狼人' : '村民'}</span></div>`;
+                    });
+                    beliefHtml += '</div>';
+                }
+
+                // L1 推理
+                const suspects = p.belief.getSuspectRanking(players);
+                if (suspects.length > 0) {
+                    beliefHtml += '<div class="belief-section"><div class="belief-title">L1 狼嫌疑排名</div>';
+                    suspects.slice(0, 3).forEach(s => {
+                        const barWidth = Math.round(s.werewolfProb * 50);
+                        const barClass = s.werewolfProb > 0.5 ? '' : 'safe';
+                        beliefHtml += `<div class="belief-item l1">${s.name}: ${(s.werewolfProb * 100).toFixed(0)}% <span class="prob-bar ${barClass}" style="width: ${barWidth}px"></span></div>`;
+                    });
+                    beliefHtml += '</div>';
+                }
+
+                // L3 关系
+                const relations = Object.entries(p.belief.l3Social.relations).filter(([_, r]) => Math.abs(r.friendly) > 0.1);
+                if (relations.length > 0) {
+                    beliefHtml += '<div class="belief-section"><div class="belief-title">L3 社交关系</div>';
+                    relations.forEach(([tid, r]) => {
+                        const tname = players.find(x => x.id === tid)?.name || tid;
+                        const emoji = r.friendly > 0 ? '😊' : '😠';
+                        beliefHtml += `<div class="belief-item l3">${emoji} ${tname}: ${r.friendly > 0 ? '+' : ''}${r.friendly.toFixed(1)}</div>`;
+                    });
+                    beliefHtml += '</div>';
+                }
+
+                // 最近决策
+                if (p.logs.length > 0) {
+                    const lastLog = p.logs[p.logs.length - 1];
+                    beliefHtml += `<div class="belief-section"><div class="belief-title">最新决策</div>`;
+                    beliefHtml += `<div class="belief-item" style="color: #f39c12;">${lastLog.message}</div></div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="player-header">
+                        <div class="player-name">${p.name}</div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="player-role ${roleClass}">${p.role} (${p.team === 'werewolf' ? '狼' : '好人'})</div>
+                    ${beliefHtml}
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function showVerdict(scenario, simulator) {
+            const verdict = document.getElementById('verdict');
+            const text = document.getElementById('verdict-text');
+            verdict.classList.remove('hidden');
+
+            const players = simulator.players;
+            const prophet = players.find(p => p.role === 'prophet');
+
+            if (scenario === 1) {
+                // 检查预言家是否投票给狼人B
+                const wolfB = players.find(p => p.name === '狼人B');
+                const prophetVote = prophet?.logs.find(l => l.phase === 'vote');
+                const votedWolf = prophetVote && prophetVote.message.includes('狼人B');
+
+                if (votedWolf) {
+                    verdict.querySelector('h2').textContent = '✅ 验证通过：硬约束生效';
+                    text.innerHTML = `预言家查到<span style="color:#e74c3c">狼人B</span>（关系值+0.8），但投票仍然给了狼人B。<br>关系值只影响<strong>表达方式</strong>，不影响<strong>核心决策</strong>。L0 事实不可被 L3 覆盖。`;
+                } else {
+                    verdict.querySelector('h2').textContent = '❌ 验证失败：硬约束被突破';
+                    text.innerHTML = `预言家没有投票给狼人B，违反了职业义务硬约束！`;
+                }
+            } else if (scenario === 2) {
+                const wolfTeam = players.filter(p => p.team === 'werewolf' && p.name !== '狼队友');
+                const werewolf = wolfTeam.find(p => p.role === 'werewolf');
+                const werewolfVote = werewolf?.logs.find(l => l.phase === 'vote');
+                const votedTeammate = werewolfVote && werewolfVote.message.includes('狼队友');
+
+                if (votedTeammate) {
+                    verdict.querySelector('h2').textContent = '✅ 验证通过：生存策略优先';
+                    text.innerHTML = `狼人队友被查杀后，狼人选择<span style="color:#e74c3c">倒钩</span>（投队友），而非保护。<br>生存策略 > 团队义务，AI 做出了正确的策略选择。`;
+                } else {
+                    verdict.querySelector('h2').textContent = '⚠️ 验证信息：狼人选择保护';
+                    text.innerHTML = `狼人选择保护队友而非倒钩。当前形势可能允许保护（暴露风险不够高）。`;
+                }
+            } else if (scenario === 3) {
+                const villager = players.find(p => p.name === '村民甲');
+                const villagerVote = villager?.logs.find(l => l.phase === 'vote');
+                const votedWolfA = villagerVote && villagerVote.message.includes('狼人A');
+
+                if (votedWolfA) {
+                    verdict.querySelector('h2').textContent = '✅ 验证通过：社交润滑生效';
+                    text.innerHTML = `村民甲无信息，狼嫌疑均匀，最终投票给了关系差的<span style="color:#e74c3c">狼人A</span>（关系-0.6）。<br>L3 关系值在<strong>无信息平局</strong>时打破平衡。`;
+                } else {
+                    verdict.querySelector('h2').textContent = '⚠️ 验证信息：随机投票';
+                    text.innerHTML = `村民甲投票给了其他人。可能其他信息打破了平局。`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
