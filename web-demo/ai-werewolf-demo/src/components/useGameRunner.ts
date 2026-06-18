@@ -16,7 +16,6 @@ export function useGameRunner() {
   const [winner, setWinner] = useState<string | null>(null);
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [logs, setLogs] = useState<GameLogItem[]>([]);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [speed, setSpeed] = useState(1); // 倍速: 1x = 2s/步
 
   const simulatorRef = useRef<GameSimulator | null>(null);
@@ -24,7 +23,6 @@ export function useGameRunner() {
   const pausedRef = useRef(false);
   const speedRef = useRef(1);
   const phaseRef = useRef('setup');
-  const lastRunRef = useRef(0);
 
   useEffect(() => {
     speedRef.current = speed;
@@ -37,16 +35,12 @@ export function useGameRunner() {
   const syncFromSimulator = useCallback(() => {
     const sim = simulatorRef.current;
     if (!sim) return;
-    setPlayers(sim.getPlayerStates());
+    setPlayers(sim.getPlayers());
     setLogs([...sim.getLogs()]);
     setRound(sim.round);
   }, []);
 
   const runNextStep = useCallback(() => {
-    const now = Date.now();
-    const elapsed = now - lastRunRef.current;
-    lastRunRef.current = now;
-
     if (pausedRef.current) {
       return;
     }
@@ -84,11 +78,10 @@ export function useGameRunner() {
       const sim = new GameSimulator(configs);
       simulatorRef.current = sim;
       pausedRef.current = false;
-      lastRunRef.current = Date.now();
       setWinner(null);
       setRound(0);
       setLogs([]);
-      setPlayers(sim.getPlayerStates());
+      setPlayers(sim.getPlayers());
       setPhase('running');
       sim.generateRoundSteps();
       const tickRate = sim.getCurrentTickRate?.() ?? 2000;
@@ -148,7 +141,6 @@ export function useGameRunner() {
     setWinner(null);
     setPlayers([]);
     setLogs([]);
-    setSelectedPlayerId(null);
   }, []);
 
   useEffect(() => {
@@ -163,10 +155,8 @@ export function useGameRunner() {
     winner,
     players,
     logs,
-    selectedPlayerId,
     speed,
     setSpeed,
-    setSelectedPlayerId,
     startGame,
     pauseGame,
     resumeGame,

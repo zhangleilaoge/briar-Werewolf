@@ -11,6 +11,11 @@ import {
   PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
 } from './simulator-phases';
 
+const DEBUG = false;
+function debugLog(...args: unknown[]) {
+  if (DEBUG) console.log(...args);
+}
+
 // ---------- Actor State Machine ----------
 
 export type ActorState = 'idle' | 'thinking' | 'acting';
@@ -52,7 +57,7 @@ export class EventBus {
         const targetIds = resolve(event);
         targetIds.forEach((pid) => sim.notifyPlayer(pid, event));
         if (targetIds.length > 0) {
-          console.log(`[消息中心] 📡 事件 ${event.type} → ${targetIds.length} 人响应: [${targetIds.join(', ')}]`);
+          debugLog(`[消息中心] 📡 事件 ${event.type} → ${targetIds.length} 人响应: [${targetIds.join(', ')}]`);
         }
       });
     });
@@ -127,6 +132,10 @@ export class GameSimulator {
 
   private phaseQueue: PhaseController[] = [];
   private currentPhaseIndex = 0;
+
+  // ---- Robustness: tick counter & stuck-actor detection ----
+  private _tickCount = 0;
+  private _actorStuckSince: Map<string, number> = new Map();
 
   constructor(
     playerConfigs: {
@@ -239,49 +248,59 @@ export class GameSimulator {
   // ==================== TICK API ====================
 
   tick(): boolean {
+    this._tickCount++;
+
     if (this.winner) {
       return false;
     }
 
-    // Ensure we have a phase controller
-    if (!this.currentPhase) {
-      if (this.currentPhaseIndex >= this.phaseQueue.length) {
-        this._prepareNextRound();
-        return this.tick();
+    try {
+      // Ensure we have a phase controller
+      if (!this.currentPhase) {
+        if (this.currentPhaseIndex >= this.phaseQueue.length) {
+          this._prepareNextRound();
+          return this.tick();
+        }
+        this.currentPhase = this.phaseQueue[this.currentPhaseIndex];
+        this.currentPhase.onEnter(this);
+        this.phase = this.currentPhase.name;
+        debugLog(`[消息中心] 🔄 进入 ${this.phase} 阶段`);
       }
-      this.currentPhase = this.phaseQueue[this.currentPhaseIndex];
-      this.currentPhase.onEnter(this);
-      this.phase = this.currentPhase.name;
-      console.log(`[消息中心] 🔄 进入 ${this.phase} 阶段`);
+
+      // 添加 thinking 日志（当前正在思考的玩家）
+      this._addThinkingLogs();
+
+      // Collect tick logs into tickLogBuffer; commit at the end of tick
+      this.tickLogBuffer = [];
+      const continuePhase = this.currentPhase.onTick(this);
+
+      // Check for stuck actors after thinkers advance
+      this._checkStuckActors();
+
+      // 移除已完成的 thinking 日志（刚执行完的玩家）
+      this._removeCompletedThinkingLogs();
+
+      // Commit tick logs sorted by priority
+      this.tickLogBuffer.sort((a, b) => {
+        const pa = LOG_PRIORITY[a.type] ?? 99;
+        const pb = LOG_PRIORITY[b.type] ?? 99;
+        return pa - pb;
+      });
+      this.logs.push(...this.tickLogBuffer);
+      this.tickLogBuffer = [];
+
+      if (!continuePhase) {
+        debugLog(`[消息中心] 🔄 ${this.currentPhase.name} 阶段结束`);
+        this.currentPhase.onExit(this);
+        this.currentPhaseIndex++;
+        this.currentPhase = null;
+      }
+
+      return !this.winner && (this.currentPhase !== null || this.currentPhaseIndex < this.phaseQueue.length);
+    } catch (e) {
+      console.error('[GameSimulator] Tick error:', e);
+      return true; // skip failed tick, continue game
     }
-
-    // 添加 thinking 日志（当前正在思考的玩家）
-    this._addThinkingLogs();
-
-    // Collect tick logs into tickLogBuffer; commit at the end of tick
-    this.tickLogBuffer = [];
-    const continuePhase = this.currentPhase.onTick(this);
-
-    // 移除已完成的 thinking 日志（刚执行完的玩家）
-    this._removeCompletedThinkingLogs();
-
-    // Commit tick logs sorted by priority
-    this.tickLogBuffer.sort((a, b) => {
-      const pa = LOG_PRIORITY[a.type] ?? 99;
-      const pb = LOG_PRIORITY[b.type] ?? 99;
-      return pa - pb;
-    });
-    this.logs.push(...this.tickLogBuffer);
-    this.tickLogBuffer = [];
-
-    if (!continuePhase) {
-      console.log(`[消息中心] 🔄 ${this.currentPhase.name} 阶段结束`);
-      this.currentPhase.onExit(this);
-      this.currentPhaseIndex++;
-      this.currentPhase = null;
-    }
-
-    return !this.winner && (this.currentPhase !== null || this.currentPhaseIndex < this.phaseQueue.length);
   }
 
   private _addThinkingLogs() {
@@ -301,6 +320,25 @@ export class GameSimulator {
             details: { playerId: id, thinking: true }
           });
         }
+      }
+    });
+  }
+
+  private _checkStuckActors() {
+    const tickRate = this.currentPhase?.tickRate ?? 200;
+    const maxTicks = Math.max(50, Math.ceil(15000 / tickRate));
+    this.actors.forEach((actor, id) => {
+      if (actor.state === 'thinking') {
+        const stuckSince = this._actorStuckSince.get(id);
+        if (stuckSince === undefined) {
+          this._actorStuckSince.set(id, this._tickCount);
+        } else if (this._tickCount - stuckSince > maxTicks) {
+          console.warn(`[GameSimulator] ⚠️ Actor ${id} stuck in thinking for ${this._tickCount - stuckSince} ticks, forcing to acting`);
+          actor.state = 'acting';
+          this._actorStuckSince.delete(id);
+        }
+      } else {
+        this._actorStuckSince.delete(id);
       }
     });
   }
@@ -328,7 +366,7 @@ export class GameSimulator {
       actor.thinkCountdown = event.type === 'day_turn' ? 0 : (player ? calculateThinkTime(player) : 1000);
       actor.pendingEvent = event;
     } else {
-      console.log(`[消息中心] ⚠️ ${playerId} 状态=${actor?.state}，无法接收 ${event.type}`);
+      debugLog(`[消息中心] ⚠️ ${playerId} 状态=${actor?.state}，无法接收 ${event.type}`);
     }
   }
 
@@ -351,7 +389,7 @@ export class GameSimulator {
     ];
     this.currentPhaseIndex = 0;
     this.currentPhase = null;
-    console.log(`[消息中心] 🔄 第 ${this.round} 轮开始`);
+    debugLog(`[消息中心] 🔄 第 ${this.round} 轮开始`);
   }
 
   generateRoundSteps() {
@@ -389,12 +427,12 @@ export class GameSimulator {
       this.winner = 'villager';
       this.logs.push({ round: this.round, phase: 'init', message: '=== 村民阵营胜利！所有狼人已被消灭。 ===', type: 'victory' });
       this.phase = 'ended';
-      console.log('[消息中心] 🏆 村民胜利！');
+      debugLog('[消息中心] 🏆 村民胜利！');
     } else if (aliveWerewolves >= aliveVillagers) {
       this.winner = 'werewolf';
       this.logs.push({ round: this.round, phase: 'init', message: '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===', type: 'victory' });
       this.phase = 'ended';
-      console.log('[消息中心] 🏆 狼人胜利！');
+      debugLog('[消息中心] 🏆 狼人胜利！');
     }
   }
 
@@ -408,6 +446,7 @@ export class GameSimulator {
     return this.logs;
   }
 
+  /** @deprecated Use getPlayers() instead. Kept for backward compatibility. */
   getPlayerStates(): Player[] {
     return this.players;
   }

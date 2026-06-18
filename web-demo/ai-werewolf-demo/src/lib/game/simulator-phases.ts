@@ -1,10 +1,15 @@
 import type { GameSimulator, PublicActionRecord, GameEvent, PlayerActor } from './simulator-core';
-import type { Phase, Player, GameLogItem } from '../ai/types';
+import type { Phase, Player, GameLogItem, DecisionProcess } from '../ai/types';
 import { log, getName, updateRelation, logAction, buildCheckLog, getPublicPlayerStates } from './simulator-utils';
 import { runDayAction, runAppendixAction } from './simulator-day';
 import { runNightAction, resolveNightActions } from './simulator-night';
 import { resolveMorningEvents } from './simulator-morning';
 import { runVote, runVoteRound2, resolveVotesRound1, resolveVotesRound2 } from './simulator-vote';
+
+const DEBUG = false;
+function debugLog(...args: unknown[]) {
+  if (DEBUG) console.log(...args);
+}
 
 // ---------- Log Priority (for rendering order) ----------
 
@@ -60,7 +65,7 @@ export abstract class TickPhase extends PhaseController {
   protected executeActors(sim: GameSimulator): void {
     const acting = Array.from(sim.actors.values()).filter((a) => a.state === 'acting');
     if (acting.length > 0) {
-      console.log(`[消息中心] ▶️ ${acting.map((a) => `${a.id}(${a.pendingEvent?.type})`).join(', ')}`);
+      debugLog(`[消息中心] ▶️ ${acting.map((a) => `${a.id}(${a.pendingEvent?.type})`).join(', ')}`);
     }
     for (const actor of acting) {
       const event = actor.pendingEvent;
@@ -125,7 +130,7 @@ export class DayPhaseController extends TickPhase {
     this.nextIndex = 0;
 
     log(sim, 'phase', '-- 白天阶段 --');
-    console.log('[消息中心] 🌅 进入白天阶段');
+    debugLog('[消息中心] 🌅 进入白天阶段');
     this._notifyNextSpeaker(sim);
   }
 
@@ -145,7 +150,7 @@ export class DayPhaseController extends TickPhase {
   checkEnd(sim: GameSimulator): boolean {
     const allActed = this.aliveOrder.every((id) => this.hasActed.has(id));
     if (allActed || this.silenceCount >= sim.getAliveCount()) {
-      console.log(`[消息中心] 🌅 白天结束 (${this.hasActed.size}/${this.aliveOrder.length}已行动, 沉默=${this.silenceCount})`);
+      debugLog(`[消息中心] 🌅 白天结束 (${this.hasActed.size}/${this.aliveOrder.length}已行动, 沉默=${this.silenceCount})`);
       return false;
     }
     return true;
@@ -187,7 +192,7 @@ export class DayPhaseController extends TickPhase {
       this.silenceCount = 0;
     }
 
-    console.log(`[消息中心] 📢 ${playerId} 白天行动完毕 (${this.hasActed.size}/${this.aliveOrder.length})`);
+    debugLog(`[消息中心] 📢 ${playerId} 白天行动完毕 (${this.hasActed.size}/${this.aliveOrder.length})`);
   }
 
   private _executeAppendixReaction(sim: GameSimulator, playerId: string, event: GameEvent) {
@@ -197,7 +202,7 @@ export class DayPhaseController extends TickPhase {
     const player = sim.players.find((p) => p.id === playerId);
     if (!player || !player.alive || playerId === triggerAction.actorId) return;
 
-    runAppendixAction(sim, playerId, triggerAction, (triggerAction.details as any)?.process);
+    runAppendixAction(sim, playerId, triggerAction, (triggerAction.details as Record<string, unknown>)?.process as DecisionProcess | undefined);
 
     sim.consecutiveSilenceCount = 0;
     this.silenceCount = 0;
@@ -225,7 +230,7 @@ export class NightPhaseController extends TickPhase {
     sim.nightDecisions = [];
     sim.nightDeaths = [];
     log(sim, 'phase', '-- 夜晚阶段 --');
-    console.log('[消息中心] 🌙 进入夜晚');
+    debugLog('[消息中心] 🌙 进入夜晚');
     this._notifyCurrentGroup(sim);
   }
 
@@ -258,7 +263,7 @@ export class NightPhaseController extends TickPhase {
 
     if (allGroupsDone) {
       resolveNightActions(sim);
-      console.log('[消息中心] 🌙 夜晚结束');
+      debugLog('[消息中心] 🌙 夜晚结束');
       return false;
     }
 
@@ -273,7 +278,7 @@ export class NightPhaseController extends TickPhase {
         players.forEach((p) => {
           sim.notifyPlayer(p.id, { type: 'night_action', source: 'system', payload: {} });
         });
-        console.log(`[消息中心] 🔔 ${group.name} 组行动 (${players.length}人)`);
+        debugLog(`[消息中心] 🔔 ${group.name} 组行动 (${players.length}人)`);
         return;
       }
       this.completedGroups.add(group.name);
@@ -301,7 +306,7 @@ export class VotePhaseController extends TickPhase {
     this.aliveVoters = sim.getAlivePlayerIds();
 
     log(sim, 'phase', '-- 投票阶段 --');
-    console.log('[消息中心] 🗳️ 投票开始');
+    debugLog('[消息中心] 🗳️ 投票开始');
     this.aliveVoters.forEach((pid) => {
       sim.notifyPlayer(pid, { type: 'vote', source: 'system', payload: { round: 1 } });
     });
@@ -327,23 +332,23 @@ export class VotePhaseController extends TickPhase {
 
     if (this.round2Candidates) {
       resolveVotesRound2(sim, this.round2Candidates);
-      console.log('[消息中心] 🗳️ 投票结束 (Round 2)');
+      debugLog('[消息中心] 🗳️ 投票结束 (Round 2)');
       return false;
     } else {
       resolveVotesRound1(sim);
-      if (sim.voteResult && (sim.voteResult as any).nextRound) {
-        this.round2Candidates = (sim.voteResult as any).topTargets || [];
+      if (sim.voteResult && sim.voteResult.nextRound) {
+        this.round2Candidates = sim.voteResult.topTargets || [];
         this.voted.clear();
         sim.votes = {};
         sim.voteRound = 2;
         this.aliveVoters = sim.getAlivePlayerIds();
-        console.log('[消息中心] 🗳️ 平票，进入第二轮');
+        debugLog('[消息中心] 🗳️ 平票，进入第二轮');
         this.aliveVoters.forEach((pid) => {
           sim.notifyPlayer(pid, { type: 'vote', source: 'system', payload: { round: 2, candidates: this.round2Candidates } });
         });
         return true;
       }
-      console.log('[消息中心] 🗳️ 投票结束 (Round 1)');
+      debugLog('[消息中心] 🗳️ 投票结束 (Round 1)');
       return false;
     }
   }

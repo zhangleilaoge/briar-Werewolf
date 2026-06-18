@@ -27,14 +27,17 @@ src/
     GameApp.tsx        # 主游戏界面
     SetupPanel.tsx     # 开局配置面板
     useGameRunner.ts   # 游戏状态管理 Hook
+    ui-utils.ts        # UI 工具函数（角色名映射、颜色、标签）
   pages/
     index.astro        # 入口页面
   lib/
     ai/                # AI 系统和数据模型
       types.ts          # 核心类型定义（角色、属性、道具、检定等）
       constants.ts      # 游戏常量（魔法值全部提取到这里）
+      game-utils.ts     # 游戏工具函数（检定、道具操作、属性生成）
+      data-definitions.ts # 数据定义常量（阵营名、道具定义、职业信息、特质）
       ai-agent.ts       # AI 智能体封装
-      belief-system.ts  # 三层信念系统（L0/L1/L2/L3）
+      belief-system.ts  # 四层信念系统（L0/L1/L2/L3）
       strategies/       # 策略体系
         engine.ts       # 决策引擎
         index.ts        # 策略注册
@@ -76,7 +79,7 @@ doc/                    # 设计文档
 
 ## 关键设计模式
 
-### 1. 三层信念系统 (BeliefSystem)
+### 1. 四层信念系统 (BeliefSystem)
 
 每个 AI 拥有四层认知层次：
 - **L0**: 原始事实（查验结果、死亡记录、公开宣称）
@@ -89,25 +92,24 @@ doc/                    # 设计文档
 策略按优先级执行：Duty > Survival > Information > Social
 每个策略返回候选行动列表，引擎综合评分选出最终行动。
 
-### 3. 步骤队列 (Step Queue)
+### 3. Tick-Based 并发 Actor 模型 (替代旧版步骤队列)
 
-游戏不使用传统的轮次循环，而是将所有阶段拆分为可逐个执行的步骤队列：
-- `phase`: 阶段切换
-- `night_action`: 夜间行动
-- `night_resolve`: 夜间结算
-- `morning_event`: 早晨事件
-- `day_action`: 白天行动
-- `appendix_action`: 追加行动
-- `vote_action`: 投票行动
-- `vote_resolve`: 投票结算
-- `check_win`: 胜利检查
+游戏使用 Tick 引擎 + Actor 状态机 + EventBus：
+- `GameSimulator.tick()` 每次调用推进一个 tick
+- 每个玩家是一个 Actor，状态：`idle → thinking → acting → idle`
+- PhaseController 子类管理各阶段逻辑（Day/Night/Vote/Morning/CheckWin）
+- EventBus 解耦事件发送和接收，支持追加行动反应
 
-### 4. 原型方法重构为类方法
+### 4. PhaseController 模式
 
-所有 simulator 文件已从 prototype 模式重构为独立函数 + 类委托模式：
-- `simulator-*.ts` 导出纯函数，接收 `sim: GameSimulator` 作为第一个参数
-- `simulator-core.ts` 中的 `GameSimulator` 类通过私有方法委托调用这些函数
-- 好处：避免原型链污染、易于测试、模块边界清晰
+各阶段由 PhaseController 子类管理：
+- `DayPhaseController`: 顺序发言，追加行动反应
+- `NightPhaseController`: 分组行动（狼人→预言家→窃贼→验尸官）
+- `VotePhaseController`: 两轮投票
+- `MorningPhaseController`: 早晨事件（单 tick 同步）
+- `CheckWinPhaseController`: 胜利检查
+
+`simulator-*.ts` 导出纯函数，由 PhaseController 调用。
 
 ---
 
@@ -131,7 +133,7 @@ doc/                    # 设计文档
 对抗检定 = 双方分别计算后比较
 ```
 
-阵营修正和压力修正已完整实现，见 `types.ts` 中的 `calculateFinalModifier()` 和 `performOpposedCheck()`。
+阵营修正和压力修正已完整实现，见 `game-utils.ts` 中的 `calculateFinalModifier()` 和 `performOpposedCheck()`。
 
 ---
 
@@ -206,6 +208,11 @@ npm run build
 - [x] 魔法值全部提取到 constants.ts
 - [x] 原型方法重构为类委托模式
 - [x] 压力过载系统设计文档
+- [x] types.ts 拆分（game-utils + data-definitions）
+- [x] tick 循环 try-catch 安全保护
+- [x] stuck-actor 超时安全阀
+- [x] console.log DEBUG 开关
+- [x] 死代码清理（GameStore.tsx、未使用接口、useGameRunner 无用变量）
 
 ### 待实现功能
 - [ ] 压力过载系统代码实现（美德/affliction）
@@ -229,7 +236,7 @@ npm run build
 
 ## 技术债务
 
-1. **simulator 文件仍需更多魔法值替换**: 虽然策略文件的魔法值已提取，但 simulator 文件（simulator-day.ts 等）中仍有大量硬编码数字（如压力变化值、关系变化值、检定难度等）。这些也应逐步替换为 constants.ts 中的常量。
+1. **simulator 文件仍有部分魔法值**: 策略文件和 day.ts 的评分已提取到 constants.ts，但 simulator 文件（simulator-night.ts 等）中仍有少量硬编码数字。这些也应逐步替换为 constants.ts 中的常量。
 2. **追加行动窗口的日志不够详细**: 当前反驳、一同怀疑的日志较简略，应增加检定结果的具体数值展示。
 3. **性能优化**: 当玩家数量 > 10 时，AI 推理（特别是 L2 Theory of Mind）的计算量可能较大。未来可考虑 Web Worker 或推理缓存。
 4. **类型安全**: 部分 `details` 对象使用 `Record<string, unknown>`，可进一步收紧为联合类型。
@@ -245,7 +252,7 @@ npm run build
 ### 新增职业/道具
 
 1. 在 `doc/content/professions.md` 或 `items.md` 中设计
-2. 在 `ai/types.ts` 中更新类型定义和 ROLE_INFO/ITEM_DEFINITIONS
+2. 在 `ai/data-definitions.ts` 中更新 ROLE_INFO/ITEM_DEFINITIONS 数据定义，在 `ai/types.ts` 中更新类型
 3. 在 `ai/constants.ts` 中新增相关常量
 4. 在 `ai/strategies/` 中新增对应的策略
 5. 在 `simulator-*.ts` 中新增对应的结算逻辑

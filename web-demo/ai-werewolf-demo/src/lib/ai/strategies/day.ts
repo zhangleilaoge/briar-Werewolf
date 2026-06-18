@@ -3,6 +3,14 @@ import {
   WEREWOLF_PROBABILITY_HIGH, WEREWOLF_PROBABILITY_LOW, EXPOSURE_HIGH_THRESHOLD,
   SCORE_BERSERKER_SUICIDE, SCORE_MAX_INFO_VOTE, RELATION_MAX, SILENCE_NEAR_FULL_THRESHOLD,
   SCORE_WEREWOLF_VOTE_DUTY,
+  SCORE_PROPHET_CLAIM, SCORE_PROPHET_CALL_VOTE, SCORE_DEFEND_ATTACKED, SCORE_DEFEND_ATTACKED_BONUS,
+  SCORE_SELF_GUARANTEE, SCORE_HIGH_SUSPECT_ACCUSE, SCORE_HIGH_SUSPECT_SUSPECT, SCORE_HIGH_SUSPECT_CALL_VOTE,
+  SCORE_BEHAVIOR_OBSERVE, SCORE_FOLLOW_TRUSTED, SCORE_BREAK_SILENCE,
+  SCORE_DEFAULT_ROUND1_OBSERVE, SCORE_DEFAULT_ROUND1_SPEAK, SCORE_DEFAULT_OTHER_OBSERVE, SCORE_DEFAULT_OTHER_SPEAK,
+  SCORE_WW_DEFEND_ATTACKED_ACCUSE, SCORE_WW_DEFEND_ATTACKED_SUSPECT,
+  SCORE_WW_CAMOUFLAGE_BASE, SCORE_WW_CAMOUFLAGE_BONUS,
+  SCORE_WW_TEAMMATE_EXPOSED_GOUGE, SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
+  SCORE_WW_BREAK_SILENCE, SCORE_WW_DEFAULT_ROUND1_TARGET, SCORE_WW_DEFAULT_ROUND1, SCORE_WW_DEFAULT_OTHER,
 } from '../constants';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
 import type { BeliefSystem } from '../belief-system';
@@ -127,7 +135,6 @@ function getWerewolfAttackReason(
 
   return reasons.length > 0 ? reasons.join('，') : '行为可疑';
 }
-
 // ---------- Villager: Rich Day Strategy with Real Motivations ----------
 export const VillagerDayStrategy: Strategy = {
   name: 'villager_day',
@@ -155,7 +162,7 @@ export const VillagerDayStrategy: Strategy = {
             result.push({
               action: 'claim_identity',
               target: targetId,
-              score: 1000,
+              score: SCORE_PROPHET_CLAIM,
               confidence: 1.0,
               reason: `我查验了${target.name}，结果是狼人！作为预言家我必须公布身份。`,
               details: { claimedRole: 'prophet', checkResult, checkTarget: targetId },
@@ -166,7 +173,7 @@ export const VillagerDayStrategy: Strategy = {
             result.push({
               action: 'call_vote',
               target: targetId,
-              score: 950,
+              score: SCORE_PROPHET_CALL_VOTE,
               confidence: 1.0,
               reason: `${target.name}已被我查验为狼人，号召大家投票！`,
               strategy: 'VillagerDayStrategy',
@@ -187,7 +194,7 @@ export const VillagerDayStrategy: Strategy = {
       result.push({
         action: 'accuse',
         target: attacker.id,
-        score: 100 + (attackerWolfProb > 0.5 ? 30 : 0),
+        score: SCORE_DEFEND_ATTACKED + (attackerWolfProb > 0.5 ? SCORE_DEFEND_ATTACKED_BONUS : 0),
         confidence: 0.7,
         reason: `${attacker.name}在攻击我，我觉得他才是狼人！${getWerewolfAttackReason(belief, attacker.id, actions, allPlayers)}。`,
         strategy: 'VillagerDayStrategy',
@@ -197,7 +204,7 @@ export const VillagerDayStrategy: Strategy = {
       result.push({
         action: 'guarantee',
         target: self.id,
-        score: 70,
+        score: SCORE_SELF_GUARANTEE,
         confidence: 0.5,
         reason: `我需要证明自己的清白。${attacker.name}的指控没有依据。`,
         strategy: 'VillagerDayStrategy',
@@ -216,7 +223,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'accuse',
             target: topSuspect.id,
-            score: 130,
+            score: SCORE_HIGH_SUSPECT_ACCUSE,
             confidence: topSuspect.werewolfProb,
             reason: `我强烈怀疑${target.name}是狼人！${reason}。狼概率${(topSuspect.werewolfProb * 100).toFixed(0)}%。`,
             strategy: 'VillagerDayStrategy',
@@ -227,7 +234,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'suspect',
             target: topSuspect.id,
-            score: 100,
+            score: SCORE_HIGH_SUSPECT_SUSPECT,
             confidence: topSuspect.werewolfProb,
             reason: `我觉得${target.name}很可疑。${reason}。狼概率${(topSuspect.werewolfProb * 100).toFixed(0)}%。`,
             strategy: 'VillagerDayStrategy',
@@ -240,7 +247,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'call_vote',
             target: topSuspect.id,
-            score: 110,
+            score: SCORE_HIGH_SUSPECT_CALL_VOTE,
             confidence: topSuspect.werewolfProb,
             reason: `${target.name}嫌疑很高，我号召大家投票。${reason}。`,
             strategy: 'VillagerDayStrategy',
@@ -266,7 +273,7 @@ export const VillagerDayStrategy: Strategy = {
       result.push({
         action: 'observe',
         target: observeTarget.id,
-        score: 75,
+        score: SCORE_BEHAVIOR_OBSERVE,
         confidence: 0.5,
         reason: `我注意到${observeTarget.name}${behaviorReasons.join('，')}，行为异常，想暗中观察他获取更多情报。`,
         strategy: 'VillagerDayStrategy',
@@ -284,7 +291,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'call_vote',
             target: caller.targetId,
-            score: 85,
+            score: SCORE_FOLLOW_TRUSTED,
             confidence: 0.6,
             reason: `${callerName}号召投票给${target.name}，我信任他的判断，跟票。`,
             strategy: 'VillagerDayStrategy',
@@ -300,7 +307,7 @@ export const VillagerDayStrategy: Strategy = {
       result.push({
         action: 'speak',
         target: null,
-        score: 95,
+        score: SCORE_BREAK_SILENCE,
         confidence: 0.7,
         reason: `快全员沉默了，我必须说点什么推动讨论。`,
         strategy: 'VillagerDayStrategy',
@@ -320,7 +327,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'observe',
             target: randomTarget.id,
-            score: 50,
+            score: SCORE_DEFAULT_ROUND1_OBSERVE,
             confidence: 0.3,
             reason: `第一天信息不足，我打算观察${randomTarget.name}获取更多情报。`,
             strategy: 'VillagerDayStrategy',
@@ -332,7 +339,7 @@ export const VillagerDayStrategy: Strategy = {
           result.push({
             action: 'observe',
             target: randomTarget.id,
-            score: 50,
+            score: SCORE_DEFAULT_OTHER_OBSERVE,
             confidence: 0.3,
             reason: `目前没什么明确线索，我打算观察${randomTarget.name}获取更多情报。`,
             strategy: 'VillagerDayStrategy',
@@ -346,7 +353,7 @@ export const VillagerDayStrategy: Strategy = {
         result.push({
           action: 'speak',
           target: null,
-          score: 40,
+          score: SCORE_DEFAULT_ROUND1_SPEAK,
           confidence: 0.3,
           reason: `第一天信息不足，我先听听大家的发言。`,
           strategy: 'VillagerDayStrategy',
@@ -357,7 +364,7 @@ export const VillagerDayStrategy: Strategy = {
         result.push({
           action: 'speak',
           target: null,
-          score: 40,
+          score: SCORE_DEFAULT_OTHER_SPEAK,
           confidence: 0.3,
           reason: `目前没什么明确线索，先看看大家的发言。`,
           strategy: 'VillagerDayStrategy',
@@ -370,7 +377,6 @@ export const VillagerDayStrategy: Strategy = {
     return result.sort((a, b) => b.score - a.score);
   },
 };
-
 // ---------- Werewolf: Rich Camouflage Strategy with Real Motivations ----------
 export const WerewolfCamouflageStrategy: Strategy = {
   name: 'werewolf_camouflage',
@@ -390,7 +396,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         result.push({
           action: 'accuse',
           target: attacker.id,
-          score: 130,
+          score: SCORE_WW_DEFEND_ATTACKED_ACCUSE,
           confidence: 0.8,
           reason: `${attacker.name}在攻击我，我觉得他才是狼人！${getWerewolfAttackReason(belief, attacker.id, actions, allPlayers)}。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -400,7 +406,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         result.push({
           action: 'suspect',
           target: attacker.id,
-          score: 100,
+          score: SCORE_WW_DEFEND_ATTACKED_SUSPECT,
           confidence: 0.7,
           reason: `我怀疑${attacker.name}，他的攻击没有依据。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -424,7 +430,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         result.push({
           action: 'suspect',
           target: target.id,
-          score: 70 + targetSuspicion * 10,
+          score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
           confidence: 0.6,
           reason: `我觉得${target.name}有点可疑，${fakeReason}。大家注意观察。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -437,16 +443,14 @@ export const WerewolfCamouflageStrategy: Strategy = {
     // 3. 队友暴露 -> 袒护/切割
     const teammates = allPlayers.filter(p => p.id !== self.id && p.alive && p.team === 'werewolf');
     teammates.forEach(teammate => {
-      const exposure = Object.values(belief.l2TheoryOfMind.othersBeliefs).reduce(
-        (sum, b) => sum + (b[teammate.id] ?? 0), 0
-      );
+      const exposure = belief.getPlayerExposure(teammate.id);
       if (exposure > EXPOSURE_HIGH_THRESHOLD) {
         if (exposure > 0.8 && belief.getExposure() < 0.5) {
           // 倒钩：反咬队友
           result.push({
             action: 'suspect',
             target: teammate.id,
-            score: 90,
+            score: SCORE_WW_TEAMMATE_EXPOSED_GOUGE,
             confidence: 0.7,
             reason: `我怀疑${teammate.name}，他行为太可疑了，不像是好人。`,
             strategy: 'WerewolfCamouflageStrategy',
@@ -457,7 +461,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         result.push({
           action: 'defend',
           target: teammate.id,
-          score: 60,
+          score: SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
           confidence: 0.5,
           reason: `我觉得${teammate.name}被冤枉了，大家再想想。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -472,7 +476,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
       result.push({
         action: 'speak',
         target: null,
-        score: 90,
+        score: SCORE_WW_BREAK_SILENCE,
         confidence: 0.7,
         reason: `快全员沉默了，我得当个好人样打破沉默。`,
         strategy: 'WerewolfCamouflageStrategy',
@@ -490,7 +494,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           result.push({
             action: 'speak',
             target: random.id,
-            score: 55,
+            score: SCORE_WW_DEFAULT_ROUND1_TARGET,
             confidence: 0.5,
             reason: `第一天信息不多，我先观察${random.name}，看看他有什么表现。`,
             strategy: 'WerewolfCamouflageStrategy',
@@ -502,7 +506,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           result.push({
             action: 'speak',
             target: null,
-            score: 50,
+            score: SCORE_WW_DEFAULT_ROUND1,
             confidence: 0.5,
             reason: `第一天信息不多，我先看看局势。`,
             strategy: 'WerewolfCamouflageStrategy',
@@ -514,7 +518,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         result.push({
           action: 'speak',
           target: null,
-          score: 50,
+          score: SCORE_WW_DEFAULT_OTHER,
           confidence: 0.5,
           reason: `我也没什么头绪，先看看大家怎么说。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -527,7 +531,6 @@ export const WerewolfCamouflageStrategy: Strategy = {
     return result.sort((a, b) => b.score - a.score);
   },
 };
-
 // ---------- Prophet: Claim Check Results ----------
 export const ProphetClaimStrategy: Strategy = {
   name: 'prophet_claim',

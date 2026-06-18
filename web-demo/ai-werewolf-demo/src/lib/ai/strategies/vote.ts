@@ -50,9 +50,7 @@ export const WerewolfVoteDutyStrategy: Strategy = {
     const teammates = allPlayers.filter((p) => p.id !== context.self.id && p.alive && p.team === 'werewolf');
 
     teammates.forEach((teammate) => {
-      const exposure = Object.values(belief.l2TheoryOfMind.othersBeliefs).reduce(
-        (sum, b) => sum + (b[teammate.id] ?? 0), 0
-      );
+      const exposure = belief.getPlayerExposure(teammate.id);
       if (exposure > EXPOSURE_CRITICAL_THRESHOLD) {
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(context.self, 'vote', teammate.id);
         result.push({
@@ -201,9 +199,7 @@ export const SurvivalVoteStrategy: Strategy = {
   evaluate(context) {
     const { belief, self, allPlayers } = context;
     const result: import('../types').DecisionCandidate[] = [];
-    const myExposure = Object.values(belief.l2TheoryOfMind.othersBeliefs).reduce(
-      (sum, b) => sum + (b[self.id] ?? 0), 0
-    ) / Math.max(1, Object.keys(belief.l2TheoryOfMind.othersBeliefs).length);
+    const myExposure = belief.getPlayerExposure(self.id);
 
     if (myExposure > EXPOSURE_HIGH_THRESHOLD) {
       const alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive);

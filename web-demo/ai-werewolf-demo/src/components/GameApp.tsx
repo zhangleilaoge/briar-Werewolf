@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
-import type { GameLogItem, Player, ItemInstance, CheckLog, ActionLogDetail, DecisionProcess } from '../lib/ai/types';
-import { getAlignmentName, ITEM_DEFINITIONS } from '../lib/ai/types';
+import type { ActionLogDetail, DecisionProcess } from '../lib/ai/types';
+import { getAlignmentName } from '../lib/ai/types';
+import { roleNameMap, getLogColor, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel } from './ui-utils';
 import type { PlayerState } from './useGameRunner';
 
 export default function GameApp() {
@@ -32,68 +33,6 @@ export default function GameApp() {
 
   const werewolfCount = game.players.filter((p) => p.team === 'werewolf' && p.alive).length;
   const villagerCount = game.players.filter((p) => p.team !== 'werewolf' && p.alive).length;
-
-  const roleNameMap: Record<string, string> = {
-    werewolf: '狼人',
-    lone_wolf: '孤狼',
-    berserker: '狂狼',
-    villager: '村民',
-    prophet: '预言家',
-    thief: '窃贼',
-    coroner: '验尸官',
-  };
-
-  const getLogColor = (type: GameLogItem['type']) => {
-    switch (type) {
-      case 'phase': return 'text-blue-400';
-      case 'action': return 'text-yellow-300';
-      case 'death': return 'text-red-400 font-bold';
-      case 'victory': return 'text-green-400 font-bold';
-      case 'check': return 'text-purple-400';
-      case 'relation': return 'text-pink-400';
-      case 'stress': return 'text-orange-400';
-      case 'item': return 'text-cyan-400';
-      case 'thinking': return 'text-yellow-400 animate-pulse';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const itemLabel = (item: ItemInstance) => {
-    const def = ITEM_DEFINITIONS[item.definitionId];
-    return `${def?.name || item.definitionId}${item.durability > 0 ? '' : ' [损坏]'}`;
-  };
-
-  const attributeLabel = (key: string) => {
-    const labels: Record<string, string> = {
-      affinity: '亲和', logic: '逻辑', leadership: '领导',
-      deception: '诡诈', stealth: '隐蔽', insight: '洞察',
-    };
-    return labels[key] || key;
-  };
-
-  const attributeColor = (value: number) => {
-    if (value >= 8) return 'text-green-400';
-    if (value >= 6) return 'text-green-300';
-    if (value >= 4) return 'text-yellow-300';
-    return 'text-red-300';
-  };
-
-  const stressColor = (value: number) => {
-    if (value <= -5) return 'text-blue-400';
-    if (value <= 2) return 'text-green-400';
-    if (value <= 5) return 'text-yellow-400';
-    if (value <= 8) return 'text-orange-400';
-    return 'text-red-400 font-bold';
-  };
-
-  const stressLabel = (value: number) => {
-    if (value <= -7) return '极度冷静';
-    if (value <= -3) return '冷静';
-    if (value <= 2) return '正常';
-    if (value <= 5) return '轻微紧张';
-    if (value <= 8) return '明显焦虑';
-    return '高度紧张';
-  };
 
 
   return (
@@ -185,7 +124,7 @@ export default function GameApp() {
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
             {game.logs.map((log, idx) => {
               const detail = log.details as ActionLogDetail | undefined;
-              const hasExtra = detail && ((detail.checks && detail.checks.length > 0) || (detail as any).process);
+              const hasExtra = detail && ((detail.checks && detail.checks.length > 0) || (detail as Record<string, unknown>).process);
               const expanded = isLogExpanded(idx);
               return (
                 <div key={idx} className={`text-sm font-mono ${getLogColor(log.type)}`}>
@@ -209,9 +148,9 @@ export default function GameApp() {
                       </div>
                       {expanded && hasExtra && (
                         <div className="mt-1 ml-4 text-xs text-gray-400 space-y-1 border-l-2 border-gray-700 pl-3">
-                          {(detail as any).process && (
+                          {(detail as Record<string, unknown>).process && (
                             <div className="space-y-0.5 text-xs text-gray-500 whitespace-pre-wrap font-mono">
-                              {((detail as any).process as DecisionProcess).shortlist.split('\n').map((line, i) => {
+                              {((detail as Record<string, unknown>).process as DecisionProcess).shortlist.split('\n').map((line, i) => {
                                 if (!line.trim()) return <div key={i} className="h-1" />;
                                 if (line.startsWith('✓') || line.startsWith('○')) {
                                   const isSelected = line.startsWith('✓');

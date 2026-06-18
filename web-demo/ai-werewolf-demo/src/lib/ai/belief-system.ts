@@ -460,16 +460,17 @@ export class BeliefSystem {
   }
 
   getExposure(): number {
-    return this._calculateExposure();
+    return this.getPlayerExposure(this.playerId);
   }
 
-  private _calculateExposure(): number {
+  /** 计算任意玩家在其他人眼中的平均暴露度 */
+  getPlayerExposure(playerId: string): number {
     const beliefs = this.l2TheoryOfMind.othersBeliefs;
     const entries = Object.entries(beliefs);
     if (entries.length === 0) return 0;
     let total = 0;
     entries.forEach(([, b]) => {
-      total += b[this.playerId] ?? 0;
+      total += b[playerId] ?? 0;
     });
     return total / entries.length;
   }

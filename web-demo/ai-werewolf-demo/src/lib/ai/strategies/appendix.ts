@@ -1,4 +1,5 @@
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
+import { SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS, SCORE_JOIN_DEFEND_BASE, SCORE_JOIN_DEFEND_WOLF_BONUS, SCORE_REBUT_WEREWOLF, SCORE_REBUT_VILLAGER } from '../constants';
 import type { Strategy, StrategyContext } from './engine';
 
 // ---------- Join Suspect (appendix) ----------
@@ -13,8 +14,7 @@ export const JoinSuspectStrategy: Strategy = {
     const joinAction = availableActions.find((a) => a.type === 'join_suspect');
     if (!joinAction) return result;
 
-    // @ts-ignore
-    const originalTargetId = joinAction.originalTargetId as string;
+    const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
     const target = allPlayers.find((p) => p.id === originalTargetId);
     if (!target || !target.alive) return result;
 
@@ -24,7 +24,7 @@ export const JoinSuspectStrategy: Strategy = {
       result.push({
         action: 'join_suspect',
         target: originalTargetId,
-        score: wolfProb * 80 + (self.team === 'werewolf' ? 30 : 0) + scoreDelta,
+        score: wolfProb * SCORE_JOIN_SUSPECT_BASE + (self.team === 'werewolf' ? SCORE_JOIN_SUSPECT_WOLF_BONUS : 0) + scoreDelta,
         confidence: 0.6,
         reason: `附和怀疑${target.name}，狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}`,
         strategy: 'JoinSuspectStrategy',
@@ -49,8 +49,7 @@ export const JoinDefendStrategy: Strategy = {
     const joinAction = availableActions.find((a) => a.type === 'join_defend');
     if (!joinAction) return result;
 
-    // @ts-ignore
-    const originalTargetId = joinAction.originalTargetId as string;
+    const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
     const target = allPlayers.find((p) => p.id === originalTargetId);
     if (!target || !target.alive) return result;
 
@@ -60,7 +59,7 @@ export const JoinDefendStrategy: Strategy = {
       result.push({
         action: 'join_defend',
         target: originalTargetId,
-        score: relation.friendly * 10 + (self.team === 'werewolf' && target.team === 'werewolf' ? 40 : 0) + scoreDelta,
+        score: relation.friendly * SCORE_JOIN_DEFEND_BASE + (self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0) + scoreDelta,
         confidence: 0.6,
         reason: `联合辩护${target.name}，友好度${relation.friendly.toFixed(1)}${reason}`,
         strategy: 'JoinDefendStrategy',
@@ -85,14 +84,13 @@ export const RebutStrategy: Strategy = {
     const rebutAction = availableActions.find((a) => a.type === 'rebut');
     if (!rebutAction) return result;
 
-    // @ts-ignore
-    const originalActorId = rebutAction.originalActorId as string;
+    const originalActorId = (rebutAction as Record<string, unknown>).originalActorId as string;
     const actor = allPlayers.find((p) => p.id === originalActorId);
     if (!actor) return result;
 
     // Always rebut if accused, but with varying confidence
     const myWolfProb = belief.getWerewolfProbability(self.id);
-    const score = self.team === 'werewolf' ? 70 : 90; // villagers rebut harder
+    const score = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER; // villagers rebut harder
     const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'rebut', originalActorId);
     result.push({
       action: 'rebut',

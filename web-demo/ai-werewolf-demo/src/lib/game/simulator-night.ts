@@ -1,7 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '../ai/types';
 import { hasItem, damageItem, canUseItem, ITEM_DEFINITIONS, addItem } from '../ai/types';
-import { getName, log, logAction } from './simulator-utils';
+import { getName, log, logAction, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
   if (!player.alive) return;
@@ -172,9 +172,4 @@ export function resolveNightActions(sim: GameSimulator) {
     const agent = sim._aiAgents[p.id];
     if (agent) agent.onEvent({ type: 'death', playerId: target.id });
   });
-}
-
-// Helper needed for getPublicPlayerStates
-function getPublicPlayerStates(sim: GameSimulator): Player[] {
-  return sim.players.map((p) => ({ ...p }));
 }

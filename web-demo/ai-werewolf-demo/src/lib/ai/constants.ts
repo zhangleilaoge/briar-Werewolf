@@ -107,6 +107,43 @@ export const CHECK_DIFFICULTY_BLOCK_VOTE = CHECK_DIFFICULTY_MEDIUM;
 export const CHECK_DIFFICULTY_GUARANTEE = CHECK_DIFFICULTY_MEDIUM;
 export const CHECK_DIFFICULTY_EXCLUDE_ALL = CHECK_DIFFICULTY_HARD;
 
+// ---------- Strategy Scores (Day) ----------
+export const SCORE_PROPHET_CLAIM = 1000;
+export const SCORE_PROPHET_CALL_VOTE = 950;
+export const SCORE_DEFEND_ATTACKED = 100;
+export const SCORE_DEFEND_ATTACKED_BONUS = 30;
+export const SCORE_SELF_GUARANTEE = 70;
+export const SCORE_HIGH_SUSPECT_ACCUSE = 130;
+export const SCORE_HIGH_SUSPECT_SUSPECT = 100;
+export const SCORE_HIGH_SUSPECT_CALL_VOTE = 110;
+export const SCORE_BEHAVIOR_OBSERVE = 75;
+export const SCORE_FOLLOW_TRUSTED = 85;
+export const SCORE_BREAK_SILENCE = 95;
+export const SCORE_DEFAULT_ROUND1_OBSERVE = 50;
+export const SCORE_DEFAULT_ROUND1_SPEAK = 40;
+export const SCORE_DEFAULT_OTHER_OBSERVE = 50;
+export const SCORE_DEFAULT_OTHER_SPEAK = 40;
+
+// ---------- Strategy Scores (Werewolf Day) ----------
+export const SCORE_WW_DEFEND_ATTACKED_ACCUSE = 130;
+export const SCORE_WW_DEFEND_ATTACKED_SUSPECT = 100;
+export const SCORE_WW_CAMOUFLAGE_BASE = 70;
+export const SCORE_WW_CAMOUFLAGE_BONUS = 10;
+export const SCORE_WW_TEAMMATE_EXPOSED_GOUGE = 90;
+export const SCORE_WW_TEAMMATE_EXPOSED_DEFEND = 60;
+export const SCORE_WW_BREAK_SILENCE = 90;
+export const SCORE_WW_DEFAULT_ROUND1_TARGET = 55;
+export const SCORE_WW_DEFAULT_ROUND1 = 50;
+export const SCORE_WW_DEFAULT_OTHER = 50;
+
+// ---------- Strategy Scores (Appendix) ----------
+export const SCORE_JOIN_SUSPECT_BASE = 80;
+export const SCORE_JOIN_SUSPECT_WOLF_BONUS = 30;
+export const SCORE_JOIN_DEFEND_BASE = 10;
+export const SCORE_JOIN_DEFEND_WOLF_BONUS = 40;
+export const SCORE_REBUT_WEREWOLF = 70;
+export const SCORE_REBUT_VILLAGER = 90;
+
 // ---------- Empty-kill Chance ----------
 export const EMPTY_KILL_CHANCE = 0.1;
 
