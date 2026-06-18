@@ -140,12 +140,17 @@ export function resolveDayAction(
         { roll: discoveredResult.targetRoll, total: discoveredResult.targetTotal }
       ));
 
+      // 始终先输出 a观察了b
+      logAction(sim, 'action', `${actor.name} 观察了 ${targetName}`, decisionReason, checks, { actorId: actor.id, action: 'observe', targetId, process });
+
       if (discoveredResult.success && target) {
-        logAction(sim, 'action', `${actor.name} 的观察被 ${targetName} 察觉！`, decisionReason, checks, { actorId: actor.id, action: 'observe', targetId , process });
+        // 目标b察觉到了
+        logAction(sim, 'action', `${targetName} 察觉到 ${actor.name} 在观察自己`, '', [], { actorId: target.id, action: 'observe_detected', targetId: actor.id, process });
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
       } else {
-        logAction(sim, 'action', `${actor.name} 的观察未被发现。`, decisionReason, checks, { actorId: actor.id, action: 'observe', targetId , process });
+        // 目标b未察觉到
+        logAction(sim, 'action', `${targetName} 未察觉到 ${actor.name} 正在观察 ${targetName}`, '', [], { actorId: target.id, action: 'observe_detected', targetId: actor.id, process });
       }
       // 是否被其他旁观者发现
       sim.players.forEach((observer) => {

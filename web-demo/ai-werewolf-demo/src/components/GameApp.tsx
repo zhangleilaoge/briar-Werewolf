@@ -4,7 +4,7 @@ import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
 import type { ActionLogDetail, DecisionProcess } from '@/types';
 import { getAlignmentName } from '@/types';
-import { roleNameMap, getLogColor, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel } from './ui-utils';
+import { roleNameMap, getLogColor, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel, highlightNames } from './ui-utils';
 import type { PlayerState } from './useGameRunner';
 
 export default function GameApp() {
@@ -126,16 +126,46 @@ export default function GameApp() {
               const detail = log.details as ActionLogDetail | undefined;
               const hasExtra = detail && ((detail.checks && detail.checks.length > 0) || (detail as Record<string, unknown>).process);
               const expanded = isLogExpanded(idx);
+              // 从 details 中提取需要高亮的玩家ID，避免遍历所有玩家做字符串硬匹配
+              const _mentions = (detail as any)?.mentions as string[] | undefined;
+              const _playerId = (detail as any)?.playerId as string | undefined;
+              const mentionIds = _mentions ?? [
+                detail?.actorId,
+                detail?.targetId,
+                _playerId,
+              ].filter(Boolean) as string[];
+              const playersToHighlight = game.players.filter(p => mentionIds.includes(p.id));
+
               return (
-                <div key={idx} className={`text-sm font-mono ${getLogColor(log.type)}`}>
+                <div key={idx} className={`text-sm font-mono ${getLogColor(log.type, (log.details as ActionLogDetail)?.action)}`}>
                   {log.type === 'thinking' ? (
                     <div className="flex items-center gap-1">
-                      <span>{log.message}</span>
+                      <span>
+                        {highlightNames(log.message, playersToHighlight).map((part, pi) =>
+                          part.isName ? (
+                            <span key={pi} className={`font-bold ${part.team === 'werewolf' ? 'text-red-200' : 'text-blue-200'}`}>
+                              {part.text}
+                            </span>
+                          ) : (
+                            <span key={pi}>{part.text}</span>
+                          )
+                        )}
+                      </span>
                     </div>
                   ) : (
                     <>
                       <div className="flex items-center gap-1">
-                        <span>{log.message}</span>
+                        <span>
+                          {highlightNames(log.message, playersToHighlight).map((part, pi) =>
+                            part.isName ? (
+                              <span key={pi} className={`font-bold ${part.team === 'werewolf' ? 'text-red-200' : 'text-blue-200'}`}>
+                                {part.text}
+                              </span>
+                            ) : (
+                              <span key={pi}>{part.text}</span>
+                            )
+                          )}
+                        </span>
                         {hasExtra && (
                           <button
                             className="text-gray-500 hover:text-gray-300 shrink-0 select-none inline-flex items-center"

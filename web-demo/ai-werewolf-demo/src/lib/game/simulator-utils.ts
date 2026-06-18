@@ -38,6 +38,8 @@ export function logAction(
   meta: { actorId: string; action: string; targetId?: string | null; [key: string]: unknown }
 ) {
   const time = formatTime();
+  // 自动从 meta 中提取涉及的玩家ID，避免在 UI 中硬匹配所有玩家名字
+  const mentions = [meta.actorId, meta.targetId].filter(Boolean) as string[];
   const item = {
     round: sim.round,
     phase: sim.phase,
@@ -46,6 +48,7 @@ export function logAction(
     details: {
       decisionReason,
       checks,
+      mentions,
       ...meta,
     } as ActionLogDetail,
   };

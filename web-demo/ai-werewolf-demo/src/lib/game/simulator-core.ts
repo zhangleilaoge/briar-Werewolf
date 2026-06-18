@@ -360,9 +360,9 @@ export class GameSimulator {
     if (actor && actor.state === 'idle') {
       actor.state = 'thinking';
       const player = this.players.find((p) => p.id === playerId);
-      // day_turn: 立即执行（AI 决策已完成，无需额外思考时间）
+      // 白天发言: 个性化思考时间（1-3秒基础，受角色属性影响）
       // 其他事件: 个性化思考时间（反应/投票/夜间行动）
-      actor.thinkCountdown = event.type === 'day_turn' ? 0 : (player ? calculateThinkTime(player) : 1000);
+      actor.thinkCountdown = player ? calculateThinkTime(player) : 1000;
       actor.pendingEvent = event;
     } else {
       debugLog(`[消息中心] ⚠️ ${playerId} 状态=${actor?.state}，无法接收 ${event.type}`);

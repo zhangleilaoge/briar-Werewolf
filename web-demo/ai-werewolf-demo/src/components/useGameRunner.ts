@@ -64,9 +64,7 @@ export function useGameRunner() {
 
     if (!pausedRef.current && phaseRef.current !== 'ended') {
       const tickRate = (sim.getCurrentTickRate?.() ?? 2000);
-      // 如果所有玩家 idle，立即执行下一个 tick（不用等待）
-      const allIdle = sim.areAllActorsIdle?.() ?? false;
-      const delay = allIdle ? 0 : tickRate / speedRef.current;
+      const delay = tickRate / speedRef.current;
       timerRef.current = setTimeout(runNextStep, delay);
     }
   }, [syncFromSimulator]);

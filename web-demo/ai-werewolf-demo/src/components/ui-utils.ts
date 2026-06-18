@@ -11,12 +11,40 @@ export const roleNameMap: Record<string, string> = {
   coroner: '验尸官',
 };
 
-export const getLogColor = (type: GameLogItem['type']) => {
+const ACTION_LOG_COLORS: Record<string, string> = {
+  // 红色：杀人相关
+  kill: 'text-red-400 font-bold',
+  berserker_kill: 'text-red-400 font-bold',
+  // 黄色：指认、投票、指控、声明
+  accuse: 'text-yellow-300',
+  suspect: 'text-yellow-300',
+  call_vote: 'text-yellow-300',
+  block_vote: 'text-yellow-300',
+  exclude_all: 'text-yellow-300',
+  claim_identity: 'text-yellow-300',
+  reveal_info: 'text-yellow-300',
+  vote: 'text-yellow-300',
+  // 绿色：日常行动、侦查、特殊能力
+  observe: 'text-green-300',
+  speak: 'text-green-300',
+  thank: 'text-green-300',
+  defend: 'text-green-300',
+  guarantee: 'text-green-300',
+  check: 'text-green-300',
+  steal: 'text-green-300',
+  inspect: 'text-green-300',
+  // 白色：察觉、反应
+  observe_detected: 'text-white',
+  // 灰色：沉默
+  silence: 'text-gray-400',
+};
+
+export const getLogColor = (type: GameLogItem['type'], action?: string) => {
   switch (type) {
-    case 'phase': return 'text-blue-400';
-    case 'action': return 'text-yellow-300';
     case 'death': return 'text-red-400 font-bold';
+    case 'phase': return 'text-blue-400';
     case 'victory': return 'text-green-400 font-bold';
+    case 'action': return ACTION_LOG_COLORS[action || ''] || 'text-yellow-300';
     case 'check': return 'text-purple-400';
     case 'relation': return 'text-pink-400';
     case 'stress': return 'text-orange-400';
@@ -29,6 +57,36 @@ export const getLogColor = (type: GameLogItem['type']) => {
 export const itemLabel = (item: ItemInstance) => {
   const def = ITEM_DEFINITIONS[item.definitionId];
   return `${def?.name || item.definitionId}${item.durability > 0 ? '' : ' [损坏]'}`;
+};
+
+export const highlightNames = (
+  text: string,
+  players: { name: string; team: string }[]
+): { text: string; isName: boolean; team?: string }[] => {
+  const names = [...players.map(p => p.name)].sort((a, b) => b.length - a.length);
+  if (names.length === 0) return [{ text, isName: false }];
+
+  const escapedNames = names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const regex = new RegExp(`(${escapedNames.join('|')})`, 'g');
+
+  const parts: { text: string; isName: boolean; team?: string }[] = [];
+  let lastIndex = 0;
+
+  text.replace(regex, (match, _group, offset) => {
+    if (offset > lastIndex) {
+      parts.push({ text: text.slice(lastIndex, offset), isName: false });
+    }
+    const player = players.find(p => p.name === match);
+    parts.push({ text: match, isName: true, team: player?.team });
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < text.length) {
+    parts.push({ text: text.slice(lastIndex), isName: false });
+  }
+
+  return parts;
 };
 
 export const attributeLabel = (key: string) => {
