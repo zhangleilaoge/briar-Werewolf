@@ -256,16 +256,38 @@ AI 状态：
 
 ---
 
-## 6. 文件结构
+## 6. 文件结构（实际代码路径）
 
 ```
-web-demo/
-  ai-system/
-    belief-system.js      # L0-L3 信念建模
-    decision-engine.js    # 核心决策引擎 + 优先级
-    action-strategies.js  # 各职业策略注册
-    ai-agent.js           # 单个 AI 玩家封装
-  ai-demo/
-    index.html            # 演示页面
-    simulation.js         # 模拟运行 + 可视化
+web-demo/ai-werewolf-demo/src/
+  lib/ai/
+    types.ts                # 核心类型定义（角色、属性、道具、检定等）
+    constants.ts            # 游戏常量（魔法值全部提取到这里）
+    ai-agent.ts             # 单个 AI 玩家封装
+    belief-system.ts        # L0-L3 信念建模
+    behavior-modifiers.ts   # 行为修正器
+    strategies/
+      engine.ts             # 决策引擎（核心优先级 + 策略调度）
+      index.ts              # 策略注册与入口
+      day.ts                # 白天策略（发言、怀疑、袒护、公布身份等）
+      night.ts              # 夜间策略（查验、杀戮、偷窃、验尸）
+      vote.ts               # 投票策略（跟随号召、社交关系、生存）
+      appendix.ts           # 追加行动策略（一同怀疑、反驳、一同袒护）
+  lib/game/
+    simulator.ts            # 模拟器入口，导出 GameSimulator
+    simulator-core.ts       # 核心类（状态管理、回合生成、步骤队列）
+    simulator-night.ts      # 夜间行动处理
+    simulator-morning.ts    # 早晨事件处理
+    simulator-day.ts        # 白天行动处理
+    simulator-vote.ts       # 投票处理
+    simulator-utils.ts      # 通用工具函数（日志、关系、状态获取）
+    simulator-config.ts     # 开局配置生成
+  components/
+    GameApp.tsx             # 主游戏界面
+    SetupPanel.tsx          # 开局配置面板
+    useGameRunner.ts        # 游戏状态管理 Hook
+  pages/
+    index.astro             # 入口页面
 ```
+
+> 文档：`doc/ai/ARCHITECTURE.md`（本文件）为 AI 系统架构设计；游戏机制文档位于 `web-demo/doc/`。
