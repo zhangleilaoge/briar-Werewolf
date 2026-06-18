@@ -11,6 +11,7 @@ export interface Attributes {
   deception: number;   // 诡诈: 撒谎、伪装、误导、陷害
   stealth: number;     // 隐蔽: 隐藏立场、降低被怀疑概率
   insight: number;     // 洞察: 感知情绪动机、看穿伪装
+  [key: string]: number;
 }
 
 export type AttributeKey = keyof Attributes;
@@ -189,7 +190,7 @@ export const TRAITS: Record<string, Trait> = {
 };
 
 // ---------- Phases (阶段) ----------
-export type Phase = 'night' | 'morning' | 'day' | 'vote' | 'init' | 'ended';
+export type Phase = 'night' | 'morning' | 'day' | 'vote' | 'init' | 'ended' | 'event';
 
 export type DaySubPhase = 'action' | 'appendix' | 'vote';
 
@@ -209,7 +210,8 @@ export type DayActionType =
   | 'block_vote'        // 阻止投票
   | 'guarantee'         // 担保清白
   | 'accuse'            // 强烈指认
-  | 'exclude_all';      // 全员排除
+  | 'exclude_all'       // 全员排除
+  | 'berserker_kill';   // 狂狼同归于尽
 
 // 追加行动
 export type AppendixActionType =
@@ -486,7 +488,7 @@ export function getStressModifier(stress: number, attribute: 'deception' | 'stea
 
 export function getAlignmentModifier(
   alignment: Alignment,
-  actionType: 'leadership' | 'deception' | 'affinity' | 'other',
+  actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other',
   isGoodAction: boolean = false
 ): number {
   switch (actionType) {
@@ -495,9 +497,10 @@ export function getAlignmentModifier(
       if (alignment.law === 'lawful') return 1;
       return 0;
     case 'deception':
-      // 守序：撒谎时诡诈检定难度 +2（对检定者来说是减值）
+    case 'stealth':
+      // 守序：撒谎/隐蔽时诡诈检定难度 +2（对检定者来说是减值）
       if (alignment.law === 'lawful') return -2;
-      // 混乱：撒谎时诡诈检定难度 -2（对检定者来说是加值）
+      // 混乱：撒谎/隐蔽时诡诈检定难度 -2（对检定者来说是加值）
       if (alignment.law === 'chaotic') return 2;
       // 邪恶：转移嫌疑时诡诈检定难度 -1
       if (alignment.good === 'evil') return 1;
@@ -512,6 +515,34 @@ export function getAlignmentModifier(
 }
 
 // 计算最终检定加值 = 基础属性 + 阵营修正 + 压力修正
+export const ATTRIBUTE_NAMES: Record<keyof Attributes, string> = {
+  affinity: '亲和',
+  logic: '逻辑',
+  leadership: '领导',
+  deception: '诡诈',
+  stealth: '隐蔽',
+  insight: '洞察',
+};
+
+export interface ModifierBreakdown {
+  baseAttribute: number;
+  alignmentMod: number;
+  stressMod: number;
+  total: number;
+}
+
+export function calculateModifierBreakdown(
+  baseAttribute: number,
+  alignment: Alignment,
+  stress: number,
+  actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other',
+  isGoodAction: boolean = false
+): ModifierBreakdown {
+  const alignmentMod = getAlignmentModifier(alignment, actionType, isGoodAction);
+  const stressMod = getStressModifier(stress, actionType === 'deception' || actionType === 'stealth' ? actionType : 'other');
+  return { baseAttribute, alignmentMod, stressMod, total: baseAttribute + alignmentMod + stressMod };
+}
+
 export function calculateFinalModifier(
   baseAttribute: number,
   alignment: Alignment,
@@ -519,9 +550,40 @@ export function calculateFinalModifier(
   actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other',
   isGoodAction: boolean = false
 ): number {
-  const alignmentMod = getAlignmentModifier(alignment, actionType, isGoodAction);
-  const stressMod = getStressModifier(stress, actionType === 'deception' || actionType === 'stealth' ? actionType : 'other');
-  return baseAttribute + alignmentMod + stressMod;
+  return calculateModifierBreakdown(baseAttribute, alignment, stress, actionType, isGoodAction).total;
+}
+
+export interface CheckLog {
+  type: 'check' | 'opposed';
+  actorName: string;
+  actorAttribute: string;
+  actorBaseValue: number;
+  actorAlignmentMod: number;
+  actorStressMod: number;
+  actorTotalModifier: number;
+  actorRoll: number;
+  actorTotal: number;
+  targetName?: string;
+  targetAttribute?: string;
+  targetBaseValue?: number;
+  targetAlignmentMod?: number;
+  targetStressMod?: number;
+  targetTotalModifier?: number;
+  targetRoll?: number;
+  targetTotal?: number;
+  difficulty?: number;
+  margin: number;
+  success: boolean;
+  successLevel: string;
+}
+
+export interface ActionLogDetail {
+  decisionReason: string;
+  checks: CheckLog[];
+  actorId: string;
+  action: string;
+  targetId?: string | null;
+  [key: string]: unknown;
 }
 
 // 对抗检定：双方各掷 d20 + 属性

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
-import type { GameLogItem, Player, ItemInstance } from '../lib/ai/types';
+import type { GameLogItem, Player, ItemInstance, CheckLog, ActionLogDetail } from '../lib/ai/types';
 import { getAlignmentName, ITEM_DEFINITIONS } from '../lib/ai/types';
 import type { PlayerState } from './useGameRunner';
 
 export default function GameApp() {
   const game = useGameRunner();
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerState | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(true);
 
   if (game.phase === 'setup') {
     return <SetupPanel onStart={game.startGame} />;
@@ -103,11 +104,9 @@ export default function GameApp() {
             value={game.speed}
             onChange={(e) => game.setSpeed(Number(e.target.value))}
           >
-            <option value={500}>0.5s</option>
-            <option value={1000}>1s</option>
-            <option value={2000}>2s</option>
-            <option value={3000}>3s</option>
-            <option value={5000}>5s</option>
+            <option value={0.5}>0.5x</option>
+            <option value={1}>1x</option>
+            <option value={2}>2x</option>
           </select>
           {!isEnded && (
             <>
@@ -171,11 +170,45 @@ export default function GameApp() {
         {/* 中间：日志 */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
-            {game.logs.map((log, idx) => (
-              <div key={idx} className={`text-sm font-mono ${getLogColor(log.type)}`}>
-                {log.message}
-              </div>
-            ))}
+            {game.logs.map((log, idx) => {
+              const detail = log.details as ActionLogDetail | undefined;
+              return (
+                <div key={idx} className={`text-sm font-mono ${getLogColor(log.type)}`}>
+                  <div>{log.message}</div>
+                  {detail && (detail.decisionReason || (detail.checks && detail.checks.length > 0)) && (
+                    <div className="mt-1 ml-4 text-xs text-gray-400 space-y-1 border-l-2 border-gray-700 pl-3">
+                      {detail.decisionReason && (
+                        <div>🧠 {detail.decisionReason}</div>
+                      )}
+                      {detail.checks && detail.checks.map((check, ci) => (
+                        <div key={ci}>
+                          <span className="text-gray-500">{check.type === 'check' ? '【直接检定】' : '【对抗检定】'}</span>
+                          <span className="ml-1">
+                            {check.actorName} {check.actorAttribute}({check.actorBaseValue})
+                            {check.actorAlignmentMod !== 0 && ` + 阵营修正(${check.actorAlignmentMod > 0 ? '+' : ''}${check.actorAlignmentMod})`}
+                            {check.actorStressMod !== 0 && ` + 压力修正(${check.actorStressMod > 0 ? '+' : ''}${check.actorStressMod})`}
+                            = 加值({check.actorTotalModifier})
+                            → d20({check.actorRoll}) + 加值({check.actorTotalModifier}) = <strong>{check.actorTotal}</strong>
+                            {check.type === 'check' ? (
+                              ` vs 难度(${check.difficulty}) → ${check.successLevel} (差距 ${check.margin > 0 ? '+' : ''}${check.margin})`
+                            ) : check.type === 'opposed' && check.targetName ? (
+                              <span>
+                                {' '}vs {check.targetName} {check.targetAttribute}({check.targetBaseValue})
+                                {(check.targetAlignmentMod ?? 0) !== 0 && ` + 阵营修正(${(check.targetAlignmentMod ?? 0) > 0 ? '+' : ''}${check.targetAlignmentMod ?? 0})`}
+                                {(check.targetStressMod ?? 0) !== 0 && ` + 压力修正(${(check.targetStressMod ?? 0) > 0 ? '+' : ''}${check.targetStressMod ?? 0})`}
+                                = 加值({check.targetTotalModifier})
+                                → d20({check.targetRoll}) + 加值({check.targetTotalModifier}) = <strong>{check.targetTotal}</strong>
+                                {' → '}{check.successLevel} (差距 {check.margin > 0 ? '+' : ''}{check.margin})
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {game.logs.length === 0 && (
               <div className="text-muted-foreground text-sm">等待游戏开始...</div>
             )}

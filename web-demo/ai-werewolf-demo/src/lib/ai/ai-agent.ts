@@ -47,7 +47,7 @@ export class AIAgent {
   nightAction(allPlayers: Player[], nightDecisions: { playerId: string; action: string; targetId: string | null; reason: string }[]): DecisionResult | null {
     if (!this.player || !this.player.alive) return null;
     const availableActions = this._getAvailableNightActions();
-    this.belief.updateInferences(allPlayers, this.player);
+    this.belief.updateInferences(allPlayers, this.player, []);
     const decision = this.engine.decide(this.belief, this.player, 'night', availableActions, allPlayers, nightDecisions, []);
     this._log('night', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
     return decision;
@@ -57,7 +57,7 @@ export class AIAgent {
     if (!this.player || !this.player.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = this._getAvailableDayActions();
-    this.belief.updateInferences(allPlayers, this.player);
+    this.belief.updateInferences(allPlayers, this.player, publicActions);
     const decision = this.engine.decide(this.belief, this.player, 'day', availableActions, allPlayers, [], publicActions, consecutiveSilence, aliveCount);
     this._log('day', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
     return decision;
@@ -77,7 +77,7 @@ export class AIAgent {
     if (!this.player || !this.player.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = [{ type: 'vote' }];
-    this.belief.updateInferences(allPlayers, this.player);
+    this.belief.updateInferences(allPlayers, this.player, publicActions);
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, voteRound);
     this._log('vote', `投票：${decision.target || '无目标'}，原因：${decision.reason}`);
     return decision;
@@ -86,7 +86,7 @@ export class AIAgent {
   voteRound2(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], candidates: string[]): DecisionResult | null {
     if (!this.player || !this.player.alive) return null;
     const availableActions = [{ type: 'vote' }];
-    this.belief.updateInferences(allPlayers, this.player);
+    this.belief.updateInferences(allPlayers, this.player, publicActions);
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates);
     this._log('vote', `第二轮投票：${decision.target || '无目标'}，原因：${decision.reason}`);
     return decision;
@@ -232,7 +232,7 @@ export class AIAgent {
 
   private _getAvailableAppendixActions(triggerAction: { actorId: string; type: string; targetId?: string }): { type: string }[] {
     if (!this.player) return [];
-    const actions: { type: string }[] = [];
+    const actions: { type: string; originalTargetId?: string; originalActorId?: string }[] = [];
 
     if (triggerAction.type === 'suspect' || triggerAction.type === 'join_suspect') {
       // Can join suspect if not the original target and not the trigger actor

@@ -1,11 +1,10 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player } from '../ai/types';
 import { REL_CHANGE_MINOR_NEG } from '../ai/constants';
-import { log, getName, getPublicPlayerStates, updateRelation } from './simulator-utils';
+import { log, getName, getPublicPlayerStates, updateRelation, logAction } from './simulator-utils';
 
 export function skipToVote(sim: GameSimulator) {
-  const remainingTypes = new Set(['check_win']);
-  sim.stepQueue = sim.stepQueue.filter((s, idx) => idx <= sim.currentStep || remainingTypes.has(s.type));
+  sim.forcePhaseEnd = true;
 }
 
 export function runVote(sim: GameSimulator, player: Player) {
@@ -22,9 +21,9 @@ export function runVote(sim: GameSimulator, player: Player) {
   if (decision && decision.target) {
     if (!sim.votes[decision.target]) sim.votes[decision.target] = [];
     sim.votes[decision.target].push(player.id);
-    log(sim, 'action', `${player.name} 投票给 ${getName(sim, decision.target)}：${decision.reason}`, { actorId: player.id, action: 'vote', targetId: decision.target });
+    logAction(sim, 'action', `${player.name} 投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target });
   } else {
-    log(sim, 'action', `${player.name} 弃票`);
+    logAction(sim, 'action', `${player.name} 弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain' });
   }
 }
 
@@ -65,27 +64,14 @@ export function resolveVotesRound1(sim: GameSimulator) {
     }
   } else {
     log(sim, 'info', `第一轮投票平票：${topTargets.map((id) => getName(sim, id)).join('、')} 各得 ${maxVotes} 票。进行第二轮投票。`);
-    generateVoteRound2(sim, topTargets);
+    sim.voteResult = { round: 1, votes: sim.votes, maxVotes, topTargets, eliminatedId: null, tie: true, nextRound: true };
   }
 }
 
 export function generateVoteRound2(sim: GameSimulator, candidates: string[]) {
+  // New model: VotePhaseController handles round 2 internally
   sim.voteRound = 2;
   sim.votes = {};
-
-  const aliveVoters = sim.players.filter((p) => p.alive);
-  aliveVoters.forEach((p) => {
-    sim.stepQueue.push({
-      type: 'vote_action',
-      actorId: p.id,
-      fn: () => runVoteRound2(sim, p, candidates),
-    });
-  });
-
-  sim.stepQueue.push({
-    type: 'vote_resolve',
-    fn: () => resolveVotesRound2(sim, candidates),
-  });
 }
 
 export function runVoteRound2(sim: GameSimulator, player: Player, candidates: string[]) {
@@ -102,9 +88,9 @@ export function runVoteRound2(sim: GameSimulator, player: Player, candidates: st
   if (decision && decision.target && candidates.includes(decision.target)) {
     if (!sim.votes[decision.target]) sim.votes[decision.target] = [];
     sim.votes[decision.target].push(player.id);
-    log(sim, 'action', `${player.name} 第二轮投票给 ${getName(sim, decision.target)}：${decision.reason}`, { actorId: player.id, action: 'vote', targetId: decision.target });
+    logAction(sim, 'action', `${player.name} 第二轮投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target });
   } else {
-    log(sim, 'action', `${player.name} 第二轮弃票`);
+    logAction(sim, 'action', `${player.name} 第二轮弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain' });
   }
 }
 

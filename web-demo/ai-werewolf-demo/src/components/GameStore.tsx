@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { GameLogItem } from '../lib/ai/types';
+import type { GameLogItem, ItemInstance } from '../lib/ai/types';
 import type { GameSimulator } from '../lib/game/simulator';
 
 interface PlayerState {
@@ -9,8 +9,7 @@ interface PlayerState {
   role: string;
   team: string;
   alive: boolean;
-  items: string[];
-  belief: Record<string, unknown>;
+  items: ItemInstance[];
 }
 
 interface GameState {
@@ -20,7 +19,7 @@ interface GameState {
   players: PlayerState[];
   logs: GameLogItem[];
   selectedPlayerId: string | null;
-  speed: number; // ms per step
+  speed: number; // 倍速: 1x = 2s/步
 }
 
 interface GameStore {
@@ -47,7 +46,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     players: [],
     logs: [],
     selectedPlayerId: null,
-    speed: 2000,
+    speed: 1, // 倍速: 1x = 2s/步
   });
   const [simulator, setSimulator] = useState<GameSimulator | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,12 +74,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
           players: sim.getPlayerStates(),
           logs: [],
           selectedPlayerId: null,
-          speed: 2000,
+          speed: 1,
         });
         // schedule first round
         const timer = setTimeout(() => {
           runNextRound(sim);
-        }, 2000);
+        }, 2000 / state.speed);
         timerRef.current = timer;
       });
     },
@@ -101,7 +100,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       phase: winner ? 'ended' : prev.phase,
     }));
     if (!winner) {
-      const timer = setTimeout(() => runNextRound(sim), 2000);
+      const timer = setTimeout(() => runNextRound(sim), 2000 / state.speed);
       timerRef.current = timer;
     }
   };
@@ -117,7 +116,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const resumeGame = useCallback(() => {
     setState((prev) => ({ ...prev, phase: 'running' }));
     if (simulator && state.phase !== 'ended') {
-      const timer = setTimeout(() => runNextRound(simulator), state.speed);
+      const timer = setTimeout(() => runNextRound(simulator), 2000 / state.speed);
       timerRef.current = timer;
     }
   }, [simulator, state.phase, state.speed]);

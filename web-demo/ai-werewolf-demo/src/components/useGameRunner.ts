@@ -17,13 +17,14 @@ export function useGameRunner() {
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [logs, setLogs] = useState<GameLogItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [speed, setSpeed] = useState(2000);
+  const [speed, setSpeed] = useState(1); // 倍速: 1x = 2s/步
 
   const simulatorRef = useRef<GameSimulator | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pausedRef = useRef(false);
-  const speedRef = useRef(2000);
+  const speedRef = useRef(1);
   const phaseRef = useRef('setup');
+  const lastRunRef = useRef(0);
 
   useEffect(() => {
     speedRef.current = speed;
@@ -42,48 +43,62 @@ export function useGameRunner() {
   }, []);
 
   const runNextStep = useCallback(() => {
-    if (pausedRef.current) return;
+    const now = Date.now();
+    const elapsed = now - lastRunRef.current;
+    lastRunRef.current = now;
+
+    if (pausedRef.current) {
+      return;
+    }
     const sim = simulatorRef.current;
-    if (!sim) return;
+    if (!sim) {
+      return;
+    }
 
     const hasMore = sim.executeNextStep();
     syncFromSimulator();
 
     if (!hasMore) {
-      // 一轮步骤执行完毕
       const win = sim.getWinner();
       if (win) {
         setWinner(win);
         setPhase('ended');
         return;
       }
-      // 生成下一轮步骤
       sim.generateRoundSteps();
     }
 
     if (!pausedRef.current && phaseRef.current !== 'ended') {
-      timerRef.current = setTimeout(runNextStep, speedRef.current);
+      const tickRate = (sim.getCurrentTickRate?.() ?? 2000);
+      const delay = tickRate / speedRef.current;
+      timerRef.current = setTimeout(runNextStep, delay);
     }
   }, [syncFromSimulator]);
 
   const startGame = useCallback(
     (config: GameConfig) => {
+      console.log(`[startGame] speed=${speedRef.current}`);
       const configs = generateGameConfig(config.totalPlayers, config.werewolfConfig, config.villagerConfig);
       const sim = new GameSimulator(configs);
       simulatorRef.current = sim;
       pausedRef.current = false;
+      lastRunRef.current = Date.now();
       setWinner(null);
       setRound(0);
       setLogs([]);
       setPlayers(sim.getPlayerStates());
       setPhase('running');
       sim.generateRoundSteps();
-      timerRef.current = setTimeout(runNextStep, speedRef.current);
+      const tickRate = sim.getCurrentTickRate?.() ?? 2000;
+      const delay = tickRate / speedRef.current;
+      console.log(`[startGame] first delay=${delay}ms tickRate=${tickRate}`);
+      timerRef.current = setTimeout(runNextStep, delay);
     },
     [runNextStep]
   );
 
   const pauseGame = useCallback(() => {
+    console.log('[pauseGame]');
     pausedRef.current = true;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -93,12 +108,18 @@ export function useGameRunner() {
   }, []);
 
   const resumeGame = useCallback(() => {
+    console.log('[resumeGame]');
     pausedRef.current = false;
     setPhase('running');
-    timerRef.current = setTimeout(runNextStep, speedRef.current);
+    const sim = simulatorRef.current;
+    const tickRate = sim?.getCurrentTickRate?.() ?? 2000;
+    const delay = tickRate / speedRef.current;
+    console.log(`[resumeGame] delay=${delay}ms tickRate=${tickRate}`);
+    timerRef.current = setTimeout(runNextStep, delay);
   }, [runNextStep]);
 
   const nextStep = useCallback(() => {
+    console.log('[nextStep] manual');
     const sim = simulatorRef.current;
     if (!sim || phaseRef.current === 'ended') return;
     const hasMore = sim.executeNextStep();
@@ -115,6 +136,7 @@ export function useGameRunner() {
   }, [syncFromSimulator]);
 
   const resetGame = useCallback(() => {
+    console.log('[resetGame]');
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     simulatorRef.current = null;

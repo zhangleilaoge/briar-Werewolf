@@ -1,7 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '../ai/types';
 import { hasItem, damageItem, canUseItem, ITEM_DEFINITIONS, addItem } from '../ai/types';
-import { getName, log } from './simulator-utils';
+import { getName, log, logAction } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
   if (!player.alive) return;
@@ -21,7 +21,7 @@ export function runNightAction(sim: GameSimulator, player: Player) {
   switch (decision.action) {
     case 'kill': {
       const targetName = getName(sim, decision.target || '');
-      log(sim, 'action', `${player.name} 选择袭击 ${targetName || '空刀'}`, { actorId: player.id, action: 'kill', targetId: decision.target });
+      logAction(sim, 'action', `${player.name} 选择袭击 ${targetName || '空刀'}`, decision.reason, [], { actorId: player.id, action: 'kill', targetId: decision.target });
       break;
     }
     case 'check': {
@@ -29,7 +29,7 @@ export function runNightAction(sim: GameSimulator, player: Player) {
       if (target && canUseItem(player, 'crystal_ball')) {
         const result = target.team === 'werewolf' ? 'werewolf' : 'villager';
         agent.recordCheckResult(target.id, result);
-        log(sim, 'action', `${player.name} 查验 ${target.name} → ${result === 'werewolf' ? '狼人' : '村民'}`, { actorId: player.id, action: 'check', targetId: target.id, result });
+        logAction(sim, 'action', `${player.name} 查验 ${target.name} → ${result === 'werewolf' ? '狼人' : '村民'}`, decision.reason, [], { actorId: player.id, action: 'check', targetId: target.id });
         if (result === 'werewolf') {
           damageItem(player, 'crystal_ball');
           log(sim, 'item', `${player.name} 的水晶球在查验狼人时碎裂！`);

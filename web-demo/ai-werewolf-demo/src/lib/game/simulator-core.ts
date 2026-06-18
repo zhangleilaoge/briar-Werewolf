@@ -1,43 +1,85 @@
 import type {
-  Player, Role, Team, Phase, Winner, GameLogItem, ItemInstance,
-  NightActionType, DayActionType, AppendixActionType, ActionType,
-  NightKillResult, VoteResult, CheckResult, SetupConfig,
-  RelationDelta, Attributes, Alignment, ItemDefinition,
-  MAX_ITEM_SLOTS,
+  Player, GameLogItem, Phase, Winner, SetupConfig, Role,
+  VoteResult, ItemInstance, Attributes, Alignment
 } from '../ai/types';
-
-import { ROLE_INFO, ITEM_DEFINITIONS, rollD20, performCheck, clamp, clampStress, clampRelation, hasItem, getItem, removeItem, addItem, damageItem, canUseItem, generateRandomAttributes, generateRandomAlignment, getAlignmentName } from '../ai/types';
-
-import { AIAgent } from '../ai/ai-agent';
 import { generateGameConfig } from './simulator-config';
-import { runNightAction, resolveNightActions } from './simulator-night';
-import { resolveMorningEvents } from './simulator-morning';
-import { runDayAction, resolveDayAction, openAppendixWindow, runAppendixAction } from './simulator-day';
-import { skipToVote, runVote, resolveVotesRound1, generateVoteRound2, runVoteRound2, resolveVotesRound2 } from './simulator-vote';
-import { getPublicPlayerStates, getName, log, updateRelation } from './simulator-utils';
+import {
+  ROLE_INFO, ITEM_DEFINITIONS, generateRandomAttributes, generateRandomAlignment
+} from '../ai/types';
+import { AIAgent } from '../ai/ai-agent';
+import {
+  PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
+} from './simulator-phases';
 
-// ---------- Public Action Record ----------
+// ---------- Actor State Machine ----------
+
+export type ActorState = 'idle' | 'thinking' | 'acting';
+
+export interface PlayerActor {
+  id: string;
+  state: ActorState;
+  thinkCountdown: number; // ticks remaining until ready to act
+  pendingEvent: GameEvent | null; // what triggered this thinking period
+}
+
+// ---------- Event Bus ----------
+
+export interface GameEvent {
+  type: string;
+  source: string; // playerId who produced the event, or 'system'
+  payload: Record<string, unknown>;
+}
+
+export class EventBus {
+  private queue: GameEvent[] = [];
+  private subscribers: Map<string, ((event: GameEvent) => string[])[]> = new Map();
+
+  subscribe(eventType: string, resolver: (event: GameEvent) => string[]) {
+    if (!this.subscribers.has(eventType)) this.subscribers.set(eventType, []);
+    this.subscribers.get(eventType)!.push(resolver);
+  }
+
+  emit(event: GameEvent) {
+    this.queue.push(event);
+    console.log(`[消息中心] 📨 EventBus 入队: type=${event.type} source=${event.source}, queueLength=${this.queue.length}`);
+  }
+
+  flush(sim: GameSimulator): GameEvent[] {
+    const processed = [...this.queue];
+    this.queue = [];
+    console.log(`[消息中心] 📨 EventBus flush: ${processed.length} 个事件`);
+    processed.forEach((event) => {
+      const resolvers = this.subscribers.get(event.type) || [];
+      resolvers.forEach((resolve) => {
+        const targetIds = resolve(event);
+        console.log(`[消息中心] 📡 EventBus ${event.type} resolver 返回 ${targetIds.length} 个目标: [${targetIds.join(', ')}]`);
+        targetIds.forEach((pid) => sim.notifyPlayer(pid, event));
+        if (targetIds.length > 0) {
+          console.log(`[消息中心] 📡 EventBus 广播 ${event.type} → ${targetIds.length} 个玩家: [${targetIds.join(', ')}]`);
+        }
+      });
+    });
+    return processed;
+  }
+}
+
+// ---------- Phase Interface ----------
+
+// ---------- Game Simulator (Tick-Based) ----------
+
 export interface PublicActionRecord {
   actorId: string;
-  type: ActionType;
+  type: string;
   targetId?: string;
   details?: Record<string, unknown>;
   round: number;
 }
 
-// ---------- Night Decision Record ----------
 export interface NightDecision {
   playerId: string;
-  action: NightActionType;
+  action: string;
   targetId: string | null;
   reason: string;
-}
-
-// ---------- Step Queue ----------
-export interface GameStep {
-  type: string;
-  actorId?: string;
-  fn: () => void | boolean; // return true to skip remaining steps in this sub-phase
 }
 
 export interface GameSimulatorOptions {
@@ -45,13 +87,10 @@ export interface GameSimulatorOptions {
   debug?: boolean;
 }
 
-// ---------- Game Simulator Core ----------
 export class GameSimulator {
   players: Player[];
   round: number;
   phase: Phase;
-  stepQueue: GameStep[];
-  currentStep: number;
   logs: GameLogItem[];
   winner: Winner;
   publicActions: PublicActionRecord[];
@@ -59,7 +98,7 @@ export class GameSimulator {
   // Night state
   nightDecisions: NightDecision[];
   nightDeaths: string[];
-  peacefulNight: boolean; // set by berserker suicide
+  peacefulNight: boolean;
 
   // Day state
   consecutiveSilenceCount: number;
@@ -68,33 +107,36 @@ export class GameSimulator {
 
   // Vote state
   voteRound: number;
-  votes: Record<string, string[]>; // targetId -> voterIds
+  votes: Record<string, string[]>;
   voteResult: VoteResult | null;
 
-  // Appendix window
-  appendixWindow: {
-    triggerAction: PublicActionRecord;
-    respondents: string[];
-    currentIndex: number;
-    responses: PublicActionRecord[];
-  } | null;
-
-  // Tracking
-  prophetClaims: Record<string, boolean>; // playerId -> has claimed prophet
-  thiefUsed: Record<string, boolean>; // playerId -> used steal
-  coronerUsed: Record<string, boolean>; // playerId -> used inspect
+  prophetClaims: Record<string, boolean>;
+  thiefUsed: Record<string, boolean>;
+  coronerUsed: Record<string, boolean>;
 
   gameConfig: SetupConfig;
   options: GameSimulatorOptions;
-
   _aiAgents: Record<string, AIAgent> = {};
+
+  // ---- Tick Engine ----
+  actors: Map<string, PlayerActor> = new Map();
+  eventBus: EventBus = new EventBus();
+  currentPhase: PhaseController | null = null;
+  forcePhaseEnd = false;
+
+  // ---- Tick Log Buffer ----
+  // During a tick, all logs are written here; sorted and committed at tick end
+  tickLogBuffer: GameLogItem[] = [];
+
+  private phaseQueue: PhaseController[] = [];
+  private currentPhaseIndex = 0;
 
   constructor(
     playerConfigs: {
       id: string;
       name: string;
       role: Role;
-      team: Team;
+      team: 'werewolf' | 'villager';
       items?: ItemInstance[];
       attributes?: Attributes;
       alignment?: Alignment;
@@ -105,8 +147,6 @@ export class GameSimulator {
     this.players = [];
     this.round = 0;
     this.phase = 'init';
-    this.stepQueue = [];
-    this.currentStep = 0;
     this.logs = [];
     this.winner = null;
     this.publicActions = [];
@@ -123,8 +163,6 @@ export class GameSimulator {
     this.votes = {};
     this.voteResult = null;
 
-    this.appendixWindow = null;
-
     this.prophetClaims = {};
     this.thiefUsed = {};
     this.coronerUsed = {};
@@ -133,13 +171,21 @@ export class GameSimulator {
     this.options = options;
 
     this._createPlayers(playerConfigs);
+
+    // Initialize appendix reaction subscription (FIXED: was 'appendix_trigger')
+    this.eventBus.subscribe('appendix_reaction', (event) => {
+      const triggerAction = event.payload.triggerAction as PublicActionRecord;
+      return this.players
+        .filter((p) => p.alive && p.id !== triggerAction.actorId)
+        .map((p) => p.id);
+    });
   }
 
   private _createPlayers(configs: {
     id: string;
     name: string;
     role: Role;
-    team: Team;
+    team: 'werewolf' | 'villager';
     items?: ItemInstance[];
     attributes?: Attributes;
     alignment?: Alignment;
@@ -167,9 +213,17 @@ export class GameSimulator {
       };
 
       this.players.push(player);
+
+      // Initialize actor
+      this.actors.set(cfg.id, {
+        id: cfg.id,
+        state: 'idle',
+        thinkCountdown: 0,
+        pendingEvent: null,
+      });
     });
 
-    // Initialize relations (directed, start at 0)
+    // Initialize relations
     this.players.forEach((p) => {
       this.players.forEach((other) => {
         if (p.id !== other.id) {
@@ -178,208 +232,136 @@ export class GameSimulator {
       });
     });
 
-    // Initialize AI agents for each player
+    // Initialize AI agents
     this._aiAgents = {};
     this.players.forEach((p) => {
       this._aiAgents[p.id] = new AIAgent(p, this.players);
     });
   }
 
-  // ==================== ROUND GENERATION ====================
+  // ==================== TICK API ====================
+
+  tick(): boolean {
+    if (this.winner) {
+      console.log('[消息中心] 🏁 游戏已结束，停止 tick');
+      return false;
+    }
+
+    // Ensure we have a phase controller
+    if (!this.currentPhase) {
+      if (this.currentPhaseIndex >= this.phaseQueue.length) {
+        // All phases done for this round - prepare next round
+        console.log('[消息中心] 🔄 所有阶段完成，准备下一轮');
+        this._prepareNextRound();
+        return this.tick();
+      }
+      this.currentPhase = this.phaseQueue[this.currentPhaseIndex];
+      this.currentPhase.onEnter(this);
+      this.phase = this.currentPhase.name;
+      console.log(`[消息中心] 🔄 阶段切换 → ${this.phase}`);
+    }
+
+    console.log(`[消息中心] ⏱️ tick() 执行: phase=${this.currentPhase.name}, round=${this.round}`);
+
+    // Collect tick logs into tickLogBuffer; commit at the end of tick
+    this.tickLogBuffer = [];
+    const continuePhase = this.currentPhase.onTick(this);
+    // Commit tick logs sorted by priority
+    this.tickLogBuffer.sort((a, b) => {
+      const pa = LOG_PRIORITY[a.type] ?? 99;
+      const pb = LOG_PRIORITY[b.type] ?? 99;
+      return pa - pb;
+    });
+    this.logs.push(...this.tickLogBuffer);
+    this.tickLogBuffer = [];
+
+    if (!continuePhase) {
+      console.log(`[消息中心] 🔄 阶段结束: ${this.currentPhase.name}`);
+      this.currentPhase.onExit(this);
+      this.currentPhaseIndex++;
+      this.currentPhase = null;
+    }
+
+    return !this.winner && (this.currentPhase !== null || this.currentPhaseIndex < this.phaseQueue.length);
+  }
+
+  notifyPlayer(playerId: string, event: GameEvent) {
+    const actor = this.actors.get(playerId);
+    console.log(`[消息中心] 📢 notifyPlayer: ${playerId}, event=${event.type}, actorState=${actor?.state ?? 'not found'}`);
+    if (actor && actor.state === 'idle') {
+      actor.state = 'thinking';
+      actor.thinkCountdown = 1; // Default 1 tick think time
+      actor.pendingEvent = event;
+      console.log(`[消息中心] 🔔 notifyPlayer: ${playerId} 进入 thinking (事件: ${event.type})`);
+    } else {
+      console.log(`[消息中心] ⚠️ notifyPlayer: ${playerId} 状态=${actor?.state ?? 'not found'}，不是 idle，拒绝通知 event=${event.type}`);
+    }
+  }
+
+  broadcastEvent(event: GameEvent) {
+    this.eventBus.emit(event);
+  }
+
+  // ==================== ROUND MANAGEMENT ====================
+
+  private _prepareNextRound() {
+    this.round++;
+    this.logs.push({ round: this.round, phase: 'init', message: `=== 第 ${this.round} 轮 ===`, type: 'phase' });
+
+    this.phaseQueue = [
+      new DayPhaseController(),
+      new VotePhaseController(),
+      new NightPhaseController(),
+      new MorningPhaseController(),
+      new CheckWinPhaseController(),
+    ];
+    this.currentPhaseIndex = 0;
+    this.currentPhase = null;
+    console.log(`[消息中心] 🔄 第 ${this.round} 轮开始，生成 5 个阶段`);
+  }
 
   generateRoundSteps() {
-    this.round++;
-    this.stepQueue = [];
-    this.nightDecisions = [];
-    this.nightDeaths = [];
-    // peacefulNight: 若上一轮白天狂狼同归于尽，标记为 true，影响本轮夜晚
-    // 夜晚结算后会自动清除
-    this.consecutiveSilenceCount = 0;
-    this.dayActionIndex = 0;
-    this.voteRound = 0;
-    this.votes = {};
-    this.voteResult = null;
-    this.appendixWindow = null;
-    this.winner = null;
-
-    this._log('phase', `=== 第 ${this.round} 轮 ===`);
-
-    // --- Night Phase ---
-    this._generateNightSteps();
-    // --- Morning Phase ---
-    this._generateMorningSteps();
-    // --- Day Phase ---
-    this._generateDaySteps();
-    // --- Vote Phase ---
-    this._generateVoteSteps();
-
-    // Check Win
-    this.stepQueue.push({
-      type: 'check_win',
-      fn: () => {
-        this._checkWinCondition();
-      },
-    });
-
-    this.currentStep = 0;
+    // Compatibility: initialize a new round
+    this._prepareNextRound();
   }
 
-  // ==================== NIGHT PHASE STEPS ====================
+  // ==================== LEGACY STEP API (for compatibility) ====================
 
-  private _generateNightSteps() {
-    this.stepQueue.push({
-      type: 'phase',
-      fn: () => {
-        this.phase = 'night';
-        this._log('phase', '-- 夜晚阶段 --');
-      },
-    });
-
-    // 1. Werewolf kill decisions (including lone wolf)
-    const werewolves = this.players.filter((p) => p.team === 'werewolf' && p.alive);
-    werewolves.forEach((p) => {
-      this.stepQueue.push({
-        type: 'night_action',
-        actorId: p.id,
-        fn: () => this._runNightAction(p),
-      });
-    });
-
-    // 2. Prophet check
-    const prophets = this.players.filter((p) => p.role === 'prophet' && p.alive);
-    prophets.forEach((p) => {
-      this.stepQueue.push({
-        type: 'night_action',
-        actorId: p.id,
-        fn: () => this._runNightAction(p),
-      });
-    });
-
-    // 3. Thief steal
-    const thieves = this.players.filter((p) => p.role === 'thief' && p.alive);
-    thieves.forEach((p) => {
-      this.stepQueue.push({
-        type: 'night_action',
-        actorId: p.id,
-        fn: () => this._runNightAction(p),
-      });
-    });
-
-    // 4. Coroner inspect
-    const coroners = this.players.filter((p) => p.role === 'coroner' && p.alive);
-    coroners.forEach((p) => {
-      this.stepQueue.push({
-        type: 'night_action',
-        actorId: p.id,
-        fn: () => this._runNightAction(p),
-      });
-    });
-
-    // 5. Night resolution
-    this.stepQueue.push({
-      type: 'night_resolve',
-      fn: () => this._resolveNightActions(),
-    });
+  executeNextStep(): boolean {
+    return this.tick();
   }
 
-  // ==================== MORNING PHASE STEPS ====================
-
-  private _generateMorningSteps() {
-    this.stepQueue.push({
-      type: 'phase',
-      fn: () => {
-        this.phase = 'morning';
-        this._log('phase', '-- 早晨事件 --');
-      },
-    });
-
-    this.stepQueue.push({
-      type: 'morning_event',
-      fn: () => this._resolveMorningEvents(),
-    });
+  hasMoreSteps(): boolean {
+    if (this.winner) return false;
+    if (this.currentPhase) return true;
+    return this.currentPhaseIndex < this.phaseQueue.length;
   }
 
-  // ==================== DAY PHASE STEPS ====================
-
-  private _generateDaySteps() {
-    this.stepQueue.push({
-      type: 'phase',
-      fn: () => {
-        this.phase = 'day';
-        this._log('phase', '-- 白天阶段 --');
-      },
-    });
-
-    this.alivePlayerIds = this.players.filter((p) => p.alive).map((p) => p.id);
-    this.dayActionIndex = 0;
-
-    // Generate steps for each alive player to take a turn
-    this.alivePlayerIds.forEach((playerId) => {
-      this.stepQueue.push({
-        type: 'day_action',
-        actorId: playerId,
-        fn: () => this._runDayAction(playerId),
-      });
-    });
-  }
-
-  // ==================== VOTE PHASE STEPS ====================
-
-  private _generateVoteSteps() {
-    this.stepQueue.push({
-      type: 'phase',
-      fn: () => {
-        this.phase = 'vote';
-        this._log('phase', '-- 投票阶段 --');
-      },
-    });
-
-    // Vote round 1
-    this.voteRound = 1;
-    const aliveVoters = this.players.filter((p) => p.alive);
-    aliveVoters.forEach((p) => {
-      this.stepQueue.push({
-        type: 'vote_action',
-        actorId: p.id,
-        fn: () => this._runVote(p),
-      });
-    });
-
-    this.stepQueue.push({
-      type: 'vote_resolve',
-      fn: () => this._resolveVotesRound1(),
-    });
+  runRound(options: GameSimulatorOptions = {}): Winner {
+    this.generateRoundSteps();
+    while (this.hasMoreSteps()) {
+      this.executeNextStep();
+    }
+    return this.getWinner();
   }
 
   // ==================== WIN CHECK ====================
 
-  private _checkWinCondition() {
+  _checkWinCondition() {
     const aliveWerewolves = this.players.filter((p) => p.team === 'werewolf' && p.alive).length;
     const aliveVillagers = this.players.filter((p) => p.team !== 'werewolf' && p.alive).length;
 
     if (aliveWerewolves === 0) {
       this.winner = 'villager';
-      this._log('victory', '=== 村民阵营胜利！所有狼人已被消灭。 ===');
+      this.logs.push({ round: this.round, phase: 'init', message: '=== 村民阵营胜利！所有狼人已被消灭。 ===', type: 'victory' });
       this.phase = 'ended';
+      console.log('[消息中心] 🏆 村民阵营胜利！');
     } else if (aliveWerewolves >= aliveVillagers) {
       this.winner = 'werewolf';
-      this._log('victory', '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===');
+      this.logs.push({ round: this.round, phase: 'init', message: '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===', type: 'victory' });
       this.phase = 'ended';
+      console.log('[消息中心] 🏆 狼人阵营胜利！');
     }
-  }
-
-  // ==================== STEP EXECUTION ====================
-
-  executeNextStep(): boolean {
-    if (this.currentStep >= this.stepQueue.length) return false;
-    const step = this.stepQueue[this.currentStep];
-    const skip = step.fn();
-    this.currentStep++;
-    return this.currentStep < this.stepQueue.length;
-  }
-
-  hasMoreSteps(): boolean {
-    return this.currentStep < this.stepQueue.length;
   }
 
   // ==================== GETTERS ====================
@@ -420,34 +402,12 @@ export class GameSimulator {
     return this.players.filter((p) => p.alive).length;
   }
 
-  // ==================== PHASE DELEGATES (class methods, not prototype) ====================
+  getAlivePlayerIds(): string[] {
+    return this.players.filter((p) => p.alive).map((p) => p.id);
+  }
 
-  private _runNightAction(player: Player) { runNightAction(this, player); }
-  private _resolveNightActions() { resolveNightActions(this); }
-  private _resolveMorningEvents() { resolveMorningEvents(this); }
-  private _runDayAction(playerId: string) { runDayAction(this, playerId); }
-  private _resolveDayAction(actor: Player, action: DayActionType, targetId: string | null, details: Record<string, unknown>): boolean { return resolveDayAction(this, actor, action, targetId, details); }
-  private _openAppendixWindow(triggerAction: PublicActionRecord) { openAppendixWindow(this, triggerAction); }
-  private _runAppendixAction(playerId: string) { runAppendixAction(this, playerId); }
-  private _skipToVote() { skipToVote(this); }
-  private _runVote(player: Player) { runVote(this, player); }
-  private _resolveVotesRound1() { resolveVotesRound1(this); }
-  private _generateVoteRound2(candidates: string[]) { generateVoteRound2(this, candidates); }
-  private _runVoteRound2(player: Player, candidates: string[]) { runVoteRound2(this, player, candidates); }
-  private _resolveVotesRound2(candidates: string[]) { resolveVotesRound2(this, candidates); }
-  private _getPublicPlayerStates(): Player[] { return getPublicPlayerStates(this); }
-  private _getName(id: string): string { return getName(this, id); }
-  private _log(type: GameLogItem['type'], message: string, details?: Record<string, unknown>) { log(this, type, message, details); }
-  private _updateRelation(fromPlayer: Player, toPlayer: Player, delta: RelationDelta) { updateRelation(this, fromPlayer, toPlayer, delta); }
-
-  // ==================== OLD API COMPATIBILITY ====================
-
-  runRound(options: GameSimulatorOptions = {}): Winner {
-    this.generateRoundSteps();
-    while (this.hasMoreSteps()) {
-      this.executeNextStep();
-    }
-    return this.getWinner();
+  getCurrentTickRate(): number {
+    return this.currentPhase?.tickRate ?? 2000;
   }
 }
 
