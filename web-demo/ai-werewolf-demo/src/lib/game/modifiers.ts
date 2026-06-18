@@ -6,6 +6,22 @@
  */
 
 import type { Alignment } from '@/types';
+import { STRESS_MIN, STRESS_MAX, RELATION_MIN, RELATION_MAX } from '@/types';
+import { clamp } from '@/utils/math';
+
+/**
+ * 限制压力值在有效范围内
+ */
+export function clampStress(value: number): number {
+  return clamp(value, STRESS_MIN, STRESS_MAX);
+}
+
+/**
+ * 限制关系值在有效范围内
+ */
+export function clampRelation(value: number): number {
+  return clamp(value, RELATION_MIN, RELATION_MAX);
+}
 
 /**
  * Get stress modifier for a check

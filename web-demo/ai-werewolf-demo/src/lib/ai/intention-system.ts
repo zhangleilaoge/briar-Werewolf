@@ -516,12 +516,22 @@ export class IntentionManager {
 
   /** 获取意图栈摘要（用于调试展示） */
   getSummary(): string {
+    const typeNames: Record<string, string> = { attack: '攻击', recruit: '招募', protect: '保护', reveal: '揭示', investigate: '调查', coordinate: '协同', survive: '生存' };
+    const sourceNames: Record<string, string> = { team_duty: '阵营职责', personal_goal: '个人目标', crisis: '危机', strategic: '战略', external: '外部压力', role_duty: '职业职责', bus: '背锅' };
+    const phaseNames: Record<string, string> = { day: '白天', night: '夜间', vote: '投票', morning: '早晨', init: '初始', event: '事件', ended: '结束' };
+    const actionNames: Record<string, string> = {
+      silence: '沉默', speak: '发言', claim_identity: '公布身份', reveal_info: '公开信息',
+      observe: '暗中观察', suspect: '怀疑', defend: '袒护', thank: '感谢',
+      call_vote: '号召投票', block_vote: '阻止投票', guarantee: '担保', accuse: '强烈指认',
+      exclude_all: '全员排除', berserker_kill: '狂狼同归于尽', kill: '袭击', check: '查验',
+      steal: '偷取', inspect: '验尸', vote: '投票', join_suspect: '一同怀疑', join_defend: '一同袒护', rebut: '反驳'
+    };
     const lines = this.intentions.map((i) => {
       const status = i.abandoned ? '[已放弃]' : i.active ? '[激活]' : '[完成]';
       const stepInfo = i.plan[i.currentStepIndex]
-        ? `${i.plan[i.currentStepIndex].phase}:${i.plan[i.currentStepIndex].action}`
+        ? `${phaseNames[i.plan[i.currentStepIndex].phase] || i.plan[i.currentStepIndex].phase}:${actionNames[i.plan[i.currentStepIndex].action] || i.plan[i.currentStepIndex].action}`
         : '无';
-      return `  ${status} ${i.type}→${i.targetId || '无'} (优先级${i.priority}, 承诺${i.commitment}, 来源${i.source}) 计划:${stepInfo}`;
+      return `  ${status} ${typeNames[i.type] || i.type}→${i.targetId || '无'} (优先级${i.priority}, 承诺${i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
     });
     return lines.join('\n');
   }
@@ -827,8 +837,11 @@ export function explainIntention(
   blocked: { candidate: { action: string; target: string | null }; reason: string }[],
   allPlayers: Player[]
 ): string {
+  const modeNames: Record<string, string> = { normal: '常规', bus: '推车', desperate: '绝境', dominant: '优势' };
+  const teamNames: Record<string, string> = { eliminate_opposition: '消灭对手', find_wolves: '找出狼人' };
+  const personalNames: Record<string, string> = { maintain_cover: '隐藏身份', survive: '生存', gain_trust: '获得信任', reveal_truth: '揭示真相' };
   const lines: string[] = [];
-  lines.push(`[意图状态] 模式=${desire.mode} | 阵营目标=${desire.teamObjective} | 个人目标=${desire.personalObjective}`);
+  lines.push(`[意图状态] 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 个人目标=${personalNames[desire.personalObjective] || desire.personalObjective}`);
 
   if (blocked.length > 0) {
     lines.push(`[被硬约束拦截的候选]`);

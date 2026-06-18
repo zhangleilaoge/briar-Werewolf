@@ -1,6 +1,15 @@
 import type {
   Player, Relation, Role, Team, Attributes, Alignment, PublicClaim
 } from '@/types';
+import {
+  BELIEF_DEATH_DECAY, BELIEF_SUSPECT_MAX_ADJ, BELIEF_SUSPECT_RATE,
+  BELIEF_ACCUSE_MAX_ADJ, BELIEF_ACCUSE_RATE, BELIEF_DEFEND_MAX_ADJ, BELIEF_DEFEND_RATE,
+  BELIEF_CLAIM_IDENTITY_ADJ, BELIEF_REVEAL_INFO_ADJ, BELIEF_THANK_ADJ, BELIEF_CALL_VOTE_ADJ,
+  BELIEF_JOIN_SUSPECT_RATE, BELIEF_NATURAL_DECAY, BELIEF_FALSE_CLAIM_ADJ,
+  TRUST_CHANGE_SUSPECT, TRUST_CHANGE_DEFEND, TRUST_CHANGE_ACCUSE, TRUST_CHANGE_GUARANTEE, TRUST_CHANGE_FALSE_CLAIM,
+  TRUST_SCORE_MIN, TRUST_SCORE_MAX,
+  INTENTION_STRENGTH_BASE, INTENTION_STRENGTH_PROB_FACTOR,
+} from '@/types';
 
 export class BeliefSystem {
   playerId: string;
@@ -139,7 +148,7 @@ export class BeliefSystem {
     this.l0Facts.deaths.forEach((deadId) => {
       const rb = this.l1Inferences.roleBeliefs[deadId];
       if (rb) {
-        rb.werewolf = Math.max(0, rb.werewolf * 0.6);
+        rb.werewolf = Math.max(0, rb.werewolf * BELIEF_DEATH_DECAY);
         rb.villager = 1 - rb.werewolf;
       }
     });
@@ -212,7 +221,7 @@ export class BeliefSystem {
     Object.entries(suspectCount).forEach(([targetId, count]) => {
       if (count >= 1) {
         const rb = this.l1Inferences.roleBeliefs[targetId] || { werewolf: 0.5, villager: 0.5 };
-        const adj = Math.min(0.2, count * 0.06);
+        const adj = Math.min(BELIEF_SUSPECT_MAX_ADJ, count * BELIEF_SUSPECT_RATE);
         rb.werewolf = Math.min(1, rb.werewolf + adj);
         rb.villager = 1 - rb.werewolf;
         this.l1Inferences.roleBeliefs[targetId] = rb;
@@ -221,7 +230,7 @@ export class BeliefSystem {
     Object.entries(accuseCount).forEach(([targetId, count]) => {
       if (count >= 1) {
         const rb = this.l1Inferences.roleBeliefs[targetId] || { werewolf: 0.5, villager: 0.5 };
-        const adj = Math.min(0.25, count * 0.08);
+        const adj = Math.min(BELIEF_ACCUSE_MAX_ADJ, count * BELIEF_ACCUSE_RATE);
         rb.werewolf = Math.min(1, rb.werewolf + adj);
         rb.villager = 1 - rb.werewolf;
         this.l1Inferences.roleBeliefs[targetId] = rb;
@@ -232,7 +241,7 @@ export class BeliefSystem {
     Object.entries(defendCount).forEach(([targetId, count]) => {
       if (count >= 1) {
         const rb = this.l1Inferences.roleBeliefs[targetId] || { werewolf: 0.5, villager: 0.5 };
-        const adj = Math.min(0.15, count * 0.05);
+        const adj = Math.min(BELIEF_DEFEND_MAX_ADJ, count * BELIEF_DEFEND_RATE);
         rb.werewolf = Math.max(0, rb.werewolf - adj);
         rb.villager = 1 - rb.werewolf;
         this.l1Inferences.roleBeliefs[targetId] = rb;
@@ -250,24 +259,24 @@ export class BeliefSystem {
         // 攻击一个明显好人（狼概率 < 0.4） -> 攻击者像泼脏水
         if (targetWolfProb < 0.4) {
           const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-          rb.werewolf = Math.min(1, rb.werewolf + 0.1);
+          rb.werewolf = Math.min(1, rb.werewolf + BELIEF_CLAIM_IDENTITY_ADJ);
           rb.villager = 1 - rb.werewolf;
           this.l1Inferences.roleBeliefs[actorId] = rb;
-          this.l1Inferences.trustScore[actorId] = Math.max(-10, (this.l1Inferences.trustScore[actorId] ?? 0) - 2);
+          this.l1Inferences.trustScore[actorId] = Math.max(TRUST_SCORE_MIN, (this.l1Inferences.trustScore[actorId] ?? 0) + TRUST_CHANGE_SUSPECT);
         }
 
         // 攻击一个已被多人怀疑的目标（有依据） -> 攻击者更可信
         if (totalSuspicion >= 2 && targetWolfProb >= 0.4) {
-          this.l1Inferences.trustScore[actorId] = Math.min(10, (this.l1Inferences.trustScore[actorId] ?? 0) + 1);
+          this.l1Inferences.trustScore[actorId] = Math.min(TRUST_SCORE_MAX, (this.l1Inferences.trustScore[actorId] ?? 0) + TRUST_CHANGE_DEFEND);
         }
 
         // 攻击一个我查验为好人的目标 -> 攻击者非常像狼
         if (this.l0Facts.checks[targetId] === 'villager') {
           const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-          rb.werewolf = Math.min(1, rb.werewolf + 0.2);
+          rb.werewolf = Math.min(1, rb.werewolf + BELIEF_REVEAL_INFO_ADJ);
           rb.villager = 1 - rb.werewolf;
           this.l1Inferences.roleBeliefs[actorId] = rb;
-          this.l1Inferences.trustScore[actorId] = Math.max(-10, (this.l1Inferences.trustScore[actorId] ?? 0) - 3);
+          this.l1Inferences.trustScore[actorId] = Math.max(TRUST_SCORE_MIN, (this.l1Inferences.trustScore[actorId] ?? 0) + TRUST_CHANGE_ACCUSE);
         }
       }
     });
@@ -281,12 +290,12 @@ export class BeliefSystem {
         const totalSuspicion = (suspectCount[targetId] || 0) + (accuseCount[targetId] || 0);
 
         if (targetWolfProb > 0.5 || totalSuspicion >= 2) {
-          this.l1Inferences.trustScore[actorId] = Math.min(10, (this.l1Inferences.trustScore[actorId] ?? 0) + 2);
+          this.l1Inferences.trustScore[actorId] = Math.min(TRUST_SCORE_MAX, (this.l1Inferences.trustScore[actorId] ?? 0) + TRUST_CHANGE_GUARANTEE);
         } else {
           // 无依据号召 -> 像搅局
-          this.l1Inferences.trustScore[actorId] = Math.max(-10, (this.l1Inferences.trustScore[actorId] ?? 0) - 2);
+          this.l1Inferences.trustScore[actorId] = Math.max(TRUST_SCORE_MIN, (this.l1Inferences.trustScore[actorId] ?? 0) + TRUST_CHANGE_SUSPECT);
           const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-          rb.werewolf = Math.min(1, rb.werewolf + 0.05);
+          rb.werewolf = Math.min(1, rb.werewolf + BELIEF_THANK_ADJ);
           rb.villager = 1 - rb.werewolf;
           this.l1Inferences.roleBeliefs[actorId] = rb;
         }
@@ -301,7 +310,7 @@ export class BeliefSystem {
         const totalSuspicion = (suspectCount[targetId] || 0) + (accuseCount[targetId] || 0);
         if (totalSuspicion >= 2) {
           const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-          rb.werewolf = Math.min(1, rb.werewolf + 0.1);
+          rb.werewolf = Math.min(1, rb.werewolf + BELIEF_CALL_VOTE_ADJ);
           rb.villager = 1 - rb.werewolf;
           this.l1Inferences.roleBeliefs[actorId] = rb;
         }
@@ -312,7 +321,7 @@ export class BeliefSystem {
     Object.entries(silenceCount).forEach(([actorId, count]) => {
       if (count >= 2) {
         const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-        rb.werewolf = Math.min(1, rb.werewolf + 0.03 * count);
+        rb.werewolf = Math.min(1, rb.werewolf + BELIEF_JOIN_SUSPECT_RATE * count);
         rb.villager = 1 - rb.werewolf;
         this.l1Inferences.roleBeliefs[actorId] = rb;
       }
@@ -323,7 +332,7 @@ export class BeliefSystem {
       if (action.type === 'rebut') {
         const actorId = action.actorId;
         const rb = this.l1Inferences.roleBeliefs[actorId] || { werewolf: 0.5, villager: 0.5 };
-        rb.werewolf = Math.max(0, rb.werewolf - 0.02);
+        rb.werewolf = Math.max(0, rb.werewolf - BELIEF_NATURAL_DECAY);
         rb.villager = 1 - rb.werewolf;
         this.l1Inferences.roleBeliefs[actorId] = rb;
       }
@@ -339,12 +348,12 @@ export class BeliefSystem {
     const myResult = this.l0Facts.checks[target];
     if (myResult !== undefined && myResult !== result) {
       // Claim contradicts our known fact -> claimer is lying
-      this.l1Inferences.trustScore[claimerId] = Math.max(-10, (this.l1Inferences.trustScore[claimerId] ?? 0) - 4);
+      this.l1Inferences.trustScore[claimerId] = Math.max(TRUST_SCORE_MIN, (this.l1Inferences.trustScore[claimerId] ?? 0) + TRUST_CHANGE_FALSE_CLAIM);
       const rb = this.l1Inferences.roleBeliefs[claimerId] ?? { werewolf: 0.5, villager: 0.5 };
-      rb.werewolf = Math.min(1, rb.werewolf + 0.3);
+      rb.werewolf = Math.min(1, rb.werewolf + BELIEF_FALSE_CLAIM_ADJ);
     } else if (myResult !== undefined && myResult === result) {
       // Claim matches our known fact -> claimer is truthful
-      this.l1Inferences.trustScore[claimerId] = Math.min(10, (this.l1Inferences.trustScore[claimerId] ?? 0) + 2);
+      this.l1Inferences.trustScore[claimerId] = Math.min(TRUST_SCORE_MAX, (this.l1Inferences.trustScore[claimerId] ?? 0) + TRUST_CHANGE_GUARANTEE);
     }
   }
 

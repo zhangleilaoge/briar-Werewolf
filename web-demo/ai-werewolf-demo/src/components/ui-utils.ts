@@ -1,5 +1,10 @@
 import type { GameLogItem, ItemInstance } from '@/types';
-import { ITEM_DEFINITIONS } from '@/types';
+import {
+  ITEM_DEFINITIONS,
+  ATTR_COLOR_HIGH, ATTR_COLOR_MEDIUM, ATTR_COLOR_LOW,
+  STRESS_COLOR_CALM, STRESS_COLOR_NORMAL, STRESS_COLOR_TENSE, STRESS_COLOR_ANXIOUS,
+  STRESS_LABEL_EXTREMELY_CALM, STRESS_LABEL_CALM, STRESS_LABEL_NORMAL, STRESS_LABEL_TENSE, STRESS_LABEL_ANXIOUS,
+} from '@/types';
 
 export const roleNameMap: Record<string, string> = {
   werewolf: '狼人',
@@ -98,25 +103,25 @@ export const attributeLabel = (key: string) => {
 };
 
 export const attributeColor = (value: number) => {
-  if (value >= 8) return 'text-green-400';
-  if (value >= 6) return 'text-green-300';
-  if (value >= 4) return 'text-yellow-300';
+  if (value >= ATTR_COLOR_HIGH) return 'text-green-400';
+  if (value >= ATTR_COLOR_MEDIUM) return 'text-green-300';
+  if (value >= ATTR_COLOR_LOW) return 'text-yellow-300';
   return 'text-red-300';
 };
 
 export const stressColor = (value: number) => {
-  if (value <= -5) return 'text-blue-400';
-  if (value <= 2) return 'text-green-400';
-  if (value <= 5) return 'text-yellow-400';
-  if (value <= 8) return 'text-orange-400';
+  if (value <= STRESS_COLOR_CALM) return 'text-blue-400';
+  if (value <= STRESS_COLOR_NORMAL) return 'text-green-400';
+  if (value <= STRESS_COLOR_TENSE) return 'text-yellow-400';
+  if (value <= STRESS_COLOR_ANXIOUS) return 'text-orange-400';
   return 'text-red-400 font-bold';
 };
 
 export const stressLabel = (value: number) => {
-  if (value <= -7) return '极度冷静';
-  if (value <= -3) return '冷静';
-  if (value <= 2) return '正常';
-  if (value <= 5) return '轻微紧张';
-  if (value <= 8) return '明显焦虑';
+  if (value <= STRESS_LABEL_EXTREMELY_CALM) return '极度冷静';
+  if (value <= STRESS_LABEL_CALM) return '冷静';
+  if (value <= STRESS_LABEL_NORMAL) return '正常';
+  if (value <= STRESS_LABEL_TENSE) return '轻微紧张';
+  if (value <= STRESS_LABEL_ANXIOUS) return '明显焦虑';
   return '高度紧张';
 };

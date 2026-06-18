@@ -1,13 +1,13 @@
 // ============================
-// AI Werewolf Demo — Types, Constants & Utilities
-// Single source of truth for all game data definitions
+// AI 狼人杀 — 类型、常量与工具函数
+// 所有游戏数据定义的唯一来源
 // ============================
 
 // =====================================================================
-// SECTION 1: Type Definitions
+// 第一部分：类型定义
 // =====================================================================
 
-// ---------- Attributes (六维属性) ----------
+// ---------- 六维属性 ----------
 export interface Attributes {
   affinity: number;    // 亲和: 说服、建立信任、降低压力
   logic: number;       // 逻辑: 推理、识破谎言、构建证据链
@@ -59,6 +59,12 @@ export interface Trait { id: string; name: string; description: string }
 export type Phase = 'night' | 'morning' | 'day' | 'vote' | 'init' | 'ended' | 'event';
 export type DaySubPhase = 'action' | 'appendix' | 'vote';
 
+// 游戏状态常量（UI 使用，这些在 useGameRunner 中定义，不属于 Phase 类型）
+export const GAME_STATUS_SETUP = 'setup';
+export const GAME_STATUS_RUNNING = 'running';
+export const GAME_STATUS_PAUSED = 'paused';
+export const GAME_STATUS_ENDED = 'ended';
+
 // ---------- Actions (行动) ----------
 export type DayActionType =
   | 'silence' | 'speak' | 'claim_identity' | 'reveal_info' | 'observe'
@@ -99,6 +105,7 @@ export interface DecisionCandidate {
   action: string; target: string | null; score: number; confidence: number; reason: string;
   details?: Record<string, unknown>; stageWeight?: number; stage?: string;
   strategy?: string; rule?: string; trigger?: string; random?: boolean;
+  intentionDrivenBonus?: number; // 意图驱动评分调整加分（行为匹配+200，目标匹配+100）
 }
 
 export interface DecisionProcess {
@@ -107,6 +114,7 @@ export interface DecisionProcess {
     stageWeight: number; totalScore: number; stage: string; strategy: string;
     rule: string; trigger: string; random: boolean;
     modifiers: { alignment: number; stress: number; relation: number; total: number };
+    intentionDrivenBonus?: number;
   }[];
   winner: string;
   shortlist: string;
@@ -178,138 +186,237 @@ export const TRAITS: Record<string, Trait> = {
 // SECTION 3: Game Constants
 // =====================================================================
 
-// ---------- Attribute System ----------
-export const ATTRIBUTE_MIN = 1;
-export const ATTRIBUTE_MAX = 20;
-export const ATTRIBUTE_DEFAULT = 10;
-export const ATTRIBUTE_TOTAL_POINTS = 72; // Total points to distribute across 6 attributes
+// ---------- 属性系统 ----------
+export const ATTRIBUTE_MIN = 1;                       // 属性最小值
+export const ATTRIBUTE_MAX = 20;                      // 属性最大值
+export const ATTRIBUTE_DEFAULT = 10;                  // 属性默认值
+export const ATTRIBUTE_TOTAL_POINTS = 72;             // 角色总属性点数（6个属性共72点）
 
-// ---------- Stress System ----------
-export const STRESS_MIN = -10;
-export const STRESS_MAX = 10;
-export const STRESS_OVERLOAD = 10;
-export const STRESS_RECOVERY_BASE = 1;
-export const STRESS_RECOVERY_BONUS = 1;
-export const STRESS_MODIFIER_MULTIPLIER = 0.5;
+// ---------- 压力系统 ----------
+export const STRESS_MIN = -10;                        // 压力最小值（极度冷静）
+export const STRESS_MAX = 10;                         // 压力最大值（极度紧张）
+export const STRESS_OVERLOAD = 10;                    // 压力过载阈值
+export const STRESS_RECOVERY_BASE = 1;                // 每轮基础压力恢复
+export const STRESS_RECOVERY_BONUS = 1;               // 额外压力恢复奖励
+export const STRESS_MODIFIER_MULTIPLIER = 0.5;        // 压力对检定的修正系数
 
-// ---------- Relation System ----------
-export const RELATION_MIN = -10;
-export const RELATION_MAX = 10;
-export const RELATION_NATURAL_RECOVERY = 0.5;
+// ---------- 关系系统 ----------
+export const RELATION_MIN = -10;                      // 关系最小值（极度敌对）
+export const RELATION_MAX = 10;                       // 关系最大值（极度友好）
+export const RELATION_NATURAL_RECOVERY = 0.5;         // 关系每轮自然恢复值（向0靠拢）
 
-// ---------- Item System ----------
-export const MAX_ITEM_SLOTS = 3;
+// ---------- 道具系统 ----------
+export const MAX_ITEM_SLOTS = 3;                      // 每个玩家最大道具栏位
+
+// ---------- 游戏配置 ----------
+export const MIN_PLAYERS = 5;                         // 最少玩家数量
+export const MAX_PLAYERS = 12;                        // 最多玩家数量
+export const DEFAULT_PLAYERS = 6;                     // 默认玩家数量
 
 // ---------- Dice & Check System ----------
 // Re-exported from @/utils/dice
 
-// ---------- Alignment Modifiers ----------
-export const ALIGNMENT_LAWFUL_LEADERSHIP_BONUS = 1;
-export const ALIGNMENT_LAWFUL_DECEPTION_PENALTY = -2;
-export const ALIGNMENT_CHAOTIC_DECEPTION_BONUS = 2;
-export const ALIGNMENT_EVIL_DECEPTION_BONUS = 1;
-export const ALIGNMENT_GOOD_AFFINITY_BONUS = 1;
+// ---------- 阵营修正 ----------
+export const ALIGNMENT_LAWFUL_LEADERSHIP_BONUS = 1;   // 守序阵营领导力加成
+export const ALIGNMENT_LAWFUL_DECEPTION_PENALTY = -2; // 守序阵营诡诈惩罚
+export const ALIGNMENT_CHAOTIC_DECEPTION_BONUS = 2;   // 混乱阵营诡诈加成
+export const ALIGNMENT_EVIL_DECEPTION_BONUS = 1;      // 邪恶阵营诡诈加成
+export const ALIGNMENT_GOOD_AFFINITY_BONUS = 1;       // 善良阵营亲和加成（仅善良行动）
 
-// ---------- Check Difficulties ----------
-export const CHECK_DIFFICULTY_EASY = 10;
-export const CHECK_DIFFICULTY_MEDIUM = 12;
-export const CHECK_DIFFICULTY_HARD = 15;
-export const CHECK_DIFFICULTY_VERY_HARD = 18;
-export const CHECK_DIFFICULTY_DEFEND = CHECK_DIFFICULTY_EASY;
-export const CHECK_DIFFICULTY_JOIN_SUSPECT = CHECK_DIFFICULTY_EASY;
-export const CHECK_DIFFICULTY_JOIN_DEFEND = CHECK_DIFFICULTY_EASY;
-export const CHECK_DIFFICULTY_CALL_VOTE = CHECK_DIFFICULTY_MEDIUM;
-export const CHECK_DIFFICULTY_BLOCK_VOTE = CHECK_DIFFICULTY_MEDIUM;
-export const CHECK_DIFFICULTY_GUARANTEE = CHECK_DIFFICULTY_MEDIUM;
-export const CHECK_DIFFICULTY_EXCLUDE_ALL = CHECK_DIFFICULTY_HARD;
+// ---------- 检定难度 ----------
+export const CHECK_DIFFICULTY_EASY = 10;              // 简单难度
+export const CHECK_DIFFICULTY_MEDIUM = 12;            // 中等难度
+export const CHECK_DIFFICULTY_HARD = 15;              // 困难难度
+export const CHECK_DIFFICULTY_VERY_HARD = 18;         // 极难难度
+export const CHECK_DIFFICULTY_DEFEND = CHECK_DIFFICULTY_EASY;           // 袒护难度（简单）
+export const CHECK_DIFFICULTY_JOIN_SUSPECT = CHECK_DIFFICULTY_EASY;     // 一同怀疑难度（简单）
+export const CHECK_DIFFICULTY_JOIN_DEFEND = CHECK_DIFFICULTY_EASY;      // 一同袒护难度（简单）
+export const CHECK_DIFFICULTY_CALL_VOTE = CHECK_DIFFICULTY_MEDIUM;      // 号召投票难度（中等）
+export const CHECK_DIFFICULTY_BLOCK_VOTE = CHECK_DIFFICULTY_MEDIUM;     // 阻止投票难度（中等）
+export const CHECK_DIFFICULTY_GUARANTEE = CHECK_DIFFICULTY_MEDIUM;      // 担保清白难度（中等）
+export const CHECK_DIFFICULTY_EXCLUDE_ALL = CHECK_DIFFICULTY_HARD;      // 全员排除难度（困难）
 
-// ---------- AI Decision Weights ----------
-export const STAGE_WEIGHT_DUTY = 1000;
-export const STAGE_WEIGHT_SURVIVAL = 800;
-export const STAGE_WEIGHT_INFORMATION = 500;
-export const STAGE_WEIGHT_SOCIAL = 100;
+// ---------- AI 决策权重 ----------
+export const STAGE_WEIGHT_DUTY = 1000;                // 职业义务阶段权重（最高优先级）
+export const STAGE_WEIGHT_SURVIVAL = 800;             // 生存阶段权重
+export const STAGE_WEIGHT_INFORMATION = 500;          // 信息阶段权重
+export const STAGE_WEIGHT_SOCIAL = 100;               // 社交阶段权重
 
-// ---------- Strategy Scores (General) ----------
-export const SCORE_PROPHET_VOTE_DUTY = 200;
-export const SCORE_WEREWOLF_VOTE_DUTY = 80;
-export const SCORE_MAX_INFO_VOTE = 100;
-export const SCORE_FOLLOW_CALL_VOTE = 40;
-export const SCORE_SOCIAL_TIE_BREAKER = 20;
-export const SCORE_SURVIVAL_VOTE = 70;
-export const SCORE_WEREWOLF_KILL_GOD_BONUS = 30;
-export const SCORE_WEREWOLF_KILL_HIGH_INSIGHT = 15;
-export const SCORE_WEREWOLF_KILL_BASE = 50;
-export const SCORE_PROPHET_CHECK_BASE = 50;
-export const SCORE_THIEF_STEAL_BASE = 40;
-export const SCORE_CORONER_INSPECT_BASE = 50;
-export const SCORE_BERSERKER_SUICIDE = 90;
-export const SCORE_SPEAK_BREAK_SILENCE = 80;
-export const SCORE_SPEAK_DEFAULT = 50;
-export const SCORE_EMPTY_KILL = 15;
-export const SCORE_SPEAK_BASE = 50;  // equal to observe for balance
+// ---------- 策略分数：通用 ----------
+export const SCORE_PROPHET_VOTE_DUTY = 200;           // 预言家查验到狼人后，号召投票的义务分数
+export const SCORE_WEREWOLF_VOTE_DUTY = 80;           // 狼人跟票投票的基础分数
+export const SCORE_MAX_INFO_VOTE = 100;               // 基于最大信息量投票的分数
+export const SCORE_FOLLOW_CALL_VOTE = 40;             // 跟随他人号召投票的分数
+export const SCORE_SOCIAL_TIE_BREAKER = 20;           // 社交关系作为投票平局决胜的分数
+export const SCORE_SURVIVAL_VOTE = 70;                // 为生存而投票的分数
+export const SCORE_WEREWOLF_KILL_GOD_BONUS = 30;      // 狼人击杀疑似神职的额外奖励
+export const SCORE_WEREWOLF_KILL_HIGH_INSIGHT = 15;   // 狼人击杀高洞察玩家的额外奖励
+export const SCORE_WEREWOLF_KILL_BASE = 50;           // 狼人夜间杀戮的基础分数
+export const SCORE_PROPHET_CHECK_BASE = 50;           // 预言家夜间查验的基础分数
+export const SCORE_THIEF_STEAL_BASE = 40;             // 窃贼偷窃的基础分数
+export const SCORE_CORONER_INSPECT_BASE = 50;         // 验尸官验尸的基础分数
+export const SCORE_BERSERKER_SUICIDE = 90;            // 狂狼同归于尽的基础分数
+export const SCORE_SPEAK_BREAK_SILENCE = 80;          // 打破沉默发言的分数
+export const SCORE_SPEAK_DEFAULT = 50;                // 默认发言分数
+export const SCORE_EMPTY_KILL = 15;                   // 狼人空刀（不杀人）的分数
+export const SCORE_SPEAK_BASE = 50;                   // 发言基础分数（与观察平衡）
 
-// ---------- Strategy Scores (Day) ----------
-export const SCORE_PROPHET_CLAIM = 1000;
-export const SCORE_PROPHET_CALL_VOTE = 950;
-export const SCORE_DEFEND_ATTACKED = 100;
-export const SCORE_DEFEND_ATTACKED_BONUS = 30;
-export const SCORE_SELF_GUARANTEE = 70;
-export const SCORE_HIGH_SUSPECT_ACCUSE = 130;
-export const SCORE_HIGH_SUSPECT_SUSPECT = 100;
-export const SCORE_HIGH_SUSPECT_CALL_VOTE = 110;
-export const SCORE_BEHAVIOR_OBSERVE = 75;
-export const SCORE_FOLLOW_TRUSTED = 85;
-export const SCORE_BREAK_SILENCE = 95;
-export const SCORE_DEFAULT_ROUND1_OBSERVE = 50;
-export const SCORE_DEFAULT_ROUND1_SPEAK = 40;
-export const SCORE_DEFAULT_OTHER_OBSERVE = 50;
-export const SCORE_DEFAULT_OTHER_SPEAK = 40;
+// ---------- 策略分数：白天行动 ----------
+export const SCORE_PROPHET_CLAIM = 1000;              // 预言家公布身份的分数（最高优先级）
+export const SCORE_PROPHET_CALL_VOTE = 950;           // 预言家号召投票放逐狼人的分数
+export const SCORE_DEFEND_ATTACKED = 100;             // 被攻击时辩护的分数
+export const SCORE_DEFEND_ATTACKED_BONUS = 30;        // 被攻击时辩护的额外奖励
+export const SCORE_SELF_GUARANTEE = 70;               // 担保自己清白的分数
+export const SCORE_HIGH_SUSPECT_ACCUSE = 130;         // 对高嫌疑玩家强烈指认的分数
+export const SCORE_HIGH_SUSPECT_SUSPECT = 100;        // 对高嫌疑玩家怀疑的分数
+export const SCORE_HIGH_SUSPECT_CALL_VOTE = 110;      // 对高嫌疑玩家号召投票的分数
+export const SCORE_BEHAVIOR_OBSERVE = 75;             // 观察其他玩家行为的分数
+export const SCORE_FOLLOW_TRUSTED = 85;               // 跟随信任玩家行动的分数
+export const SCORE_BREAK_SILENCE = 95;                // 打破沉默的分数
+export const SCORE_DEFAULT_ROUND1_OBSERVE = 50;       // 第一轮默认观察分数
+export const SCORE_DEFAULT_ROUND1_SPEAK = 40;         // 第一轮默认发言分数
+export const SCORE_DEFAULT_OTHER_OBSERVE = 50;        // 其他轮次默认观察分数
+export const SCORE_DEFAULT_OTHER_SPEAK = 40;          // 其他轮次默认发言分数
 
-// ---------- Strategy Scores (Werewolf Day) ----------
-export const SCORE_WW_DEFEND_ATTACKED_ACCUSE = 130;
-export const SCORE_WW_DEFEND_ATTACKED_SUSPECT = 100;
-export const SCORE_WW_CAMOUFLAGE_BASE = 70;
-export const SCORE_WW_CAMOUFLAGE_BONUS = 10;
-export const SCORE_WW_TEAMMATE_EXPOSED_GOUGE = 90;
-export const SCORE_WW_TEAMMATE_EXPOSED_DEFEND = 60;
-export const SCORE_WW_BREAK_SILENCE = 90;
-export const SCORE_WW_DEFAULT_ROUND1_TARGET = 55;
-export const SCORE_WW_DEFAULT_ROUND1 = 50;
-export const SCORE_WW_DEFAULT_OTHER = 50;
+// ---------- 策略分数：狼人白天行动 ----------
+export const SCORE_WW_DEFEND_ATTACKED_ACCUSE = 130;  // 狼人被攻击时，选择强烈指认攻击者的分数
+export const SCORE_WW_DEFEND_ATTACKED_SUSPECT = 100; // 狼人被攻击时，选择怀疑攻击者的分数
+export const SCORE_WW_CAMOUFLAGE_BASE = 70;          // 狼人伪装成村民的基础分数（如观察、发言）
+export const SCORE_WW_CAMOUFLAGE_BONUS = 10;         // 狼人伪装时的额外奖励分数
+export const SCORE_WW_TEAMMATE_EXPOSED_GOUGE = 90;   // 狼队友暴露时，落井下石（撇清关系）的分数
+export const SCORE_WW_TEAMMATE_EXPOSED_DEFEND = 60;  // 狼队友暴露时，冒险辩护的分数
+export const SCORE_WW_BREAK_SILENCE = 90;            // 狼人打破沉默（发言）的分数
+export const SCORE_WW_DEFAULT_ROUND1_TARGET = 55;    // 第一轮白天有明确目标时的默认分数
+export const SCORE_WW_DEFAULT_ROUND1 = 50;           // 第一轮白天无明确目标时的默认分数
+export const SCORE_WW_DEFAULT_OTHER = 50;            // 其他轮次白天的默认分数
 
-// ---------- Strategy Scores (Appendix) ----------
-export const SCORE_JOIN_SUSPECT_BASE = 80;
-export const SCORE_JOIN_SUSPECT_WOLF_BONUS = 30;
-export const SCORE_JOIN_DEFEND_BASE = 10;
-export const SCORE_JOIN_DEFEND_WOLF_BONUS = 40;
-export const SCORE_REBUT_WEREWOLF = 70;
-export const SCORE_REBUT_VILLAGER = 90;
+// ---------- 策略分数：追加行动 ----------
+export const SCORE_JOIN_SUSPECT_BASE = 80;            // 一同怀疑的基础分数
+export const SCORE_JOIN_SUSPECT_WOLF_BONUS = 30;      // 狼人一同怀疑的额外奖励
+export const SCORE_JOIN_DEFEND_BASE = 10;             // 一同袒护的基础分数（较低，因为袒护有风险）
+export const SCORE_JOIN_DEFEND_WOLF_BONUS = 40;       // 狼人一同袒护队友的额外奖励
+export const SCORE_REBUT_WEREWOLF = 70;               // 狼人反驳的分数
+export const SCORE_REBUT_VILLAGER = 90;               // 村民反驳的分数（村民反驳更有说服力）
 
-// ---------- Thresholds ----------
-export const WEREWOLF_PROBABILITY_HIGH = 0.6;
-export const WEREWOLF_PROBABILITY_LOW = 0.4;
-export const WEREWOLF_PROBABILITY_MEDIUM = 0.5;
-export const EXPOSURE_HIGH_THRESHOLD = 0.6;
-export const EXPOSURE_CRITICAL_THRESHOLD = 0.7;
-export const SILENCE_NEAR_FULL_THRESHOLD = 2;
+// ---------- 阈值常量 ----------
+export const WEREWOLF_PROBABILITY_HIGH = 0.6;         // 高狼人概率阈值（超过此值认为很可能是狼人）
+export const WEREWOLF_PROBABILITY_LOW = 0.4;          // 低狼人概率阈值（低于此值认为不太可能是狼人）
+export const WEREWOLF_PROBABILITY_MEDIUM = 0.5;       // 中等狼人概率阈值
+export const EXPOSURE_HIGH_THRESHOLD = 0.6;           // 高暴露阈值（超过此值认为身份可能暴露）
+export const EXPOSURE_CRITICAL_THRESHOLD = 0.7;       // 临界暴露阈值（超过此值认为身份几乎暴露）
+export const SILENCE_NEAR_FULL_THRESHOLD = 2;         // 连续沉默接近上限的阈值
 
-// ---------- Game Balance: Stress Changes ----------
-export const STRESS_CHANGE_MINOR_POS = 1;
-export const STRESS_CHANGE_MINOR_POS_RANDOM = 2;
-export const STRESS_CHANGE_MINOR_NEG = -1;
-export const STRESS_CHANGE_MINOR_NEG_RANDOM = -2;
-export const STRESS_CHANGE_MODERATE_POS = 2;
-export const STRESS_CHANGE_MODERATE_POS_RANDOM = 3;
-export const STRESS_CHANGE_MAJOR_POS = 3;
-export const STRESS_CHANGE_MAJOR_POS_RANDOM = 4;
+// ---------- UI 颜色阈值 ----------
+export const ATTR_COLOR_HIGH = 8;                     // 属性颜色：高值阈值（绿色）
+export const ATTR_COLOR_MEDIUM = 6;                   // 属性颜色：中值阈值（浅绿色）
+export const ATTR_COLOR_LOW = 4;                      // 属性颜色：低值阈值（黄色）
 
-// ---------- Game Balance: Relation Changes ----------
-export const REL_CHANGE_MINOR_NEG = -1;
-export const REL_CHANGE_MINOR_POS = 1;
-export const REL_CHANGE_MODERATE_NEG = -2;
-export const REL_CHANGE_MODERATE_POS = 2;
-export const REL_CHANGE_MAJOR_NEG = -3;
-export const REL_CHANGE_MAJOR_POS = 3;
+export const STRESS_COLOR_CALM = -5;                  // 压力颜色：冷静阈值（蓝色）
+export const STRESS_COLOR_NORMAL = 2;                 // 压力颜色：正常阈值（绿色）
+export const STRESS_COLOR_TENSE = 5;                  // 压力颜色：紧张阈值（黄色）
+export const STRESS_COLOR_ANXIOUS = 8;                // 压力颜色：焦虑阈值（橙色）
+
+export const STRESS_LABEL_EXTREMELY_CALM = -7;        // 压力标签：极度冷静阈值
+export const STRESS_LABEL_CALM = -3;                  // 压力标签：冷静阈值
+export const STRESS_LABEL_NORMAL = 2;                 // 压力标签：正常阈值
+export const STRESS_LABEL_TENSE = 5;                  // 压力标签：轻微紧张阈值
+export const STRESS_LABEL_ANXIOUS = 8;                // 压力标签：明显焦虑阈值
+
+// ---------- 游戏速度 ----------
+export const GAME_SPEED_SLOW = 0.5;                   // 慢速
+export const GAME_SPEED_NORMAL = 1;                   // 正常速度
+export const GAME_SPEED_FAST = 2;                     // 快速
+
+// ---------- UI 过滤阈值 ----------
+export const RELATION_DISPLAY_THRESHOLD = 0.5;        // 关系显示阈值（低于此值不显示）
+
+// ---------- 游戏引擎 ----------
+export const DEFAULT_TICK_RATE = 2000;                 // 默认 tick 间隔（毫秒）
+
+// ---------- AI 置信度 ----------
+export const CONFIDENCE_JOIN_SUSPECT = 0.6;            // 一同怀疑置信度
+export const CONFIDENCE_JOIN_DEFEND = 0.6;             // 一同袒护置信度
+
+// ---------- 关系阈值 ----------
+export const RELATION_FRIENDLY_JOIN_DEFEND = 3;        // 一同袒护的友好度阈值
+
+// ---------- 信念系统：概率调整系数 ----------
+export const BELIEF_DEATH_DECAY = 0.6;                 // 死亡时狼人概率衰减系数
+export const BELIEF_SUSPECT_MAX_ADJ = 0.2;             // 怀疑行动最大调整值
+export const BELIEF_SUSPECT_RATE = 0.06;               // 怀疑行动调整速率
+export const BELIEF_ACCUSE_MAX_ADJ = 0.25;             // 指控行动最大调整值
+export const BELIEF_ACCUSE_RATE = 0.08;                // 指控行动调整速率
+export const BELIEF_DEFEND_MAX_ADJ = 0.15;             // 辩护行动最大调整值
+export const BELIEF_DEFEND_RATE = 0.05;                // 辩护行动调整速率
+export const BELIEF_CLAIM_IDENTITY_ADJ = 0.1;          // 公布身份调整值
+export const BELIEF_REVEAL_INFO_ADJ = 0.2;             // 公开信息调整值
+export const BELIEF_THANK_ADJ = 0.05;                  // 感谢行动调整值
+export const BELIEF_CALL_VOTE_ADJ = 0.1;               // 号召投票调整值
+export const BELIEF_JOIN_SUSPECT_RATE = 0.03;          // 一同怀疑调整速率
+export const BELIEF_NATURAL_DECAY = 0.02;              // 自然衰减速率
+export const BELIEF_FALSE_CLAIM_ADJ = 0.3;             // 虚假声明调整值
+
+// ---------- 信念系统：信任分数变化 ----------
+export const TRUST_CHANGE_SUSPECT = -2;                // 怀疑时信任变化
+export const TRUST_CHANGE_DEFEND = 1;                  // 辩护时信任变化
+export const TRUST_CHANGE_ACCUSE = -3;                 // 指控时信任变化
+export const TRUST_CHANGE_GUARANTEE = 2;               // 担保时信任变化
+export const TRUST_CHANGE_FALSE_CLAIM = -4;            // 虚假声明时信任变化
+export const TRUST_SCORE_MIN = -10;                    // 信任分数最小值
+export const TRUST_SCORE_MAX = 10;                     // 信任分数最大值
+
+// ---------- 信念系统：意图系统 ----------
+export const INTENTION_STRENGTH_BASE = 500;            // 意图强度基础值
+export const INTENTION_STRENGTH_PROB_FACTOR = 300;     // 意图强度概率因子
+
+// ---------- 行为修正：压力阈值 ----------
+export const STRESS_EXTREMELY_CALM = -5;              // 极度冷静阈值
+export const STRESS_CALM = -2;                        // 冷静阈值
+export const STRESS_MILDLY_TENSE_MIN = 2;             // 轻微紧张最小值
+export const STRESS_MILDLY_TENSE_MAX = 5;             // 轻微紧张最大值
+export const STRESS_ANXIOUS_MIN = 6;                  // 焦虑最小值
+export const STRESS_ANXIOUS_MAX = 8;                  // 焦虑最大值
+export const STRESS_NEAR_OVERLOAD = 9;                // 接近过载阈值
+
+// ---------- 行为修正：阵营修正值 ----------
+export const ALIGNMENT_MOD_GOOD_DEFEND = 2;           // 善良阵营：保护行动加成
+export const ALIGNMENT_MOD_EVIL_DEFEND = -1;          // 邪恶阵营：保护行动惩罚
+export const ALIGNMENT_MOD_LAWFUL_ACCUSE = 1;         // 守序阵营：指控行动加成
+export const ALIGNMENT_MOD_CHAOTIC_ACCUSE = 3;        // 混乱阵营：指控行动加成
+export const ALIGNMENT_MOD_EVIL_ACCUSE = 2;           // 邪恶阵营：指控行动加成
+export const ALIGNMENT_MOD_LAWFUL_OBSERVE = 2;        // 守序阵营：观察行动加成
+export const ALIGNMENT_MOD_CHAOTIC_OBSERVE = -2;      // 混乱阵营：观察行动惩罚
+export const ALIGNMENT_MOD_CHAOTIC_SPEAK = 1;         // 混乱阵营：发言行动加成
+export const ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME = 5;  // 混乱邪恶：极端行动加成
+export const ALIGNMENT_MOD_CHAOTIC_EXTREME = 2;       // 混乱阵营：极端行动加成
+export const ALIGNMENT_MOD_EVIL_EXTREME = 2;          // 邪恶阵营：极端行动加成
+export const ALIGNMENT_MOD_NON_EXTREME = -1;          // 非极端阵营：极端行动惩罚
+export const ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE = 1;     // 守序阵营：阻止投票加成
+export const ALIGNMENT_MOD_CHAOTIC_REBUT = 1;         // 混乱阵营：反驳行动加成
+export const ALIGNMENT_MOD_EVIL_JOIN_SUSPECT = 2;     // 邪恶阵营：一同怀疑加成
+export const ALIGNMENT_MOD_GOOD_JOIN_SUSPECT = -1;    // 善良阵营：一同怀疑惩罚
+export const ALIGNMENT_MOD_GOOD_JOIN_DEFEND = 2;      // 善良阵营：一同袒护加成
+export const ALIGNMENT_MOD_EVIL_JOIN_DEFEND = -1;     // 邪恶阵营：一同袒护惩罚
+export const ALIGNMENT_MOD_CHAOTIC_KILL = 1;          // 混乱阵营：杀戮行动加成
+export const ALIGNMENT_MOD_LAWFUL_CHECK = 1;          // 守序阵营：查验行动加成
+
+// ---------- 游戏平衡：压力变化 ----------
+export const STRESS_CHANGE_MINOR_POS = 1;             // 轻微正面压力变化（最小值）
+export const STRESS_CHANGE_MINOR_POS_RANDOM = 2;      // 轻微正面压力变化（随机最大值）
+export const STRESS_CHANGE_MINOR_NEG = -1;            // 轻微负面压力变化（最小值）
+export const STRESS_CHANGE_MINOR_NEG_RANDOM = -2;     // 轻微负面压力变化（随机最大值）
+export const STRESS_CHANGE_MODERATE_POS = 2;          // 中度正面压力变化（最小值）
+export const STRESS_CHANGE_MODERATE_POS_RANDOM = 3;   // 中度正面压力变化（随机最大值）
+export const STRESS_CHANGE_MAJOR_POS = 3;             // 重度正面压力变化（最小值）
+export const STRESS_CHANGE_MAJOR_POS_RANDOM = 4;      // 重度正面压力变化（随机最大值）
+
+// ---------- 游戏平衡：关系变化 ----------
+export const REL_CHANGE_MINOR_NEG = -1;               // 轻微负面关系变化
+export const REL_CHANGE_MINOR_POS = 1;                // 轻微正面关系变化
+export const REL_CHANGE_MODERATE_NEG = -2;            // 中度负面关系变化
+export const REL_CHANGE_MODERATE_POS = 2;             // 中度正面关系变化
+export const REL_CHANGE_MAJOR_NEG = -3;               // 重度负面关系变化
+export const REL_CHANGE_MAJOR_POS = 3;                // 重度正面关系变化
 
 // ---------- Default Fallback Values ----------
 export const DEFAULT_ATTRIBUTE_FALLBACK = ATTRIBUTE_DEFAULT; // 10
@@ -320,122 +427,23 @@ export const DEFAULT_ALIGNMENT_FALLBACK: { law: 'neutral_law'; good: 'neutral_go
 export const EMPTY_KILL_CHANCE = 0.1;
 
 // =====================================================================
-// SECTION 4: Utility Functions
+// SECTION 4: Utility Functions (Re-exports)
 // =====================================================================
 
-// Re-export from utils for backward compatibility
+// 从 utils 重新导出（向后兼容）
 export { rollD20, performCheck, performOpposedCheck, DICE_SIDES, NATURAL_20, NATURAL_1 } from '@/utils/dice';
 export type { CheckResult, OpposedCheckResult } from '@/utils/dice';
 export { clamp } from '@/utils/math';
 
-// Import clamp for use in game-specific functions
-import { clamp } from '@/utils/math';
-
-// ---------- Game-specific Clamps ----------
-
-export function clampStress(value: number): number { return clamp(value, STRESS_MIN, STRESS_MAX); }
-export function clampRelation(value: number): number { return clamp(value, RELATION_MIN, RELATION_MAX); }
-
-// ---------- Alignment ----------
-
-export function getAlignmentName(alignment: Alignment): string {
-  return ALIGNMENT_NAMES[`${alignment.law}-${alignment.good}`] || '未知';
-}
-
-// ---------- Item helpers ----------
-
-export function hasItem(player: Player, itemId: string): boolean {
-  return player.items.some((i) => i.definitionId === itemId && i.durability > 0);
-}
-
-export function getItem(player: Player, itemId: string): ItemInstance | undefined {
-  return player.items.find((i) => i.definitionId === itemId && i.durability > 0);
-}
-
-export function removeItem(player: Player, itemId: string): boolean {
-  const idx = player.items.findIndex((i) => i.definitionId === itemId);
-  if (idx >= 0) { player.items.splice(idx, 1); return true; }
-  return false;
-}
-
-export function addItem(player: Player, itemId: string): boolean {
-  if (player.items.length >= MAX_ITEM_SLOTS) return false;
-  const def = ITEM_DEFINITIONS[itemId];
-  if (!def) return false;
-  player.items.push({ definitionId: itemId, durability: def.maxDurability });
-  return true;
-}
-
-export function damageItem(player: Player, itemId: string): boolean {
-  const item = player.items.find((i) => i.definitionId === itemId);
-  if (!item) return false;
-  item.durability--;
-  if (item.durability <= 0) removeItem(player, itemId);
-  return true;
-}
-
-export function canUseItem(player: Player, itemId: string): boolean { return hasItem(player, itemId); }
-
-// ---------- Random generation ----------
-
-export function generateRandomAttributes(): Attributes {
-  const keys: (keyof Attributes)[] = ['affinity', 'logic', 'leadership', 'deception', 'stealth', 'insight'];
-  
-  // Average value: 72 / 6 = 12
-  const average = ATTRIBUTE_TOTAL_POINTS / 6;
-  
-  // Start with average values
-  const result: Attributes = {
-    affinity: average,
-    logic: average,
-    leadership: average,
-    deception: average,
-    stealth: average,
-    insight: average,
-  };
-  
-  // Redistribute points with limited variance
-  // Each attribute can deviate from average by max ±5
-  const maxDeviation = 5;
-  let remaining = 0;
-  
-  // Randomly adjust each attribute
-  for (const key of keys) {
-    const deviation = Math.floor(Math.random() * (maxDeviation * 2 + 1)) - maxDeviation;
-    const newValue = Math.max(ATTRIBUTE_MIN, Math.min(ATTRIBUTE_MAX, result[key] + deviation));
-    remaining += result[key] - newValue;
-    result[key] = newValue;
-  }
-  
-  // Distribute remaining points to maintain total
-  let attempts = 0;
-  while (remaining !== 0 && attempts < 1000) {
-    const key = keys[Math.floor(Math.random() * keys.length)];
-    if (remaining > 0 && result[key] < ATTRIBUTE_MAX) {
-      const add = Math.min(remaining, ATTRIBUTE_MAX - result[key], 3); // Max +3 per adjustment
-      result[key] += add;
-      remaining -= add;
-    } else if (remaining < 0 && result[key] > ATTRIBUTE_MIN) {
-      const sub = Math.min(-remaining, result[key] - ATTRIBUTE_MIN, 3); // Max -3 per adjustment
-      result[key] -= sub;
-      remaining += sub;
-    }
-    attempts++;
-  }
-  
-  return result;
-}
-
-export function generateRandomAlignment(): Alignment {
-  const laws: LawAxis[] = ['lawful', 'neutral_law', 'chaotic'];
-  const goods: GoodAxis[] = ['good', 'neutral_good', 'evil'];
-  return { law: laws[Math.floor(Math.random() * laws.length)], good: goods[Math.floor(Math.random() * goods.length)] };
-}
-
-// Re-export from game/modifiers for backward compatibility
+// 从 lib/game 重新导出（向后兼容）
+export { clampStress, clampRelation } from '@/lib/game/modifiers';
+export { getAlignmentName } from '@/lib/game/alignment';
+export { hasItem, getItem, removeItem, addItem, damageItem, canUseItem } from '@/lib/game/items';
+export { generateRandomAttributes, generateRandomAlignment } from '@/lib/game/random';
 export { getStressModifier, getAlignmentModifier, calculateModifierBreakdown, calculateFinalModifier } from '@/lib/game/modifiers';
 export type { ModifierBreakdown } from '@/lib/game/modifiers';
 
+// 属性名称映射
 export const ATTRIBUTE_NAMES: Record<keyof Attributes, string> = {
   affinity: '亲和', logic: '逻辑', leadership: '领导',
   deception: '诡诈', stealth: '隐蔽', insight: '洞察',

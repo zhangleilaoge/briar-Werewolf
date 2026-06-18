@@ -10,7 +10,8 @@
 				"noUnusedFunctionParameters": "off"
 			},
 			"style": {
-				"noNonNullAssertion": "off"
+				"noNonNullAssertion": "off",
+				"noMagicNumbers": "warn"
 			},
 			"suspicious": {
 				"noArrayIndexKey": "off",

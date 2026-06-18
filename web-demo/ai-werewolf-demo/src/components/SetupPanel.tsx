@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameConfig } from './useGameRunner';
+import { MIN_PLAYERS } from '@/types';
 
 interface SetupPanelProps {
   onStart: (config: GameConfig) => void;
@@ -105,9 +106,9 @@ export default function SetupPanel({ onStart }: SetupPanelProps) {
         <button
           className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleStart}
-          disabled={total < 5}
+          disabled={total < MIN_PLAYERS}
         >
-          {total < 5 ? '至少需要 5 人' : '▶ 开始游戏'}
+          {total < MIN_PLAYERS ? `至少需要 ${MIN_PLAYERS} 人` : '▶ 开始游戏'}
         </button>
       </div>
     </div>

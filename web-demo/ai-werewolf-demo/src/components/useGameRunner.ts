@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameSimulator, generateGameConfig } from '../lib/game/simulator';
 import type { GameLogItem, Player } from '@/types';
+import { DEFAULT_TICK_RATE } from '@/types';
 
 export interface GameConfig {
   totalPlayers: number;
@@ -131,7 +132,7 @@ export function useGameRunner() {
     }
 
     if (!pausedRef.current && phaseRef.current !== 'ended') {
-      const tickRate = (sim.getCurrentTickRate?.() ?? 2000);
+      const tickRate = (sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE);
       const delay = tickRate / speedRef.current;
       timerRef.current = setTimeout(runNextStep, delay);
     }
@@ -150,7 +151,7 @@ export function useGameRunner() {
       setPlayers(sim.getPlayers());
       setPhase('running');
       sim.generateRoundSteps();
-      const tickRate = sim.getCurrentTickRate?.() ?? 2000;
+      const tickRate = sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
       const delay = tickRate / speedRef.current;
       console.log(`[startGame] first delay=${delay}ms tickRate=${tickRate}`);
       timerRef.current = setTimeout(runNextStep, delay);
@@ -173,7 +174,7 @@ export function useGameRunner() {
     pausedRef.current = false;
     setPhase('running');
     const sim = simulatorRef.current;
-    const tickRate = sim?.getCurrentTickRate?.() ?? 2000;
+    const tickRate = sim?.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
     const delay = tickRate / speedRef.current;
     console.log(`[resumeGame] delay=${delay}ms tickRate=${tickRate}`);
     timerRef.current = setTimeout(runNextStep, delay);

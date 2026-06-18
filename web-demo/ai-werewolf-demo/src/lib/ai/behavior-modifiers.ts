@@ -1,10 +1,22 @@
 // ============================
-// Behavior Modifiers
-// Alignment, Stress, and Relations influence AI behavior choices
-// beyond just check modifiers.
+// 行为修正系统
+// 阵营、压力和关系影响 AI 的行为选择
 // ============================
 
 import type { Alignment, Player, Relation } from '@/types';
+import {
+  STRESS_EXTREMELY_CALM, STRESS_CALM, STRESS_MILDLY_TENSE_MIN, STRESS_MILDLY_TENSE_MAX,
+  STRESS_ANXIOUS_MIN, STRESS_ANXIOUS_MAX, STRESS_NEAR_OVERLOAD,
+  ALIGNMENT_MOD_GOOD_DEFEND, ALIGNMENT_MOD_EVIL_DEFEND,
+  ALIGNMENT_MOD_LAWFUL_ACCUSE, ALIGNMENT_MOD_CHAOTIC_ACCUSE, ALIGNMENT_MOD_EVIL_ACCUSE,
+  ALIGNMENT_MOD_LAWFUL_OBSERVE, ALIGNMENT_MOD_CHAOTIC_OBSERVE,
+  ALIGNMENT_MOD_CHAOTIC_SPEAK, ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME,
+  ALIGNMENT_MOD_CHAOTIC_EXTREME, ALIGNMENT_MOD_EVIL_EXTREME, ALIGNMENT_MOD_NON_EXTREME,
+  ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE, ALIGNMENT_MOD_CHAOTIC_REBUT,
+  ALIGNMENT_MOD_EVIL_JOIN_SUSPECT, ALIGNMENT_MOD_GOOD_JOIN_SUSPECT,
+  ALIGNMENT_MOD_GOOD_JOIN_DEFEND, ALIGNMENT_MOD_EVIL_JOIN_DEFEND,
+  ALIGNMENT_MOD_CHAOTIC_KILL, ALIGNMENT_MOD_LAWFUL_CHECK,
+} from '@/types';
 
 export interface BehaviorModifier {
   actionType: string;
@@ -24,74 +36,74 @@ export function getAlignmentBehaviorModifier(
   switch (action) {
     case 'defend':
     case 'guarantee':
-      // Good: protective actions favored; Evil: only protect if beneficial
-      if (good === 'good') return 2;
-      if (good === 'evil') return -1;
+      // 善良：保护行动加成；邪恶：仅在有利时保护
+      if (good === 'good') return ALIGNMENT_MOD_GOOD_DEFEND;
+      if (good === 'evil') return ALIGNMENT_MOD_EVIL_DEFEND;
       return 0;
 
     case 'suspect':
     case 'accuse':
     case 'call_vote':
-      // Lawful: systematic accusation favored; Chaotic: aggressive accusation favored
-      if (law === 'lawful') return 1;
-      if (law === 'chaotic') return 3;
-      if (good === 'evil') return 2;
+      // 守序：系统性指控；混乱：激进指控
+      if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_ACCUSE;
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_ACCUSE;
+      if (good === 'evil') return ALIGNMENT_MOD_EVIL_ACCUSE;
       return 0;
 
     case 'observe':
-      // Lawful: careful observation favored; Chaotic: impatience reduces observation
-      if (law === 'lawful') return 2;
-      if (law === 'chaotic') return -2;
+      // 守序：仔细观察；混乱：不耐烦，减少观察
+      if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_OBSERVE;
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_OBSERVE;
       return 0;
 
     case 'speak':
-      // Chaotic: impulsive speech favored; Lawful: measured speech
-      if (law === 'chaotic') return 1;
+      // 混乱：冲动发言；守序：谨慎发言
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_SPEAK;
       return 0;
 
     case 'exclude_all':
     case 'berserker_kill':
-      // Chaotic Evil: extreme actions heavily favored
-      if (law === 'chaotic' && good === 'evil') return 5;
-      if (law === 'chaotic') return 2;
-      if (good === 'evil') return 2;
-      return -1;
+      // 混乱邪恶：极端行动大幅加成
+      if (law === 'chaotic' && good === 'evil') return ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME;
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_EXTREME;
+      if (good === 'evil') return ALIGNMENT_MOD_EVIL_EXTREME;
+      return ALIGNMENT_MOD_NON_EXTREME;
 
     case 'block_vote':
-      // Lawful: controlling the process favored
-      if (law === 'lawful') return 1;
+      // 守序：控制流程加成
+      if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE;
       return 0;
 
     case 'rebut':
-      // Chaotic: emotional rebuttal favored; Lawful: logical rebuttal (same score, different flavor)
-      if (law === 'chaotic') return 1;
+      // 混乱：情绪化反驳；守序：逻辑反驳（相同分数，不同风格）
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_REBUT;
       return 0;
 
     case 'join_suspect':
-      // Evil: bandwagon suspicion favored; Good: less likely to pile on
-      if (good === 'evil') return 2;
-      if (good === 'good') return -1;
+      // 邪恶：跟风怀疑；善良：不太可能落井下石
+      if (good === 'evil') return ALIGNMENT_MOD_EVIL_JOIN_SUSPECT;
+      if (good === 'good') return ALIGNMENT_MOD_GOOD_JOIN_SUSPECT;
       return 0;
 
     case 'join_defend':
-      // Good: solidarity favored; Evil: only defend if useful
-      if (good === 'good') return 2;
-      if (good === 'evil') return -1;
+      // 善良：团结一致；邪恶：仅在有用时辩护
+      if (good === 'good') return ALIGNMENT_MOD_GOOD_JOIN_DEFEND;
+      if (good === 'evil') return ALIGNMENT_MOD_EVIL_JOIN_DEFEND;
       return 0;
 
     case 'kill':
-      // Chaotic: impulsive kills favored; Lawful: calculated kills
-      if (law === 'chaotic') return 1;
+      // 混乱：冲动杀戮；守序：计算杀戮
+      if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_KILL;
       return 0;
 
     case 'check':
-      // Lawful: systematic investigation favored
-      if (law === 'lawful') return 1;
+      // 守序：系统性调查
+      if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_CHECK;
       return 0;
 
     case 'vote':
-      // Lawful: follow rules/majority; Chaotic: emotional voting; Good: justice; Evil: self-interest
-      return 0; // voting is more influenced by relations than alignment
+      // 投票更多受关系影响，而非阵营
+      return 0;
 
     default:
       return 0;
@@ -104,82 +116,41 @@ export function getStressBehaviorModifier(
   stress: number,
   action: 'suspect' | 'accuse' | 'defend' | 'guarantee' | 'observe' | 'speak' | 'call_vote' | 'block_vote' | 'exclude_all' | 'berserker_kill' | 'kill' | 'check' | 'steal' | 'inspect' | 'vote' | 'rebut' | 'join_suspect' | 'join_defend' | 'claim_identity' | 'thank' | 'reveal_info' | string
 ): number {
-  // Stress range: -10 (extremely calm) to +10 (overload)
+  // 压力范围：-10（极度冷静）到 +10（过载）
 
-  if (stress <= -5) {
-    // Extremely calm: methodical, patient, less aggressive
-    switch (action) {
-      case 'observe': return 3;
-      case 'speak': return -2; // prefers silence/observation
-      case 'suspect': return -1;
-      case 'accuse': return -3;
-      case 'defend': return 1;
-      case 'guarantee': return 1;
-      case 'call_vote': return -2;
-      case 'exclude_all': return -3;
-      case 'berserker_kill': return -5;
-      default: return 0;
-    }
+  // 定义各压力等级的修正值常量
+  const EXTREMELY_CALM_MODS = { observe: 3, speak: -2, suspect: -1, accuse: -3, defend: 1, guarantee: 1, call_vote: -2, exclude_all: -3, berserker_kill: -5 };
+  const CALM_MODS = { observe: 2, defend: 1, guarantee: 1, accuse: -1, exclude_all: -2 };
+  const MILDLY_TENSE_MODS = { suspect: 2, accuse: 1, call_vote: 1, observe: -1, defend: -1 };
+  const ANXIOUS_MODS = { accuse: 3, suspect: 2, call_vote: 2, defend: 2, rebut: 3, observe: -2, speak: 1, exclude_all: 2, berserker_kill: 3 };
+  const NEAR_OVERLOAD_MODS = { accuse: 5, exclude_all: 4, berserker_kill: 5, call_vote: 3, rebut: 4, speak: 2, observe: -3, defend: -2, guarantee: -3, claim_identity: 2 };
+
+  if (stress <= STRESS_EXTREMELY_CALM) {
+    // 极度冷静：有条理、耐心、不激进
+    return EXTREMELY_CALM_MODS[action as keyof typeof EXTREMELY_CALM_MODS] ?? 0;
   }
 
-  if (stress <= -2) {
-    // Calm: reasoned, protective
-    switch (action) {
-      case 'observe': return 2;
-      case 'defend': return 1;
-      case 'guarantee': return 1;
-      case 'accuse': return -1;
-      case 'exclude_all': return -2;
-      default: return 0;
-    }
+  if (stress <= STRESS_CALM) {
+    // 冷静：理性、保护性
+    return CALM_MODS[action as keyof typeof CALM_MODS] ?? 0;
   }
 
-  if (stress >= 2 && stress <= 5) {
-    // Mildly tense: more suspicious, more active
-    switch (action) {
-      case 'suspect': return 2;
-      case 'accuse': return 1;
-      case 'call_vote': return 1;
-      case 'observe': return -1;
-      case 'defend': return -1;
-      default: return 0;
-    }
+  if (stress >= STRESS_MILDLY_TENSE_MIN && stress <= STRESS_MILDLY_TENSE_MAX) {
+    // 轻微紧张：更怀疑、更活跃
+    return MILDLY_TENSE_MODS[action as keyof typeof MILDLY_TENSE_MODS] ?? 0;
   }
 
-  if (stress >= 6 && stress <= 8) {
-    // Anxious: aggressive, defensive, impulsive
-    switch (action) {
-      case 'accuse': return 3;
-      case 'suspect': return 2;
-      case 'call_vote': return 2;
-      case 'defend': return 2; // defensive
-      case 'rebut': return 3;
-      case 'observe': return -2;
-      case 'speak': return 1; // impulsive speech
-      case 'exclude_all': return 2;
-      case 'berserker_kill': return 3;
-      default: return 0;
-    }
+  if (stress >= STRESS_ANXIOUS_MIN && stress <= STRESS_ANXIOUS_MAX) {
+    // 焦虑：激进、防御、冲动
+    return ANXIOUS_MODS[action as keyof typeof ANXIOUS_MODS] ?? 0;
   }
 
-  if (stress >= 9) {
-    // Near/overload: erratic, desperate, may freeze or explode
-    switch (action) {
-      case 'accuse': return 5;
-      case 'exclude_all': return 4;
-      case 'berserker_kill': return 5;
-      case 'call_vote': return 3;
-      case 'rebut': return 4;
-      case 'speak': return 2;
-      case 'observe': return -3;
-      case 'defend': return -2; // too stressed to defend others
-      case 'guarantee': return -3;
-      case 'claim_identity': return 2; // may impulsively claim
-      default: return 0;
-    }
+  if (stress >= STRESS_NEAR_OVERLOAD) {
+    // 接近/过载：不稳定、绝望、可能冻结或爆发
+    return NEAR_OVERLOAD_MODS[action as keyof typeof NEAR_OVERLOAD_MODS] ?? 0;
   }
 
-  // Normal range (-1 to +1): no modifier
+  // 正常范围（-1 到 +1）：无修正
   return 0;
 }
 
@@ -193,31 +164,35 @@ export function getRelationTargetModifier(
 
   const { trust, friendly } = relation;
 
+  // 关系修正系数
+  const RELATION_WEIGHT_HIGH = 2;    // 高权重（保护、指控）
+  const RELATION_WEIGHT_LOW = 4;     // 低权重（杀戮）
+
   switch (action) {
     case 'defend':
     case 'guarantee':
     case 'block_vote':
-      // Positive relations = more likely to defend/guarantee
-      return (friendly + trust) / 2;
+      // 正面关系 = 更可能保护/担保
+      return (friendly + trust) / RELATION_WEIGHT_HIGH;
 
     case 'suspect':
     case 'accuse':
     case 'call_vote':
     case 'vote':
-      // Negative relations = more likely to suspect/accuse/vote against
-      return -(friendly + trust) / 2;
+      // 负面关系 = 更可能怀疑/指控/投票反对
+      return -(friendly + trust) / RELATION_WEIGHT_HIGH;
 
     case 'kill':
-      // Negative relations = slightly more likely to kill (for wolves)
-      return -(friendly + trust) / 4;
+      // 负面关系 = 稍微更可能杀戮（狼人）
+      return -(friendly + trust) / RELATION_WEIGHT_LOW;
 
     case 'check':
-      // Low trust = more likely to check (for prophets)
-      return -trust / 2;
+      // 低信任 = 更可能查验（预言家）
+      return -trust / RELATION_WEIGHT_HIGH;
 
     case 'steal':
-      // Low trust = more likely to steal (for thieves)
-      return -trust / 2;
+      // 低信任 = 更可能偷窃（窃贼）
+      return -trust / RELATION_WEIGHT_HIGH;
 
     default:
       return 0;

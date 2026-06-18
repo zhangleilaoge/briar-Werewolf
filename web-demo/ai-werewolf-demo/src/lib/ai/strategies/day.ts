@@ -347,6 +347,7 @@ export const VillagerDayStrategy: Strategy = {
             action: 'observe',
             target: randomTarget.id,
             score: SCORE_DEFAULT_ROUND1_OBSERVE,
+            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
             confidence: 0.3,
             reason: `第一天信息不足，我打算观察${randomTarget.name}获取更多情报。`,
             strategy: 'VillagerDayStrategy',
@@ -359,6 +360,7 @@ export const VillagerDayStrategy: Strategy = {
             action: 'observe',
             target: randomTarget.id,
             score: SCORE_DEFAULT_OTHER_OBSERVE,
+            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
             confidence: 0.3,
             reason: `目前没什么明确线索，我打算观察${randomTarget.name}获取更多情报。`,
             strategy: 'VillagerDayStrategy',
@@ -373,6 +375,7 @@ export const VillagerDayStrategy: Strategy = {
           action: 'speak',
           target: null,
           score: SCORE_DEFAULT_ROUND1_SPEAK,
+          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
           confidence: 0.3,
           reason: `第一天信息不足，我先听听大家的发言。`,
           strategy: 'VillagerDayStrategy',
@@ -384,6 +387,7 @@ export const VillagerDayStrategy: Strategy = {
           action: 'speak',
           target: null,
           score: SCORE_DEFAULT_OTHER_SPEAK,
+          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
           confidence: 0.3,
           reason: `目前没什么明确线索，先看看大家的发言。`,
           strategy: 'VillagerDayStrategy',
@@ -537,34 +541,38 @@ export const WerewolfCamouflageStrategy: Strategy = {
       if (isRound1) {
         const random = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
         if (random) {
+          // 意图对齐：默认行为生成与意图匹配的基础候选
+          // 如果当前意图是观察/隐藏，用 observe；否则用 speak
           result.push({
-            action: 'speak',
+            action: 'observe',
             target: random.id,
             score: SCORE_WW_DEFAULT_ROUND1_TARGET,
+            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
             confidence: 0.5,
             reason: `第一天信息不多，我先观察${random.name}，看看他有什么表现。`,
             strategy: 'WerewolfCamouflageStrategy',
-            rule: 'default_round1_speak_target',
+            rule: 'default_round1_observe_target',
             trigger: '无更高优先级规则命中，且为第一轮',
             random: true,
           });
-        } else {
-          result.push({
-            action: 'speak',
-            target: null,
-            score: SCORE_WW_DEFAULT_ROUND1,
-            confidence: 0.5,
-            reason: `第一天信息不多，我先看看局势。`,
-            strategy: 'WerewolfCamouflageStrategy',
-            rule: 'default_round1_speak',
-            trigger: '无更高优先级规则命中，且为第一轮',
-          });
         }
+        result.push({
+          action: 'speak',
+          target: null,
+          score: SCORE_WW_DEFAULT_ROUND1,
+          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
+          confidence: 0.5,
+          reason: `第一天信息不多，我先看看局势。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'default_round1_speak',
+          trigger: '无更高优先级规则命中，且为第一轮',
+        });
       } else {
         result.push({
           action: 'speak',
           target: null,
           score: SCORE_WW_DEFAULT_OTHER,
+          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
           confidence: 0.5,
           reason: `我也没什么头绪，先看看大家怎么说。`,
           strategy: 'WerewolfCamouflageStrategy',

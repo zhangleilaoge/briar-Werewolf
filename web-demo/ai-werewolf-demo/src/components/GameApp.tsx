@@ -3,8 +3,9 @@ import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
 import type { ActionLogDetail, DecisionProcess } from '@/types';
-import { getAlignmentName } from '@/types';
+import { getAlignmentName, GAME_SPEED_SLOW, GAME_SPEED_NORMAL, GAME_SPEED_FAST, RELATION_DISPLAY_THRESHOLD } from '@/types';
 import { roleNameMap, getLogColor, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel, highlightNames } from './ui-utils';
+import { buildCheckExpr } from '@/lib/utils/expr';
 import type { PlayerState } from './useGameRunner';
 
 export default function GameApp() {
@@ -53,7 +54,7 @@ export default function GameApp() {
         <div className="flex items-center gap-2">
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors"
-            onClick={() => game.setSpeed(game.speed === 0.5 ? 1 : game.speed === 1 ? 2 : 0.5)}
+            onClick={() => game.setSpeed(game.speed === GAME_SPEED_SLOW ? GAME_SPEED_NORMAL : game.speed === GAME_SPEED_NORMAL ? GAME_SPEED_FAST : GAME_SPEED_SLOW)}
           >
             {game.speed}x
           </button>
@@ -202,21 +203,18 @@ export default function GameApp() {
                             <div key={ci}>
                               <span className="text-gray-500">{check.type === 'check' ? '【直接检定】' : '【对抗检定】'}</span>
                               <span className="ml-1">
-                                {check.actorName} {check.actorAttribute}({check.actorBaseValue})
-                                {check.actorAlignmentMod !== 0 && ` + 阵营修正(${check.actorAlignmentMod > 0 ? '+' : ''}${check.actorAlignmentMod})`}
-                                {check.actorStressMod !== 0 && ` + 压力修正(${check.actorStressMod > 0 ? '+' : ''}${check.actorStressMod})`}
-                                = 加值({check.actorTotalModifier})
-                                → d20({check.actorRoll}) + 加值({check.actorTotalModifier}) = <strong>{check.actorTotal}</strong>
+                                {check.actorName} {buildCheckExpr(
+                                  check.actorRoll, check.actorAttribute, check.actorBaseValue,
+                                  check.actorAlignmentMod ?? 0, check.actorStressMod ?? 0, check.actorTotal
+                                )}
                                 {check.type === 'check' ? (
-                                  ` vs 难度(${check.difficulty}) → ${check.successLevel} (差距 ${check.margin > 0 ? '+' : ''}${check.margin})`
+                                  ` vs 难度${check.difficulty} → ${check.successLevel}(${check.margin > 0 ? '+' : ''}${check.margin})`
                                 ) : check.type === 'opposed' && check.targetName ? (
                                   <span>
-                                    {' '}vs {check.targetName} {check.targetAttribute}({check.targetBaseValue})
-                                    {(check.targetAlignmentMod ?? 0) !== 0 && ` + 阵营修正(${(check.targetAlignmentMod ?? 0) > 0 ? '+' : ''}${check.targetAlignmentMod ?? 0})`}
-                                    {(check.targetStressMod ?? 0) !== 0 && ` + 压力修正(${(check.targetStressMod ?? 0) > 0 ? '+' : ''}${check.targetStressMod ?? 0})`}
-                                    = 加值({check.targetTotalModifier})
-                                    → d20({check.targetRoll}) + 加值({check.targetTotalModifier}) = <strong>{check.targetTotal}</strong>
-                                    {' → '}{check.successLevel} (差距 {check.margin > 0 ? '+' : ''}{check.margin})
+                                    {' '}vs {check.targetName} {buildCheckExpr(
+                                      check.targetRoll ?? 0, check.targetAttribute ?? '', check.targetBaseValue ?? 0,
+                                      check.targetAlignmentMod ?? 0, check.targetStressMod ?? 0, check.targetTotal ?? 0
+                                    )} → {check.successLevel}({check.margin > 0 ? '+' : ''}{check.margin})
                                   </span>
                                 ) : null}
                               </span>
@@ -319,7 +317,7 @@ export default function GameApp() {
                   <div className="border-t border-border pt-4">
                     <h4 className="text-sm font-bold mb-2 text-muted-foreground">关系网</h4>
                     <div className="space-y-1">
-                      {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > 0.5 || Math.abs(rel.friendly) > 0.5).map(([otherId, rel]) => {
+                      {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > RELATION_DISPLAY_THRESHOLD || Math.abs(rel.friendly) > RELATION_DISPLAY_THRESHOLD).map(([otherId, rel]) => {
                         const other = game.players.find((p) => p.id === otherId);
                         if (!other) return null;
                         return (
@@ -333,7 +331,7 @@ export default function GameApp() {
                           </div>
                         );
                       })}
-                      {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > 0.5 || Math.abs(rel.friendly) > 0.5).length === 0 && (
+                      {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > RELATION_DISPLAY_THRESHOLD || Math.abs(rel.friendly) > RELATION_DISPLAY_THRESHOLD).length === 0 && (
                         <div className="text-xs text-muted-foreground">暂无显著关系变化</div>
                       )}
                     </div>

@@ -1,6 +1,13 @@
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
-import { SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS, SCORE_JOIN_DEFEND_BASE, SCORE_JOIN_DEFEND_WOLF_BONUS, SCORE_REBUT_WEREWOLF, SCORE_REBUT_VILLAGER } from '@/types';
-import type { Strategy, } from './engine';
+import {
+  SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS,
+  SCORE_JOIN_DEFEND_BASE, SCORE_JOIN_DEFEND_WOLF_BONUS,
+  SCORE_REBUT_WEREWOLF, SCORE_REBUT_VILLAGER,
+  WEREWOLF_PROBABILITY_MEDIUM,
+  CONFIDENCE_JOIN_SUSPECT, CONFIDENCE_JOIN_DEFEND,
+  RELATION_FRIENDLY_JOIN_DEFEND,
+} from '@/types';
+import type { Strategy } from './engine';
 
 // ---------- Join Suspect (appendix) ----------
 export const JoinSuspectStrategy: Strategy = {
@@ -19,17 +26,17 @@ export const JoinSuspectStrategy: Strategy = {
     if (!target?.alive) return result;
 
     const wolfProb = belief.getWerewolfProbability(target.id);
-    if (wolfProb > 0.5 || (self.team === 'werewolf' && target.team !== 'werewolf')) {
+    if (wolfProb > WEREWOLF_PROBABILITY_MEDIUM || (self.team === 'werewolf' && target.team !== 'werewolf')) {
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'join_suspect', originalTargetId);
       result.push({
         action: 'join_suspect',
         target: originalTargetId,
         score: wolfProb * SCORE_JOIN_SUSPECT_BASE + (self.team === 'werewolf' ? SCORE_JOIN_SUSPECT_WOLF_BONUS : 0) + scoreDelta,
-        confidence: 0.6,
+        confidence: CONFIDENCE_JOIN_SUSPECT,
         reason: `附和怀疑${target.name}，狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}`,
         strategy: 'JoinSuspectStrategy',
         rule: 'join_suspect',
-        trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.5 或 (self.team=werewolf 且 target.team!=werewolf)`,
+        trigger: `wolfProb=${wolfProb.toFixed(2)} > ${WEREWOLF_PROBABILITY_MEDIUM} 或 (self.team=werewolf 且 target.team!=werewolf)`,
       });
     }
 
@@ -54,17 +61,17 @@ export const JoinDefendStrategy: Strategy = {
     if (!target?.alive) return result;
 
     const relation = belief.getRelation(target.id);
-    if (relation.friendly > 3 || (self.team === 'werewolf' && target.team === 'werewolf')) {
+    if (relation.friendly > RELATION_FRIENDLY_JOIN_DEFEND || (self.team === 'werewolf' && target.team === 'werewolf')) {
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'join_defend', originalTargetId);
       result.push({
         action: 'join_defend',
         target: originalTargetId,
         score: relation.friendly * SCORE_JOIN_DEFEND_BASE + (self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0) + scoreDelta,
-        confidence: 0.6,
+        confidence: CONFIDENCE_JOIN_DEFEND,
         reason: `联合辩护${target.name}，友好度${relation.friendly.toFixed(1)}${reason}`,
         strategy: 'JoinDefendStrategy',
         rule: 'join_defend',
-        trigger: `friendly=${relation.friendly.toFixed(1)} > 3 或 (self.team=werewolf 且 target.team=werewolf)`,
+        trigger: `friendly=${relation.friendly.toFixed(1)} > ${RELATION_FRIENDLY_JOIN_DEFEND} 或 (self.team=werewolf 且 target.team=werewolf)`,
       });
     }
 
