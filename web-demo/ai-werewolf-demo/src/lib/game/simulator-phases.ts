@@ -1,6 +1,6 @@
 import type { GameSimulator, PublicActionRecord, GameEvent, PlayerActor } from './simulator-core';
-import type { Phase, Player, GameLogItem, DecisionProcess } from '../ai/types';
-import { log, getName, updateRelation, logAction, buildCheckLog, getPublicPlayerStates } from './simulator-utils';
+import type { Phase, Player, DecisionProcess } from '@/types';
+import { log, } from './simulator-utils';
 import { runDayAction, runAppendixAction } from './simulator-day';
 import { runNightAction, resolveNightActions } from './simulator-night';
 import { resolveMorningEvents } from './simulator-morning';
@@ -177,7 +177,7 @@ export class DayPhaseController extends TickPhase {
 
   private _executeDayTurn(sim: GameSimulator, playerId: string) {
     const player = sim.players.find((p) => p.id === playerId);
-    if (!player || !player.alive) {
+    if (!player?.alive) {
       this.hasActed.add(playerId);
       return;
     }
@@ -200,7 +200,7 @@ export class DayPhaseController extends TickPhase {
     if (!triggerAction) return;
 
     const player = sim.players.find((p) => p.id === playerId);
-    if (!player || !player.alive || playerId === triggerAction.actorId) return;
+    if (!player?.alive || playerId === triggerAction.actorId) return;
 
     runAppendixAction(sim, playerId, triggerAction, (triggerAction.details as Record<string, unknown>)?.process as DecisionProcess | undefined);
 
@@ -336,7 +336,7 @@ export class VotePhaseController extends TickPhase {
       return false;
     } else {
       resolveVotesRound1(sim);
-      if (sim.voteResult && sim.voteResult.nextRound) {
+      if (sim.voteResult?.nextRound) {
         this.round2Candidates = sim.voteResult.topTargets || [];
         this.voted.clear();
         sim.votes = {};
@@ -374,7 +374,7 @@ export class MorningPhaseController extends PhaseController {
     return false;
   }
 
-  onExit(sim: GameSimulator) {}
+  onExit(_sim: GameSimulator) {}
 }
 
 // ---------- Check Win Phase ----------
@@ -384,7 +384,7 @@ export class CheckWinPhaseController extends PhaseController {
   readonly tickRate = 100;
   private done = false;
 
-  onEnter(sim: GameSimulator) {
+  onEnter(_sim: GameSimulator) {
     this.done = false;
   }
 
@@ -396,5 +396,5 @@ export class CheckWinPhaseController extends PhaseController {
     return false;
   }
 
-  onExit(sim: GameSimulator) {}
+  onExit(_sim: GameSimulator) {}
 }

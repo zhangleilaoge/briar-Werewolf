@@ -7,8 +7,8 @@ import {
   getStressModifier, getAlignmentModifier,
   calculateFinalModifier, calculateModifierBreakdown,
   getAlignmentName,
-} from '../game-utils';
-import type { Player, Attributes, Alignment } from '../types';
+} from '@/types';
+import type { Player, } from '@/types';
 
 const MAX_ITEM_SLOTS = 3;
 
@@ -124,7 +124,7 @@ describe('Item helpers', () => {
     addItem(player, 'amulet');
     const item = getItem(player, 'amulet');
     expect(item).toBeDefined();
-    expect(item!.definitionId).toBe('amulet');
+    expect(item?.definitionId).toBe('amulet');
   });
 
   it('canUseItem delegates to hasItem', () => {

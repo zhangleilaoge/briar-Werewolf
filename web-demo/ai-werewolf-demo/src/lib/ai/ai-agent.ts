@@ -1,6 +1,6 @@
 import { BeliefSystem } from './belief-system';
 import { DecisionEngine, buildStrategies } from './strategies';
-import type { Player, DecisionResult, LogEntry, Role, Team, Phase, NightActionType, DayActionType, AppendixActionType, ItemInstance, ActionType } from './types';
+import type { Player, DecisionResult, LogEntry, Phase, } from '@/types';
 
 export interface AgentEvent {
   type: 'death' | 'check_result' | 'public_claim' | 'relation_update' | 'observation' | 'inspection';
@@ -23,7 +23,6 @@ export class AIAgent {
   engine: DecisionEngine;
   logs: LogEntry[];
   currentRound: number = 0;
-  private _allPlayers: Player[] = [];
 
   constructor(player: Player, allPlayers: Player[]) {
     this.id = player.id;
@@ -45,7 +44,7 @@ export class AIAgent {
   }
 
   nightAction(allPlayers: Player[], nightDecisions: { playerId: string; action: string; targetId: string | null; reason: string }[]): DecisionResult | null {
-    if (!this.player || !this.player.alive) return null;
+    if (!this.player?.alive) return null;
     const availableActions = this._getAvailableNightActions();
     this.belief.updateInferences(allPlayers, this.player, []);
     const decision = this.engine.decide(this.belief, this.player, 'night', availableActions, allPlayers, nightDecisions, []);
@@ -54,7 +53,7 @@ export class AIAgent {
   }
 
   dayAction(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[], consecutiveSilence: number, aliveCount: number): DecisionResult | null {
-    if (!this.player || !this.player.alive) return null;
+    if (!this.player?.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = this._getAvailableDayActions();
     this.belief.updateInferences(allPlayers, this.player, publicActions);
@@ -64,7 +63,7 @@ export class AIAgent {
   }
 
   appendixAction(allPlayers: Player[], triggerAction: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }, publicActions: { actorId: string; type: string; targetId?: string }[]): DecisionResult | null {
-    if (!this.player || !this.player.alive) return null;
+    if (!this.player?.alive) return null;
     const availableActions = this._getAvailableAppendixActions(triggerAction);
     if (availableActions.length === 0) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
@@ -74,7 +73,7 @@ export class AIAgent {
   }
 
   vote(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], voteRound: number = 1): DecisionResult | null {
-    if (!this.player || !this.player.alive) return null;
+    if (!this.player?.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = [{ type: 'vote' }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
@@ -84,7 +83,7 @@ export class AIAgent {
   }
 
   voteRound2(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], candidates: string[]): DecisionResult | null {
-    if (!this.player || !this.player.alive) return null;
+    if (!this.player?.alive) return null;
     const availableActions = [{ type: 'vote' }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates);

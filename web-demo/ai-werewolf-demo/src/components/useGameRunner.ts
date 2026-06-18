@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameSimulator, generateGameConfig } from '../lib/game/simulator';
-import type { GameLogItem, Player } from '../lib/ai/types';
+import type { GameLogItem, Player } from '@/types';
 
 export interface GameConfig {
   totalPlayers: number;

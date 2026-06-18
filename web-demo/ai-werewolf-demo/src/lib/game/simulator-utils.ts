@@ -1,6 +1,6 @@
 import type { GameSimulator } from './simulator-core';
-import type { Player, GameLogItem, RelationDelta, CheckLog, ModifierBreakdown, ActionLogDetail, Attributes } from '../ai/types';
-import { clampRelation, ATTRIBUTE_NAMES } from '../ai/types';
+import type { Player, GameLogItem, RelationDelta, CheckLog, ModifierBreakdown, ActionLogDetail, Attributes } from '@/types';
+import { clampRelation, ATTRIBUTE_NAMES } from '@/types';
 
 export function getPublicPlayerStates(sim: GameSimulator): Player[] {
   return sim.players.map((p) => ({ ...p }));

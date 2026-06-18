@@ -1,6 +1,6 @@
 import type { GameSimulator } from './simulator-core';
-import type { Player, NightActionType } from '../ai/types';
-import { hasItem, damageItem, canUseItem, ITEM_DEFINITIONS, addItem } from '../ai/types';
+import type { Player, NightActionType } from '@/types';
+import { hasItem, damageItem, canUseItem, ITEM_DEFINITIONS, addItem } from '@/types';
 import { getName, log, logAction, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
@@ -45,7 +45,7 @@ export function runNightAction(sim: GameSimulator, player: Player) {
         return;
       }
       const target = sim.players.find((p) => p.id === decision.target);
-      if (target && target.alive && canUseItem(player, 'thief_gloves')) {
+      if (target?.alive && canUseItem(player, 'thief_gloves')) {
         sim.thiefUsed[player.id] = true;
         if (target.items.length > 0) {
           const stolenIdx = Math.floor(Math.random() * target.items.length);
@@ -138,7 +138,7 @@ export function resolveNightActions(sim: GameSimulator) {
 
   const target = sim.players.find((p) => p.id === finalTarget);
   const killer = sim.players.find((p) => p.id === finalKiller);
-  if (!target || !target.alive || !killer) return;
+  if (!target?.alive || !killer) return;
 
   if (hasItem(target, 'amulet')) {
     damageItem(target, 'amulet');

@@ -1,5 +1,5 @@
 import type { BeliefSystem } from '../belief-system';
-import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, Attributes, Alignment } from '../types';
+import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, } from '@/types';
 import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
 
 export interface StrategyContext {
@@ -224,7 +224,7 @@ export class DecisionEngine {
         ? `  修正：阵营${c.modifiers.alignment >= 0 ? '+' : ''}${c.modifiers.alignment} + 压力${c.modifiers.stress >= 0 ? '+' : ''}${c.modifiers.stress} + 关系${c.modifiers.relation >= 0 ? '+' : ''}${c.modifiers.relation} = ${c.modifiers.total >= 0 ? '+' : ''}${c.modifiers.total}`
         : `  修正：无`;
 
-      return `${prefix} ${actionName}${targetName ? '→' + targetName : ''}${randomMark}
+      return `${prefix} ${actionName}${targetName ? `→${targetName}` : ''}${randomMark}
   [${c.strategy}.${c.rule}]
   触发：${c.trigger}
   分数：基础${c.score} + 阶段${c.stageWeight}(${stageName})${modifierLine}
@@ -246,7 +246,7 @@ export class DecisionEngine {
       '【可选行动】',
       ...lines,
       '',
-      `【最终选择】${winnerAction}${winnerTarget ? '→' + winnerTarget : ''}`,
+      `【最终选择】${winnerAction}${winnerTarget ? `→${winnerTarget}` : ''}`,
       `  命中规则：${winnerStr}`,
       `  阶段：${winnerStage}`,
       `  总分：${winnerTotal}（在 ${unique.length} 个候选中最高）`,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BeliefSystem } from '../belief-system';
-import type { Player } from '../types';
+import type { Player } from '@/types';
 
 function makePlayer(id: string, team: 'werewolf' | 'villager' = 'villager'): Player {
   return {
@@ -80,7 +80,7 @@ describe('BeliefSystem', () => {
       ], allPlayers[0]);
 
       // p2 suspects p3, so p2's belief about p3 should have higher suspicion
-      const p2BeliefAboutP3 = belief.l2TheoryOfMind.othersBeliefs['p2']?.['p3'] ?? 0.5;
+      const p2BeliefAboutP3 = belief.l2TheoryOfMind.othersBeliefs.p2?.p3 ?? 0.5;
       expect(p2BeliefAboutP3).toBeGreaterThan(0.5);
     });
   });
@@ -94,8 +94,8 @@ describe('BeliefSystem', () => {
     it('calculates average exposure from observer beliefs', () => {
       const belief = makeBelief();
       // Manually set some L2 data
-      belief.l2TheoryOfMind.othersBeliefs['p2'] = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
-      belief.l2TheoryOfMind.othersBeliefs['p4'] = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
+      belief.l2TheoryOfMind.othersBeliefs.p2 = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
+      belief.l2TheoryOfMind.othersBeliefs.p4 = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
 
       const exposure = belief.getPlayerExposure('p1');
       // Average of 0.8 and 0.6 = 0.7
@@ -104,8 +104,8 @@ describe('BeliefSystem', () => {
 
     it('getExposure returns self exposure', () => {
       const belief = makeBelief('p1');
-      belief.l2TheoryOfMind.othersBeliefs['p2'] = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
-      belief.l2TheoryOfMind.othersBeliefs['p4'] = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
+      belief.l2TheoryOfMind.othersBeliefs.p2 = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
+      belief.l2TheoryOfMind.othersBeliefs.p4 = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
 
       expect(belief.getExposure()).toBeCloseTo(0.7, 1);
     });

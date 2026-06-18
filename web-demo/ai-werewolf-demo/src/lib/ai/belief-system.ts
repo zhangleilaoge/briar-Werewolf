@@ -1,6 +1,6 @@
 import type {
   Player, Relation, Role, Team, Attributes, Alignment, PublicClaim
-} from './types';
+} from '@/types';
 
 export class BeliefSystem {
   playerId: string;
@@ -123,7 +123,7 @@ export class BeliefSystem {
 
   updateInferences(
     allPlayers: Player[],
-    self: Player,
+    _self: Player,
     publicActions?: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[]
   ) {
     // 1. L0 hard facts: checks override everything
@@ -176,7 +176,7 @@ export class BeliefSystem {
 
   private _inferFromPublicActions(
     publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[],
-    allPlayers: Player[]
+    _allPlayers: Player[]
   ) {
     // 统计各类型行动
     const suspectCount: Record<string, number> = {};
@@ -351,7 +351,7 @@ export class BeliefSystem {
   updateTheoryOfMind(
     allPlayers: Player[],
     publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[],
-    self: Player
+    _self: Player
   ) {
     allPlayers.forEach((observer) => {
       if (observer.id === this.playerId) return;

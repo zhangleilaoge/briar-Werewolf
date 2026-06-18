@@ -4,8 +4,7 @@
 // beyond just check modifiers.
 // ============================
 
-import type { Alignment, Player, Relation } from './types';
-import { STRESS_MIN, STRESS_MAX, RELATION_MIN, RELATION_MAX } from './constants';
+import type { Alignment, Player, Relation } from '@/types';
 
 export interface BehaviorModifier {
   actionType: string;
@@ -230,7 +229,7 @@ export function getRelationTargetModifier(
 export function calculateBehaviorScoreDelta(
   player: Player,
   action: string,
-  targetId: string | null,
+  _targetId: string | null,
   relation?: Relation
 ): { scoreDelta: number; reason: string } {
   const alignmentMod = getAlignmentBehaviorModifier(player.alignment, action);

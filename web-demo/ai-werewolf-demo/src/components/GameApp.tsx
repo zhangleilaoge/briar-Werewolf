@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useGameRunner } from './useGameRunner';
 import SetupPanel from './SetupPanel';
-import type { ActionLogDetail, DecisionProcess } from '../lib/ai/types';
-import { getAlignmentName } from '../lib/ai/types';
+import type { ActionLogDetail, DecisionProcess } from '@/types';
+import { getAlignmentName } from '@/types';
 import { roleNameMap, getLogColor, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel } from './ui-utils';
 import type { PlayerState } from './useGameRunner';
 
@@ -28,7 +28,7 @@ export default function GameApp() {
   }
 
   const isRunning = game.phase === 'running';
-  const isPaused = game.phase === 'paused';
+  const _isPaused = game.phase === 'paused';
   const isEnded = game.phase === 'ended';
 
   const werewolfCount = game.players.filter((p) => p.team === 'werewolf' && p.alive).length;
@@ -170,7 +170,7 @@ export default function GameApp() {
                               })}
                             </div>
                           )}
-                          {detail.checks && detail.checks.map((check, ci) => (
+                          {detail.checks?.map((check, ci) => (
                             <div key={ci}>
                               <span className="text-gray-500">{check.type === 'check' ? '【直接检定】' : '【对抗检定】'}</span>
                               <span className="ml-1">

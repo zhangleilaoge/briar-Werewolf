@@ -1,8 +1,5 @@
-import {
-  SCORE_SPEAK_BREAK_SILENCE, SCORE_SPEAK_DEFAULT, SCORE_WEREWOLF_KILL_BASE,
-  WEREWOLF_PROBABILITY_HIGH, WEREWOLF_PROBABILITY_LOW, EXPOSURE_HIGH_THRESHOLD,
-  SCORE_BERSERKER_SUICIDE, SCORE_MAX_INFO_VOTE, RELATION_MAX, SILENCE_NEAR_FULL_THRESHOLD,
-  SCORE_WEREWOLF_VOTE_DUTY,
+import {EXPOSURE_HIGH_THRESHOLD,
+  SCORE_BERSERKER_SUICIDE, SCORE_MAX_INFO_VOTE, SILENCE_NEAR_FULL_THRESHOLD,
   SCORE_PROPHET_CLAIM, SCORE_PROPHET_CALL_VOTE, SCORE_DEFEND_ATTACKED, SCORE_DEFEND_ATTACKED_BONUS,
   SCORE_SELF_GUARANTEE, SCORE_HIGH_SUSPECT_ACCUSE, SCORE_HIGH_SUSPECT_SUSPECT, SCORE_HIGH_SUSPECT_CALL_VOTE,
   SCORE_BEHAVIOR_OBSERVE, SCORE_FOLLOW_TRUSTED, SCORE_BREAK_SILENCE,
@@ -11,11 +8,10 @@ import {
   SCORE_WW_CAMOUFLAGE_BASE, SCORE_WW_CAMOUFLAGE_BONUS,
   SCORE_WW_TEAMMATE_EXPOSED_GOUGE, SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
   SCORE_WW_BREAK_SILENCE, SCORE_WW_DEFAULT_ROUND1_TARGET, SCORE_WW_DEFAULT_ROUND1, SCORE_WW_DEFAULT_OTHER,
-} from '../constants';
-import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
+} from '@/types';
 import type { BeliefSystem } from '../belief-system';
-import type { Strategy, StrategyContext } from './engine';
-import type { Player } from '../types';
+import type { Strategy, } from './engine';
+import type { Player } from '@/types';
 
 // ---------- Helper: Generate rich suspicion reason from public actions ----------
 function getSuspicionReason(
@@ -142,7 +138,7 @@ export const VillagerDayStrategy: Strategy = {
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers, consecutiveSilence, aliveCount, publicActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const actions = publicActions || [];
 
     // 局势分析
@@ -384,7 +380,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers, consecutiveSilence, aliveCount, publicActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const actions = publicActions || [];
     const aliveVillagers = allPlayers.filter(p => p.id !== self.id && p.alive && p.team !== 'werewolf');
 
@@ -538,7 +534,7 @@ export const ProphetClaimStrategy: Strategy = {
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const checks = belief.l0Facts.checks;
 
     for (const [targetId, checkResult] of Object.entries(checks)) {
@@ -572,7 +568,7 @@ export const BerserkerSuicideStrategy: Strategy = {
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
     const werewolfCount = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
     const villagerCount = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;

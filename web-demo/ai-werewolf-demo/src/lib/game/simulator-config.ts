@@ -1,8 +1,8 @@
-import { ROLE_INFO, ITEM_DEFINITIONS } from '../ai/types';
-import type { Role, Team, ItemInstance } from '../ai/types';
+import { ROLE_INFO, ITEM_DEFINITIONS } from '@/types';
+import type { Role, Team, ItemInstance } from '@/types';
 
 export function generateGameConfig(
-  totalPlayers: number,
+  _totalPlayers: number,
   werewolfConfig: { role: string; count: number }[],
   villagerConfig: { role: string; count: number }[]
 ): {

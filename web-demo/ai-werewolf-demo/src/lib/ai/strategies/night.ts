@@ -2,9 +2,9 @@ import {
   SCORE_PROPHET_CHECK_BASE, SCORE_WEREWOLF_KILL_BASE, SCORE_WEREWOLF_KILL_GOD_BONUS,
   SCORE_THIEF_STEAL_BASE, SCORE_CORONER_INSPECT_BASE, SCORE_EMPTY_KILL,
   WEREWOLF_PROBABILITY_LOW, EMPTY_KILL_CHANCE, SCORE_MAX_INFO_VOTE, SCORE_SPEAK_BREAK_SILENCE,
-} from '../constants';
+} from '@/types';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
-import type { Strategy, StrategyContext } from './engine';
+import type { Strategy, } from './engine';
 
 // ---------- Prophet: Night Check ----------
 export const ProphetCheckStrategy: Strategy = {
@@ -13,7 +13,7 @@ export const ProphetCheckStrategy: Strategy = {
   requiredPhase: ['night'],
   evaluate(context) {
     const { belief, self, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive);
 
     alivePlayers.forEach((target) => {
@@ -62,7 +62,7 @@ export const WerewolfKillStrategy: Strategy = {
   requiredPhase: ['night'],
   evaluate(context) {
     const { belief, self, allPlayers, nightDecisions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const aliveTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
 
     // Check if other werewolves have already chosen a target
@@ -133,7 +133,7 @@ export const ThiefStealStrategy: Strategy = {
   requiredPhase: ['night'],
   evaluate(context) {
     const { self, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const aliveTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.items.length > 0);
 
     aliveTargets.forEach((target) => {
@@ -161,7 +161,7 @@ export const CoronerInspectStrategy: Strategy = {
   requiredPhase: ['night'],
   evaluate(context) {
     const { allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const deadTargets = allPlayers.filter((p) => !p.alive && p.items.length > 0);
 
     deadTargets.forEach((target) => {

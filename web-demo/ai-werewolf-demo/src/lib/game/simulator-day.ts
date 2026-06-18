@@ -1,21 +1,21 @@
 import type { GameSimulator, PublicActionRecord } from './simulator-core';
-import type { Player, DayActionType, ActionType, DecisionProcess } from '../ai/types';
-import { clampStress, performCheck, damageItem, hasItem, ITEM_DEFINITIONS, calculateFinalModifier, calculateModifierBreakdown, performOpposedCheck, ATTRIBUTE_NAMES, type ModifierBreakdown, type CheckLog, type ActionLogDetail } from '../ai/types';
+import type { Player, DayActionType, ActionType, DecisionProcess } from '@/types';
+import { clampStress, performCheck, damageItem, hasItem, calculateModifierBreakdown, performOpposedCheck, type CheckLog, } from '@/types';
 import {
-  CRITICAL_SUCCESS_MARGIN, CHECK_DIFFICULTY_EASY, CHECK_DIFFICULTY_MEDIUM, CHECK_DIFFICULTY_HARD,
-  STRESS_CHANGE_MINOR_POS, STRESS_CHANGE_MINOR_POS_RANDOM, STRESS_CHANGE_MINOR_NEG, STRESS_CHANGE_MINOR_NEG_RANDOM,
-  STRESS_CHANGE_MODERATE_POS, STRESS_CHANGE_MODERATE_POS_RANDOM, STRESS_CHANGE_MAJOR_POS, STRESS_CHANGE_MAJOR_POS_RANDOM,
-  REL_CHANGE_MINOR_NEG, REL_CHANGE_MINOR_POS, REL_CHANGE_MODERATE_NEG, REL_CHANGE_MODERATE_POS, REL_CHANGE_MAJOR_NEG, REL_CHANGE_MAJOR_POS,
+  CRITICAL_SUCCESS_MARGIN, 
+  STRESS_CHANGE_MINOR_POS, 
+  STRESS_CHANGE_MODERATE_POS, 
+  REL_CHANGE_MINOR_NEG, REL_CHANGE_MINOR_POS, REL_CHANGE_MODERATE_POS, REL_CHANGE_MAJOR_NEG, REL_CHANGE_MAJOR_POS,
   DEFAULT_ATTRIBUTE_FALLBACK, DEFAULT_STRESS_FALLBACK, DEFAULT_ALIGNMENT_FALLBACK,
   CHECK_DIFFICULTY_DEFEND, CHECK_DIFFICULTY_JOIN_SUSPECT, CHECK_DIFFICULTY_JOIN_DEFEND,
   CHECK_DIFFICULTY_CALL_VOTE, CHECK_DIFFICULTY_BLOCK_VOTE, CHECK_DIFFICULTY_GUARANTEE, CHECK_DIFFICULTY_EXCLUDE_ALL,
-} from '../ai/constants';
-import { log, getName, getPublicPlayerStates, updateRelation, logAction, buildCheckLog } from './simulator-utils';
+} from '@/types';
+import { log, getPublicPlayerStates, updateRelation, logAction, buildCheckLog } from './simulator-utils';
 import { skipToVote } from './simulator-vote';
 
 export function runDayAction(sim: GameSimulator, playerId: string) {
   const player = sim.players.find((p) => p.id === playerId);
-  if (!player || !player.alive) return;
+  if (!player?.alive) return;
 
   const agent = sim._aiAgents[playerId];
   if (!agent) return;
@@ -109,7 +109,7 @@ export function resolveDayAction(
       break;
     }
     case 'reveal_info': {
-      const infoType = details.infoType as string;
+      const _infoType = details.infoType as string;
       const infoTarget = details.infoTarget as string;
       const infoContent = details.infoContent as string;
       logAction(sim, 'action', `${actor.name} 公开信息：${infoTarget || targetName} 持有 ${infoContent || '某物'}`, decisionReason, [], { actorId: actor.id, action: 'reveal_info', infoTarget, infoContent , process });
@@ -118,7 +118,7 @@ export function resolveDayAction(
     case 'observe': {
       // 观察：洞察 vs 目标隐蔽（对抗检定），目标洞察 vs 观察者隐蔽（是否被发现）
       const checks: CheckLog[] = [];
-      const observeMsg = `${actor.name} 暗中观察 ${targetName}...`;
+      const _observeMsg = `${actor.name} 暗中观察 ${targetName}...`;
 
       const actorInsightBreakdown = calculateModifierBreakdown(actor.attributes.insight, actor.alignment, actor.stress, 'other');
       const targetStealthBreakdown = calculateModifierBreakdown(target?.attributes.stealth || DEFAULT_ATTRIBUTE_FALLBACK, target?.alignment || DEFAULT_ALIGNMENT_FALLBACK, target?.stress || DEFAULT_STRESS_FALLBACK, 'stealth');
@@ -311,7 +311,7 @@ export function resolveDayAction(
       break;
     }
     case 'berserker_kill': {
-      if (actor.role === 'berserker' && hasItem(actor, 'double_sword') && target && target.alive) {
+      if (actor.role === 'berserker' && hasItem(actor, 'double_sword') && target?.alive) {
         logAction(sim, 'death', `${actor.name} 发动狂狼同归于尽！${target.name} 与 ${actor.name} 双双死亡！`, decisionReason, [], { actorId: actor.id, action: 'berserker_kill', targetId: target.id });
         actor.alive = false;
         target.alive = false;
@@ -344,7 +344,7 @@ export function openAppendixWindow(sim: GameSimulator, triggerAction: PublicActi
 
 export function runAppendixAction(sim: GameSimulator, playerId: string, triggerAction: PublicActionRecord, process?: DecisionProcess) {
   const player = sim.players.find((p) => p.id === playerId);
-  if (!player || !player.alive) return;
+  if (!player?.alive) return;
 
   const agent = sim._aiAgents[playerId];
   if (!agent) return;

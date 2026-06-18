@@ -1,6 +1,6 @@
 import type { GameSimulator } from './simulator-core';
-import { clampStress, clampRelation } from '../ai/types';
-import { STRESS_RECOVERY_BASE, STRESS_RECOVERY_BONUS, RELATION_NATURAL_RECOVERY } from '../ai/constants';
+import { clampStress, clampRelation } from '@/types';
+import { STRESS_RECOVERY_BASE, STRESS_RECOVERY_BONUS, RELATION_NATURAL_RECOVERY } from '@/types';
 import { log, getName } from './simulator-utils';
 
 export function resolveMorningEvents(sim: GameSimulator) {

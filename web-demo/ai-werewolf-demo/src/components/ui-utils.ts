@@ -1,5 +1,5 @@
-import type { GameLogItem, ItemInstance } from '../lib/ai/types';
-import { ITEM_DEFINITIONS } from '../lib/ai/types';
+import type { GameLogItem, ItemInstance } from '@/types';
+import { ITEM_DEFINITIONS } from '@/types';
 
 export const roleNameMap: Record<string, string> = {
   werewolf: '狼人',

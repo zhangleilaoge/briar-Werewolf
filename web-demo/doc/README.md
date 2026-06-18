@@ -26,3 +26,17 @@
 | [content/traits.md](content/traits.md) | 特质 |
 | [content/preset-characters.md](content/preset-characters.md) | 预设角色 |
 | [refer/](refer/) | 外部参考 |
+
+---
+
+## AI 架构文档
+
+| 文档 | 路径 | 说明 |
+|------|------|------|
+| [AI 系统架构](ai/ARCHITECTURE.md) | `doc/ai/ARCHITECTURE.md` | 四层信念系统 + 硬约束决策引擎设计 |
+
+## 工程文档
+
+| 文档 | 路径 | 说明 |
+|------|------|------|
+| AI 对战项目说明 | `ai-werewolf-demo/AGENTS.md` | 技术栈、目录结构、数据模型、开发规范、TODO |

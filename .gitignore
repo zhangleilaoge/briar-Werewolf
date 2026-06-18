@@ -1,5 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Node.js specific ignores
 **/node_modules/
 **/dist/
+
+# macOS specific ignores
+.DS_Store

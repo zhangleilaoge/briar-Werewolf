@@ -1,10 +1,10 @@
 import {
   SCORE_MAX_INFO_VOTE, SCORE_WEREWOLF_VOTE_DUTY, SCORE_FOLLOW_CALL_VOTE, SCORE_SOCIAL_TIE_BREAKER,
-  SCORE_SURVIVAL_VOTE, SCORE_PROPHET_VOTE_DUTY, WEREWOLF_PROBABILITY_HIGH, WEREWOLF_PROBABILITY_MEDIUM,
+  SCORE_SURVIVAL_VOTE, SCORE_PROPHET_VOTE_DUTY, WEREWOLF_PROBABILITY_MEDIUM,
   RELATION_MIN, RELATION_MAX, EXPOSURE_HIGH_THRESHOLD, EXPOSURE_CRITICAL_THRESHOLD,
-} from '../constants';
+} from '@/types';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
-import type { Strategy, StrategyContext } from './engine';
+import type { Strategy, } from './engine';
 
 // ---------- Prophet: Vote Duty (vote for known wolf) ----------
 export const ProphetVoteDutyStrategy: Strategy = {
@@ -13,7 +13,7 @@ export const ProphetVoteDutyStrategy: Strategy = {
   requiredPhase: ['vote'],
   evaluate(context) {
     const { belief, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const checks = belief.l0Facts.checks;
 
     Object.entries(checks).forEach(([targetId, checkResult]) => {
@@ -46,7 +46,7 @@ export const WerewolfVoteDutyStrategy: Strategy = {
   requiredPhase: ['vote'],
   evaluate(context) {
     const { belief, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const teammates = allPlayers.filter((p) => p.id !== context.self.id && p.alive && p.team === 'werewolf');
 
     teammates.forEach((teammate) => {
@@ -77,7 +77,7 @@ export const MaxInfoVoteStrategy: Strategy = {
   requiredPhase: ['vote'],
   evaluate(context) {
     const { belief, self, allPlayers, voteRound, voteCandidates } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     let alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive);
 
     // Round 2: only candidates
@@ -115,8 +115,8 @@ export const FollowCallVoteStrategy: Strategy = {
   requiredRoles: ['villager', 'prophet', 'thief', 'coroner', 'werewolf', 'lone_wolf', 'berserker'],
   requiredPhase: ['vote'],
   evaluate(context) {
-    const { belief, self, allPlayers, publicActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const { belief, allPlayers, publicActions } = context;
+    const result: import('@/types').DecisionCandidate[] = [];
 
     // Find all call_vote actions in this round's public actions
     const calls = (publicActions || []).filter(
@@ -126,7 +126,7 @@ export const FollowCallVoteStrategy: Strategy = {
     calls.forEach((call) => {
       const caller = allPlayers.find((p) => p.id === call.actorId);
       const callTarget = allPlayers.find((p) => p.id === call.targetId);
-      if (!caller || !callTarget || !callTarget.alive) return;
+      if (!caller || !callTarget?.alive) return;
 
       const relation = belief.getRelation(caller.id);
       // Higher trust/friendly -> more likely to follow
@@ -157,7 +157,7 @@ export const SocialTieBreakerStrategy: Strategy = {
   requiredPhase: ['vote'],
   evaluate(context) {
     const { belief, self, allPlayers, voteRound, voteCandidates } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     let alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive);
 
     if (voteRound === 2 && voteCandidates) {
@@ -198,7 +198,7 @@ export const SurvivalVoteStrategy: Strategy = {
   requiredPhase: ['vote'],
   evaluate(context) {
     const { belief, self, allPlayers } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
     const myExposure = belief.getPlayerExposure(self.id);
 
     if (myExposure > EXPOSURE_HIGH_THRESHOLD) {

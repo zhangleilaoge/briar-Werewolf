@@ -1,6 +1,6 @@
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
-import { SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS, SCORE_JOIN_DEFEND_BASE, SCORE_JOIN_DEFEND_WOLF_BONUS, SCORE_REBUT_WEREWOLF, SCORE_REBUT_VILLAGER } from '../constants';
-import type { Strategy, StrategyContext } from './engine';
+import { SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS, SCORE_JOIN_DEFEND_BASE, SCORE_JOIN_DEFEND_WOLF_BONUS, SCORE_REBUT_WEREWOLF, SCORE_REBUT_VILLAGER } from '@/types';
+import type { Strategy, } from './engine';
 
 // ---------- Join Suspect (appendix) ----------
 export const JoinSuspectStrategy: Strategy = {
@@ -9,14 +9,14 @@ export const JoinSuspectStrategy: Strategy = {
   requiredPhase: ['appendix'],
   evaluate(context) {
     const { belief, self, allPlayers, availableActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
 
     const joinAction = availableActions.find((a) => a.type === 'join_suspect');
     if (!joinAction) return result;
 
     const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
     const target = allPlayers.find((p) => p.id === originalTargetId);
-    if (!target || !target.alive) return result;
+    if (!target?.alive) return result;
 
     const wolfProb = belief.getWerewolfProbability(target.id);
     if (wolfProb > 0.5 || (self.team === 'werewolf' && target.team !== 'werewolf')) {
@@ -44,14 +44,14 @@ export const JoinDefendStrategy: Strategy = {
   requiredPhase: ['appendix'],
   evaluate(context) {
     const { belief, self, allPlayers, availableActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
 
     const joinAction = availableActions.find((a) => a.type === 'join_defend');
     if (!joinAction) return result;
 
     const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
     const target = allPlayers.find((p) => p.id === originalTargetId);
-    if (!target || !target.alive) return result;
+    if (!target?.alive) return result;
 
     const relation = belief.getRelation(target.id);
     if (relation.friendly > 3 || (self.team === 'werewolf' && target.team === 'werewolf')) {
@@ -79,7 +79,7 @@ export const RebutStrategy: Strategy = {
   requiredPhase: ['appendix'],
   evaluate(context) {
     const { belief, self, allPlayers, availableActions } = context;
-    const result: import('../types').DecisionCandidate[] = [];
+    const result: import('@/types').DecisionCandidate[] = [];
 
     const rebutAction = availableActions.find((a) => a.type === 'rebut');
     if (!rebutAction) return result;
@@ -89,7 +89,7 @@ export const RebutStrategy: Strategy = {
     if (!actor) return result;
 
     // Always rebut if accused, but with varying confidence
-    const myWolfProb = belief.getWerewolfProbability(self.id);
+    const _myWolfProb = belief.getWerewolfProbability(self.id);
     const score = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER; // villagers rebut harder
     const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'rebut', originalActorId);
     result.push({

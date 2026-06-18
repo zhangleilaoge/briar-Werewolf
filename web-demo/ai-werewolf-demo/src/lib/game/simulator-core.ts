@@ -1,14 +1,13 @@
 import type {
   Player, GameLogItem, Phase, Winner, SetupConfig, Role,
   VoteResult, ItemInstance, Attributes, Alignment
-} from '../ai/types';
-import { generateGameConfig } from './simulator-config';
+} from '@/types';
 import {
   ROLE_INFO, ITEM_DEFINITIONS, generateRandomAttributes, generateRandomAlignment
-} from '../ai/types';
+} from '@/types';
 import { AIAgent } from '../ai/ai-agent';
 import {
-  PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
+  type PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
 } from './simulator-phases';
 
 const DEBUG = false;
@@ -41,7 +40,7 @@ export class EventBus {
 
   subscribe(eventType: string, resolver: (event: GameEvent) => string[]) {
     if (!this.subscribers.has(eventType)) this.subscribers.set(eventType, []);
-    this.subscribers.get(eventType)!.push(resolver);
+    this.subscribers.get(eventType)?.push(resolver);
   }
 
   emit(event: GameEvent) {
@@ -409,7 +408,7 @@ export class GameSimulator {
     return this.currentPhaseIndex < this.phaseQueue.length;
   }
 
-  runRound(options: GameSimulatorOptions = {}): Winner {
+  runRound(_options: GameSimulatorOptions = {}): Winner {
     this.generateRoundSteps();
     while (this.hasMoreSteps()) {
       this.executeNextStep();

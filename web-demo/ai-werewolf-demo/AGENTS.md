@@ -6,7 +6,7 @@
 
 **项目路径**: `/web-demo/ai-werewolf-demo/`
 **构建输出**: 静态 HTML (`dist/`)
-**启动方式**: `npm run build` (静态输出) / `npm run dev` (开发模式)
+**启动方式**: `bun run build` (静态输出) / `bun run dev` (开发模式)
 
 ---
 
@@ -23,6 +23,7 @@
 
 ```
 src/
+  types.ts             # 统一类型/常量/工具定义（唯一导入源，使用 @/types）
   components/          # React UI 组件
     GameApp.tsx        # 主游戏界面
     SetupPanel.tsx     # 开局配置面板
@@ -31,49 +32,30 @@ src/
   pages/
     index.astro        # 入口页面
   lib/
-    ai/                # AI 系统和数据模型
-      types.ts          # 核心类型定义（角色、属性、道具、检定等）
-      constants.ts      # 游戏常量（魔法值全部提取到这里）
-      game-utils.ts     # 游戏工具函数（检定、道具操作、属性生成）
-      data-definitions.ts # 数据定义常量（阵营名、道具定义、职业信息、特质）
+    ai/                # AI 系统
       ai-agent.ts       # AI 智能体封装
       belief-system.ts  # 四层信念系统（L0/L1/L2/L3）
+      behavior-modifiers.ts # 行为修正计算
       strategies/       # 策略体系
         engine.ts       # 决策引擎
         index.ts        # 策略注册
-        night.ts        # 夜间策略（查验、杀戮、偷窃、验尸）
-        day.ts          # 白天策略（发言、怀疑、袒护、公布身份）
-        vote.ts         # 投票策略（跟随号召、社交关系、生存）
-        appendix.ts     # 追加行动策略（一同怀疑、反驳、一同袒护）
+        night.ts        # 夜间策略
+        day.ts          # 白天策略
+        vote.ts         # 投票策略
+        appendix.ts     # 追加行动策略
     game/               # 游戏模拟器
       simulator.ts      # 入口，导出 GameSimulator
-      simulator-core.ts # 核心类（状态管理、回合生成、步骤队列）
-      simulator-night.ts   # 夜间行动处理（已抽为独立函数）
-      simulator-morning.ts # 早晨事件处理（已抽为独立函数）
-      simulator-day.ts     # 白天行动处理（已抽为独立函数）
-      simulator-vote.ts    # 投票处理（已抽为独立函数）
+      simulator-core.ts # 核心类（状态管理、Tick 引擎、Actor 状态机）
+      simulator-phases.ts # PhaseController 子类（Day/Night/Vote/Morning/CheckWin）
+      simulator-night.ts   # 夜间行动处理
+      simulator-morning.ts # 早晨事件处理
+      simulator-day.ts     # 白天行动处理
+      simulator-vote.ts    # 投票处理
       simulator-utils.ts   # 通用工具函数（日志、关系、状态获取）
       simulator-config.ts  # 开局配置生成
-
-doc/                    # 设计文档
-  core/                 # 核心机制文档
-    flow.md             # 对局流程
-    numeric.md          # 数值设计（属性、关系、压力、检定）
-    alignment.md        # 阵营九宫格
-    stress-overload.md  # 压力过载系统（美德/affliction）
-  content/              # 内容文档
-    professions.md      # 职业设计
-    items.md            # 道具设计
-    traits.md           # 特质设计
-    characters.md         # 角色设计
-    preset-characters.md  # 预设角色
-  actions/              # 行动文档
-    actions.md          # 白天行动规则
-    extra-actions.md    # 追加行动规则
-  refer/                # 参考文档
-    werewolf.md         # 传统狼人杀对比
-    gnosia.md           # Gnosia 参考
 ```
+
+> 设计文档位于 `web-demo/doc/`，详见 `../doc/README.md`。
 
 ---
 
@@ -119,12 +101,12 @@ doc/                    # 设计文档
 
 | 实体 | 文件 | 说明 |
 |------|------|------|
-| Player | `ai/types.ts` | 玩家（属性、阵营、道具、关系、压力） |
-| Attributes | `ai/types.ts` | 六维属性（亲和、逻辑、领导、诡诈、隐蔽、洞察） |
-| Alignment | `ai/types.ts` | 九宫格阵营（守序/混乱 × 善良/邪恶） |
-| Item | `ai/types.ts` | 道具（尖牙利爪、水晶球、小偷手套、验尸工具、护身符、双刃剑） |
-| Relation | `ai/types.ts` | 关系（信任值、友好值，-10 ~ +10） |
-| Role | `ai/types.ts` | 职业（狼人、孤狼、狂狼、村民、预言家、窃贼、验尸官） |
+| Player | `src/types.ts` | 玩家（属性、阵营、道具、关系、压力） |
+| Attributes | `src/types.ts` | 六维属性（亲和、逻辑、领导、诡诈、隐蔽、洞察） |
+| Alignment | `src/types.ts` | 九宫格阵营（守序/混乱 × 善良/邪恶） |
+| Item | `src/types.ts` | 道具（尖牙利爪、水晶球、小偷手套、验尸工具、护身符、双刃剑） |
+| Relation | `src/types.ts` | 关系（信任值、友好值，-10 ~ +10） |
+| Role | `src/types.ts` | 职业（狼人、孤狼、狂狼、村民、预言家、窃贼、验尸官） |
 
 ### 检定系统
 
@@ -133,13 +115,13 @@ doc/                    # 设计文档
 对抗检定 = 双方分别计算后比较
 ```
 
-阵营修正和压力修正已完整实现，见 `game-utils.ts` 中的 `calculateFinalModifier()` 和 `performOpposedCheck()`。
+阵营修正和压力修正已完整实现，见 `src/types.ts` 中的 `calculateFinalModifier()` 和 `performOpposedCheck()`。
 
 ---
 
 ## 魔法值管理
 
-**所有魔法值已提取到 `src/lib/ai/constants.ts`**：
+**所有魔法值已统一在 `src/types.ts` SECTION 3 中**：
 
 - 属性范围（1-10）
 - 压力范围（-10 ~ +10）
@@ -156,27 +138,30 @@ doc/                    # 设计文档
 
 ### 文件大小限制
 
-所有文件应尽量保持在 **600 行以内**，超过时应拆分为子模块。
+所有文件应尽量保持在 **600 行以内**。`src/types.ts` 作为基础定义文件例外（~460 行，包含类型+常量+工具函数）。
+
+### 导入规范
+
+统一使用 `@/types` 路径别名导入所有类型、常量和工具函数：
+```ts
+import type { Player, Role, Alignment } from '@/types';
+import { rollD20, SCORE_PROPHET_VOTE_DUTY, ITEM_DEFINITIONS } from '@/types';
+```
 
 ### 新增功能的流程
 
-1. 先修改 `doc/` 中的对应设计文档
-2. 再更新 `src/lib/ai/types.ts` 中的类型定义
-3. 再更新 `src/lib/ai/constants.ts` 中的常量
-4. 最后实现代码逻辑
-5. 运行 `npm run build` 验证
+1. 先修改 `../doc/` 中的对应设计文档
+2. 再更新 `src/types.ts` 中的类型定义和常量
+3. 最后实现代码逻辑
+4. 运行 `bun run build && bun run test` 验证
 
-### 构建验证
+### 构建与测试
 
 ```bash
 cd /web-demo/ai-werewolf-demo
-npm run build
-```
-
-构建成功输出：
-```
-[build] 1 page(s) built in X.XXs
-[build] Complete!
+bun run build    # 构建验证
+bun run test     # 运行测试（vitest）
+bun run lint     # 代码检查（biome：未使用变量/导入检查）
 ```
 
 ---
@@ -208,7 +193,9 @@ npm run build
 - [x] 魔法值全部提取到 constants.ts
 - [x] 原型方法重构为类委托模式
 - [x] 压力过载系统设计文档
-- [x] types.ts 拆分（game-utils + data-definitions）
+- [x] types/constants 统一到 src/types.ts（@/types 导入）
+- [x] Biome lint 配置（未使用变量/导入检查）
+- [x] vitest 测试框架（59 个核心测试）
 - [x] tick 循环 try-catch 安全保护
 - [x] stuck-actor 超时安全阀
 - [x] console.log DEBUG 开关
@@ -247,23 +234,23 @@ npm run build
 
 ### 修改 doc 设计
 
-如果你认为某个设计不合理，可以直接修改 `doc/` 中的对应文件，然后在代码中同步实现。保持 doc 和代码的一致性。
+如果你认为某个设计不合理，可以直接修改 `../doc/` 中的对应文件，然后在代码中同步实现。保持 doc 和代码的一致性。
 
 ### 新增职业/道具
 
-1. 在 `doc/content/professions.md` 或 `items.md` 中设计
-2. 在 `ai/data-definitions.ts` 中更新 ROLE_INFO/ITEM_DEFINITIONS 数据定义，在 `ai/types.ts` 中更新类型
-3. 在 `ai/constants.ts` 中新增相关常量
+1. 在 `../doc/content/professions.md` 或 `items.md` 中设计
+2. 在 `src/types.ts` 中更新 ROLE_INFO/ITEM_DEFINITIONS 和类型定义
+3. 在 `src/types.ts` 中新增相关常量
 4. 在 `ai/strategies/` 中新增对应的策略
 5. 在 `simulator-*.ts` 中新增对应的结算逻辑
 
 ### 修改核心机制
 
 修改核心机制（如检定公式、压力计算、投票规则）时：
-1. 先修改 `doc/core/numeric.md` 或 `flow.md`
-2. 再修改 `ai/constants.ts` 中的常量
+1. 先修改 `../doc/core/numeric.md` 或 `flow.md`
+2. 再修改 `src/types.ts` 中的常量
 3. 最后修改 `simulator-*.ts` 中的实现
-4. 确保构建通过
+4. 确保 `bun run build && bun run test` 通过
 
 ---
 
@@ -271,11 +258,12 @@ npm run build
 
 | 文档 | 路径 | 说明 |
 |------|------|------|
-| 对局流程 | `doc/core/flow.md` | 完整回合结构 |
-| 数值设计 | `doc/core/numeric.md` | 属性、关系、压力、检定规则 |
-| 阵营设计 | `doc/core/alignment.md` | 九宫格阵营对检定的修正 |
-| 压力过载 | `doc/core/stress-overload.md` | 美德/affliction 系统设计 |
-| 职业设计 | `doc/content/professions.md` | 7种职业的能力和限制 |
-| 道具设计 | `doc/content/items.md` | 6种道具的双阵营效果 |
-| 行动规则 | `doc/actions/actions.md` | 白天普通行动的详细规则 |
-| 追加行动 | `doc/actions/extra-actions.md` | 追加行动的触发和效果 |
+| 对局流程 | `../doc/core/flow.md` | 完整回合结构 |
+| 数值设计 | `../doc/core/numeric.md` | 属性、关系、压力、检定规则 |
+| 阵营设计 | `../doc/core/alignment.md` | 九宫格阵营对检定的修正 |
+| 压力过载 | `../doc/core/stress-overload.md` | 美德/affliction 系统设计 |
+| 职业设计 | `../doc/content/professions.md` | 7种职业的能力和限制 |
+| 道具设计 | `../doc/content/items.md` | 6种道具的双阵营效果 |
+| 行动规则 | `../doc/actions/actions.md` | 白天普通行动的详细规则 |
+| 追加行动 | `../doc/actions/extra-actions.md` | 追加行动的触发和效果 |
+| AI 架构 | `../doc/ai/ARCHITECTURE.md` | 四层信念系统 + 硬约束决策引擎 |
