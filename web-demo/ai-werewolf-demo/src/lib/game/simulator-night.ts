@@ -21,7 +21,7 @@ export function runNightAction(sim: GameSimulator, player: Player) {
   switch (decision.action) {
     case 'kill': {
       const targetName = getName(sim, decision.target || '');
-      logAction(sim, 'action', `${player.name} 选择袭击 ${targetName || '空刀'}`, decision.reason, [], { actorId: player.id, action: 'kill', targetId: decision.target });
+      logAction(sim, 'action', `${player.name} 选择袭击 ${targetName || '空刀'}`, decision.reason, [], { actorId: player.id, action: 'kill', targetId: decision.target, process: decision.process });
       break;
     }
     case 'check': {
@@ -29,7 +29,7 @@ export function runNightAction(sim: GameSimulator, player: Player) {
       if (target && canUseItem(player, 'crystal_ball')) {
         const result = target.team === 'werewolf' ? 'werewolf' : 'villager';
         agent.recordCheckResult(target.id, result);
-        logAction(sim, 'action', `${player.name} 查验 ${target.name} → ${result === 'werewolf' ? '狼人' : '村民'}`, decision.reason, [], { actorId: player.id, action: 'check', targetId: target.id });
+        logAction(sim, 'action', `${player.name} 查验 ${target.name} → ${result === 'werewolf' ? '狼人' : '村民'}`, decision.reason, [], { actorId: player.id, action: 'check', targetId: target.id, process: decision.process });
         if (result === 'werewolf') {
           damageItem(player, 'crystal_ball');
           log(sim, 'item', `${player.name} 的水晶球在查验狼人时碎裂！`);

@@ -26,6 +26,9 @@ export const ProphetCheckStrategy: Strategy = {
         score: wolfProb * SCORE_MAX_INFO_VOTE + SCORE_PROPHET_CHECK_BASE + scoreDelta,
         confidence: 0.7,
         reason: `优先查验${target.name}，L1推理狼嫌疑${(wolfProb * SCORE_MAX_INFO_VOTE).toFixed(0)}%${reason}`,
+        strategy: 'ProphetCheckStrategy',
+        rule: 'check_high_suspect',
+        trigger: `wolfProb=${wolfProb.toFixed(2)}，未查验过`,
       });
     });
 
@@ -40,6 +43,10 @@ export const ProphetCheckStrategy: Strategy = {
           score: SCORE_PROPHET_CHECK_BASE - 20 + scoreDelta,
           confidence: 0.5,
           reason: `无明确嫌疑，随机查验${random.name}${reason}`,
+          strategy: 'ProphetCheckStrategy',
+          rule: 'check_random',
+          trigger: '无明确嫌疑目标，从未查验中随机选择',
+          random: true,
         });
       }
     }
@@ -73,6 +80,9 @@ export const WerewolfKillStrategy: Strategy = {
           score: SCORE_SPEAK_BREAK_SILENCE + scoreDelta,
           confidence: 0.8,
           reason: `跟随队友${teammate?.name || ''}的目标，统一行动${reason}`,
+          strategy: 'WerewolfKillStrategy',
+          rule: 'follow_teammate',
+          trigger: `队友 ${teammate?.name || ''} 已选择 target=${teammateTarget}`,
         });
       }
     }
@@ -90,6 +100,9 @@ export const WerewolfKillStrategy: Strategy = {
         score: score + scoreDelta,
         confidence: isLikelyGod ? 0.7 : 0.5,
         reason: isLikelyGod ? `L2推断：${target.name}疑似神职，优先击杀${reason}` : `击杀${target.name}${reason}`,
+        strategy: 'WerewolfKillStrategy',
+        rule: isLikelyGod ? 'kill_god_target' : 'kill_normal',
+        trigger: isLikelyGod ? `claims.length=${claims.length} > 0 或 othersKnowMyRole=${(belief.l2TheoryOfMind.othersKnowMyRole[target.id] ?? 0).toFixed(2)} > 0.5` : `常规目标选择`,
       });
     });
 
@@ -102,6 +115,10 @@ export const WerewolfKillStrategy: Strategy = {
         score: SCORE_EMPTY_KILL + scoreDelta,
         confidence: 0.3,
         reason: `空刀：保存实力或制造平安夜${reason}`,
+        strategy: 'WerewolfKillStrategy',
+        rule: 'empty_kill',
+        trigger: `Math.random() < EMPTY_KILL_CHANCE=${EMPTY_KILL_CHANCE}，随机空刀`,
+        random: true,
       });
     }
 
@@ -127,6 +144,9 @@ export const ThiefStealStrategy: Strategy = {
         score: SCORE_THIEF_STEAL_BASE + target.items.length * (SCORE_THIEF_STEAL_BASE / 4) + scoreDelta,
         confidence: 0.5,
         reason: `偷取${target.name}的道具，目标持有${target.items.length}件物品${reason}`,
+        strategy: 'ThiefStealStrategy',
+        rule: 'steal_item',
+        trigger: `目标持有 items.length=${target.items.length} > 0`,
       });
     });
 
@@ -152,6 +172,9 @@ export const CoronerInspectStrategy: Strategy = {
         score: SCORE_CORONER_INSPECT_BASE + target.items.length * (SCORE_CORONER_INSPECT_BASE / 5) + scoreDelta,
         confidence: 0.6,
         reason: `验尸${target.name}，查看其${target.items.length}件道具${reason}`,
+        strategy: 'CoronerInspectStrategy',
+        rule: 'inspect_body',
+        trigger: `目标已死亡且 items.length=${target.items.length} > 0`,
       });
     });
 

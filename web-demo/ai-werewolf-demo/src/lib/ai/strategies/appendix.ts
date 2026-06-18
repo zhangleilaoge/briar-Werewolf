@@ -27,6 +27,9 @@ export const JoinSuspectStrategy: Strategy = {
         score: wolfProb * 80 + (self.team === 'werewolf' ? 30 : 0) + scoreDelta,
         confidence: 0.6,
         reason: `附和怀疑${target.name}，狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}`,
+        strategy: 'JoinSuspectStrategy',
+        rule: 'join_suspect',
+        trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.5 或 (self.team=werewolf 且 target.team!=werewolf)`,
       });
     }
 
@@ -60,6 +63,9 @@ export const JoinDefendStrategy: Strategy = {
         score: relation.friendly * 10 + (self.team === 'werewolf' && target.team === 'werewolf' ? 40 : 0) + scoreDelta,
         confidence: 0.6,
         reason: `联合辩护${target.name}，友好度${relation.friendly.toFixed(1)}${reason}`,
+        strategy: 'JoinDefendStrategy',
+        rule: 'join_defend',
+        trigger: `friendly=${relation.friendly.toFixed(1)} > 3 或 (self.team=werewolf 且 target.team=werewolf)`,
       });
     }
 
@@ -94,6 +100,9 @@ export const RebutStrategy: Strategy = {
       score: score + scoreDelta,
       confidence: 0.8,
       reason: `反驳${actor.name}的怀疑，为自己辩护${reason}`,
+      strategy: 'RebutStrategy',
+      rule: 'rebut',
+      trigger: `被怀疑/被攻击，team=${self.team} 基础分=${score}`,
     });
 
     return result;

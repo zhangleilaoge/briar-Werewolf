@@ -308,7 +308,7 @@ export interface GameLogItem {
   round: number;
   phase: Phase;
   message: string;
-  type: 'phase' | 'action' | 'death' | 'victory' | 'info' | 'check' | 'relation' | 'stress' | 'item';
+  type: 'phase' | 'action' | 'death' | 'victory' | 'info' | 'check' | 'relation' | 'stress' | 'item' | 'thinking';
   details?: Record<string, unknown>;
 }
 
@@ -444,6 +444,29 @@ export interface DecisionCandidate {
   details?: Record<string, unknown>;
   stageWeight?: number;
   stage?: string;
+  strategy?: string;
+  rule?: string;
+  trigger?: string;
+  random?: boolean;
+}
+
+export interface DecisionProcess {
+  candidates: {
+    action: string;
+    target: string | null;
+    reason: string;
+    score: number;
+    stageWeight: number;
+    totalScore: number;
+    stage: string;
+    strategy: string;
+    rule: string;
+    trigger: string;
+    random: boolean;
+    modifiers: { alignment: number; stress: number; relation: number; total: number };
+  }[];
+  winner: string;
+  shortlist: string;
 }
 
 export interface DecisionResult {
@@ -454,6 +477,7 @@ export interface DecisionResult {
   confidence: number;
   emotionalTone: string;
   details?: Record<string, unknown>;
+  process?: DecisionProcess;
 }
 
 // ---------- Log Entry ----------

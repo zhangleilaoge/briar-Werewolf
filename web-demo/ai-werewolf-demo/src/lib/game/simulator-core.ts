@@ -18,7 +18,7 @@ export type ActorState = 'idle' | 'thinking' | 'acting';
 export interface PlayerActor {
   id: string;
   state: ActorState;
-  thinkCountdown: number; // ticks remaining until ready to act
+  thinkCountdown: number; // milliseconds remaining until ready to act
   pendingEvent: GameEvent | null; // what triggered this thinking period
 }
 
@@ -41,21 +41,18 @@ export class EventBus {
 
   emit(event: GameEvent) {
     this.queue.push(event);
-    console.log(`[消息中心] 📨 EventBus 入队: type=${event.type} source=${event.source}, queueLength=${this.queue.length}`);
   }
 
   flush(sim: GameSimulator): GameEvent[] {
     const processed = [...this.queue];
     this.queue = [];
-    console.log(`[消息中心] 📨 EventBus flush: ${processed.length} 个事件`);
     processed.forEach((event) => {
       const resolvers = this.subscribers.get(event.type) || [];
       resolvers.forEach((resolve) => {
         const targetIds = resolve(event);
-        console.log(`[消息中心] 📡 EventBus ${event.type} resolver 返回 ${targetIds.length} 个目标: [${targetIds.join(', ')}]`);
         targetIds.forEach((pid) => sim.notifyPlayer(pid, event));
         if (targetIds.length > 0) {
-          console.log(`[消息中心] 📡 EventBus 广播 ${event.type} → ${targetIds.length} 个玩家: [${targetIds.join(', ')}]`);
+          console.log(`[消息中心] 📡 事件 ${event.type} → ${targetIds.length} 人响应: [${targetIds.join(', ')}]`);
         }
       });
     });
@@ -243,29 +240,31 @@ export class GameSimulator {
 
   tick(): boolean {
     if (this.winner) {
-      console.log('[消息中心] 🏁 游戏已结束，停止 tick');
       return false;
     }
 
     // Ensure we have a phase controller
     if (!this.currentPhase) {
       if (this.currentPhaseIndex >= this.phaseQueue.length) {
-        // All phases done for this round - prepare next round
-        console.log('[消息中心] 🔄 所有阶段完成，准备下一轮');
         this._prepareNextRound();
         return this.tick();
       }
       this.currentPhase = this.phaseQueue[this.currentPhaseIndex];
       this.currentPhase.onEnter(this);
       this.phase = this.currentPhase.name;
-      console.log(`[消息中心] 🔄 阶段切换 → ${this.phase}`);
+      console.log(`[消息中心] 🔄 进入 ${this.phase} 阶段`);
     }
 
-    console.log(`[消息中心] ⏱️ tick() 执行: phase=${this.currentPhase.name}, round=${this.round}`);
+    // 添加 thinking 日志（当前正在思考的玩家）
+    this._addThinkingLogs();
 
     // Collect tick logs into tickLogBuffer; commit at the end of tick
     this.tickLogBuffer = [];
     const continuePhase = this.currentPhase.onTick(this);
+
+    // 移除已完成的 thinking 日志（刚执行完的玩家）
+    this._removeCompletedThinkingLogs();
+
     // Commit tick logs sorted by priority
     this.tickLogBuffer.sort((a, b) => {
       const pa = LOG_PRIORITY[a.type] ?? 99;
@@ -276,7 +275,7 @@ export class GameSimulator {
     this.tickLogBuffer = [];
 
     if (!continuePhase) {
-      console.log(`[消息中心] 🔄 阶段结束: ${this.currentPhase.name}`);
+      console.log(`[消息中心] 🔄 ${this.currentPhase.name} 阶段结束`);
       this.currentPhase.onExit(this);
       this.currentPhaseIndex++;
       this.currentPhase = null;
@@ -285,16 +284,51 @@ export class GameSimulator {
     return !this.winner && (this.currentPhase !== null || this.currentPhaseIndex < this.phaseQueue.length);
   }
 
+  private _addThinkingLogs() {
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    this.actors.forEach((actor, id) => {
+      if (actor.state === 'thinking') {
+        const exists = this.logs.some(log =>
+          log.type === 'thinking' && log.details?.playerId === id
+        );
+        if (!exists) {
+          const player = this.players.find(p => p.id === id);
+          this.logs.push({
+            round: this.round,
+            phase: this.phase,
+            message: `[${time}] ⏳ ${player?.name || id} 正在思考...`,
+            type: 'thinking',
+            details: { playerId: id, thinking: true }
+          });
+        }
+      }
+    });
+  }
+
+  private _removeCompletedThinkingLogs() {
+    this.actors.forEach((actor, id) => {
+      if (actor.state === 'idle') {
+        const idx = this.logs.findIndex(log =>
+          log.type === 'thinking' && log.details?.playerId === id
+        );
+        if (idx >= 0) {
+          this.logs.splice(idx, 1);
+        }
+      }
+    });
+  }
+
   notifyPlayer(playerId: string, event: GameEvent) {
     const actor = this.actors.get(playerId);
-    console.log(`[消息中心] 📢 notifyPlayer: ${playerId}, event=${event.type}, actorState=${actor?.state ?? 'not found'}`);
     if (actor && actor.state === 'idle') {
       actor.state = 'thinking';
-      actor.thinkCountdown = 1; // Default 1 tick think time
+      const player = this.players.find((p) => p.id === playerId);
+      // day_turn: 立即执行（AI 决策已完成，无需额外思考时间）
+      // 其他事件: 个性化思考时间（反应/投票/夜间行动）
+      actor.thinkCountdown = event.type === 'day_turn' ? 0 : (player ? calculateThinkTime(player) : 1000);
       actor.pendingEvent = event;
-      console.log(`[消息中心] 🔔 notifyPlayer: ${playerId} 进入 thinking (事件: ${event.type})`);
     } else {
-      console.log(`[消息中心] ⚠️ notifyPlayer: ${playerId} 状态=${actor?.state ?? 'not found'}，不是 idle，拒绝通知 event=${event.type}`);
+      console.log(`[消息中心] ⚠️ ${playerId} 状态=${actor?.state}，无法接收 ${event.type}`);
     }
   }
 
@@ -317,7 +351,7 @@ export class GameSimulator {
     ];
     this.currentPhaseIndex = 0;
     this.currentPhase = null;
-    console.log(`[消息中心] 🔄 第 ${this.round} 轮开始，生成 5 个阶段`);
+    console.log(`[消息中心] 🔄 第 ${this.round} 轮开始`);
   }
 
   generateRoundSteps() {
@@ -355,12 +389,12 @@ export class GameSimulator {
       this.winner = 'villager';
       this.logs.push({ round: this.round, phase: 'init', message: '=== 村民阵营胜利！所有狼人已被消灭。 ===', type: 'victory' });
       this.phase = 'ended';
-      console.log('[消息中心] 🏆 村民阵营胜利！');
+      console.log('[消息中心] 🏆 村民胜利！');
     } else if (aliveWerewolves >= aliveVillagers) {
       this.winner = 'werewolf';
       this.logs.push({ round: this.round, phase: 'init', message: '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===', type: 'victory' });
       this.phase = 'ended';
-      console.log('[消息中心] 🏆 狼人阵营胜利！');
+      console.log('[消息中心] 🏆 狼人胜利！');
     }
   }
 
@@ -409,6 +443,40 @@ export class GameSimulator {
   getCurrentTickRate(): number {
     return this.currentPhase?.tickRate ?? 2000;
   }
+
+  /** 检查是否所有玩家都 idle（没有 pending 的思考或行动） */
+  areAllActorsIdle(): boolean {
+    return Array.from(this.actors.values()).every((a) => a.state === 'idle');
+  }
+}
+
+// ---------- Think Time Calculation (personalized) ----------
+
+function calculateThinkTime(player: Player): number {
+  // 基础 1-3 秒
+  let base = 1000 + Math.random() * 2000;
+
+  // 压力大 → 更快（慌乱）
+  if (player.stress > 5) base *= 0.6;
+  // 冷静 → 更慢（谨慎）
+  else if (player.stress < -3) base *= 1.4;
+
+  // 逻辑高 → 更快（思路清晰）
+  if (player.attributes.logic > 7) base *= 0.7;
+  // 逻辑低 → 更慢（犹豫）
+  else if (player.attributes.logic < 3) base *= 1.3;
+
+  // 洞察高 → 更快（看透局势）
+  if (player.attributes.insight > 7) base *= 0.8;
+  // 洞察低 → 更慢（茫然）
+  else if (player.attributes.insight < 3) base *= 1.2;
+
+  // 诡诈高 → 更快（早有预谋）
+  if (player.attributes.deception > 7) base *= 0.8;
+  // 诡诈低 → 更慢（拙劣表演）
+  else if (player.attributes.deception < 3) base *= 1.2;
+
+  return Math.max(500, Math.min(5000, Math.round(base)));
 }
 
 export { generateGameConfig } from './simulator-config';

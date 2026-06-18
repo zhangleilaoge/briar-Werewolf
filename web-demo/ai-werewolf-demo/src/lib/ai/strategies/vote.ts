@@ -27,6 +27,9 @@ export const ProphetVoteDutyStrategy: Strategy = {
             score: SCORE_PROPHET_VOTE_DUTY + scoreDelta,
             confidence: 1.0,
             reason: `L0事实：查验到${target.name}是狼人，职业义务优先淘汰${reason}`,
+            strategy: 'ProphetVoteDutyStrategy',
+            rule: 'vote_known_wolf',
+            trigger: `l0Facts.checks[${targetId}] = 'werewolf' 且目标存活`,
           });
         }
       }
@@ -58,6 +61,9 @@ export const WerewolfVoteDutyStrategy: Strategy = {
           score: SCORE_WEREWOLF_VOTE_DUTY + scoreDelta,
           confidence: 0.8,
           reason: `L2推断：队友${teammate.name}暴露风险极高，倒钩保自己${reason}`,
+          strategy: 'WerewolfVoteDutyStrategy',
+          rule: 'protect_teammate',
+          trigger: `队友暴露度=${exposure.toFixed(2)} > 阈值=${EXPOSURE_CRITICAL_THRESHOLD}`,
         });
       }
     });
@@ -95,6 +101,9 @@ export const MaxInfoVoteStrategy: Strategy = {
         score: score + scoreDelta,
         confidence: wolfProb,
         reason: wolfProb > 0.5 ? `L1推理：${target.name}狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}` : `L1推理：${target.name}相对安全${reason}`,
+        strategy: 'MaxInfoVoteStrategy',
+        rule: context.self.team === 'werewolf' ? 'deflect_vote' : 'max_info_vote',
+        trigger: `wolfProb=${wolfProb.toFixed(2)}，${context.self.team === 'werewolf' ? '狼人反转投票' : '村民按嫌疑投票'}`,
       });
     });
 
@@ -132,6 +141,9 @@ export const FollowCallVoteStrategy: Strategy = {
           score: followScore + scoreDelta,
           confidence: relation.trust / 10,
           reason: `跟随${caller.name}的号召：${caller.name}号召投票给${callTarget.name}（信任${relation.trust.toFixed(1)}）${reason}`,
+          strategy: 'FollowCallVoteStrategy',
+          rule: 'follow_call',
+          trigger: `followScore=${followScore.toFixed(1)} > 阈值=${(SCORE_FOLLOW_CALL_VOTE / 2).toFixed(1)}，信任度=${relation.trust.toFixed(1)}`,
         });
       }
     });
@@ -171,6 +183,9 @@ export const SocialTieBreakerStrategy: Strategy = {
         score: socialScore + scoreDelta,
         confidence: 0.3,
         reason: `L3社交：与${target.name}信任${relation.trust.toFixed(1)}友好${relation.friendly.toFixed(1)}${reason}`,
+        strategy: 'SocialTieBreakerStrategy',
+        rule: self.team === 'werewolf' ? 'wolf_deflect_social' : 'social_tiebreaker',
+        trigger: `self.team=${self.team}，信任=${relation.trust.toFixed(1)}，友好=${relation.friendly.toFixed(1)}`,
       });
     });
 
@@ -203,6 +218,9 @@ export const SurvivalVoteStrategy: Strategy = {
           score: SCORE_SURVIVAL_VOTE - myExposure * SCORE_MAX_INFO_VOTE + scoreDelta,
           confidence: 0.6,
           reason: `L2推断：自己被怀疑度${myExposure.toFixed(2)}过高，需做低嫌疑行为${reason}`,
+          strategy: 'SurvivalVoteStrategy',
+          rule: 'survival_deflect',
+          trigger: `myExposure=${myExposure.toFixed(2)} > 阈值=${EXPOSURE_HIGH_THRESHOLD}`,
         });
       });
     }

@@ -21,9 +21,9 @@ export function runVote(sim: GameSimulator, player: Player) {
   if (decision && decision.target) {
     if (!sim.votes[decision.target]) sim.votes[decision.target] = [];
     sim.votes[decision.target].push(player.id);
-    logAction(sim, 'action', `${player.name} 投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target });
+    logAction(sim, 'action', `${player.name} 投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target, process: decision.process });
   } else {
-    logAction(sim, 'action', `${player.name} 弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain' });
+    logAction(sim, 'action', `${player.name} 弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain', process: decision?.process });
   }
 }
 
@@ -88,9 +88,9 @@ export function runVoteRound2(sim: GameSimulator, player: Player, candidates: st
   if (decision && decision.target && candidates.includes(decision.target)) {
     if (!sim.votes[decision.target]) sim.votes[decision.target] = [];
     sim.votes[decision.target].push(player.id);
-    logAction(sim, 'action', `${player.name} 第二轮投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target });
+    logAction(sim, 'action', `${player.name} 第二轮投票给 ${getName(sim, decision.target)}：${decision.reason}`, decision.reason || '', [], { actorId: player.id, action: 'vote', targetId: decision.target, process: decision.process });
   } else {
-    logAction(sim, 'action', `${player.name} 第二轮弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain' });
+    logAction(sim, 'action', `${player.name} 第二轮弃票`, decision?.reason || '', [], { actorId: player.id, action: 'vote_abstain', process: decision?.process });
   }
 }
 

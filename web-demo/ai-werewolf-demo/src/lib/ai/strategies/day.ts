@@ -159,6 +159,9 @@ export const VillagerDayStrategy: Strategy = {
               confidence: 1.0,
               reason: `我查验了${target.name}，结果是狼人！作为预言家我必须公布身份。`,
               details: { claimedRole: 'prophet', checkResult, checkTarget: targetId },
+              strategy: 'VillagerDayStrategy',
+              rule: 'prophet_claim',
+              trigger: 'role=prophet 且 l0Facts.checks 中存在 werewolf 结果',
             });
             result.push({
               action: 'call_vote',
@@ -166,6 +169,9 @@ export const VillagerDayStrategy: Strategy = {
               score: 950,
               confidence: 1.0,
               reason: `${target.name}已被我查验为狼人，号召大家投票！`,
+              strategy: 'VillagerDayStrategy',
+              rule: 'prophet_call_vote',
+              trigger: 'role=prophet 且 l0Facts.checks 中存在 werewolf 结果',
             });
             break;
           }
@@ -184,6 +190,9 @@ export const VillagerDayStrategy: Strategy = {
         score: 100 + (attackerWolfProb > 0.5 ? 30 : 0),
         confidence: 0.7,
         reason: `${attacker.name}在攻击我，我觉得他才是狼人！${getWerewolfAttackReason(belief, attacker.id, actions, allPlayers)}。`,
+        strategy: 'VillagerDayStrategy',
+        rule: 'defend_attacked',
+        trigger: `被攻击次数=${attacksOnMe.length} > 0`,
       });
       result.push({
         action: 'guarantee',
@@ -191,6 +200,9 @@ export const VillagerDayStrategy: Strategy = {
         score: 70,
         confidence: 0.5,
         reason: `我需要证明自己的清白。${attacker.name}的指控没有依据。`,
+        strategy: 'VillagerDayStrategy',
+        rule: 'self_guarantee',
+        trigger: `被攻击次数=${attacksOnMe.length} > 0`,
       });
     }
 
@@ -207,6 +219,9 @@ export const VillagerDayStrategy: Strategy = {
             score: 130,
             confidence: topSuspect.werewolfProb,
             reason: `我强烈怀疑${target.name}是狼人！${reason}。狼概率${(topSuspect.werewolfProb * 100).toFixed(0)}%。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'high_suspect_accuse',
+            trigger: `topSuspect.werewolfProb=${topSuspect.werewolfProb.toFixed(2)} > 0.7`,
           });
         } else {
           result.push({
@@ -215,6 +230,9 @@ export const VillagerDayStrategy: Strategy = {
             score: 100,
             confidence: topSuspect.werewolfProb,
             reason: `我觉得${target.name}很可疑。${reason}。狼概率${(topSuspect.werewolfProb * 100).toFixed(0)}%。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'high_suspect_suspect',
+            trigger: `topSuspect.werewolfProb=${topSuspect.werewolfProb.toFixed(2)} > 0.5`,
           });
         }
 
@@ -225,6 +243,9 @@ export const VillagerDayStrategy: Strategy = {
             score: 110,
             confidence: topSuspect.werewolfProb,
             reason: `${target.name}嫌疑很高，我号召大家投票。${reason}。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'high_suspect_call_vote',
+            trigger: `topSuspect.werewolfProb=${topSuspect.werewolfProb.toFixed(2)} > 0.6`,
           });
         }
       }
@@ -248,6 +269,9 @@ export const VillagerDayStrategy: Strategy = {
         score: 75,
         confidence: 0.5,
         reason: `我注意到${observeTarget.name}${behaviorReasons.join('，')}，行为异常，想暗中观察他获取更多情报。`,
+        strategy: 'VillagerDayStrategy',
+        rule: 'behavior_observe',
+        trigger: `目标压力=${observeTarget.stress} > 5 或 沉默次数=${targetSilence} >= 2`,
       });
     }
 
@@ -263,6 +287,9 @@ export const VillagerDayStrategy: Strategy = {
             score: 85,
             confidence: 0.6,
             reason: `${callerName}号召投票给${target.name}，我信任他的判断，跟票。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'follow_trusted',
+            trigger: `信任者 ${callerName} 发起 call_vote，信任度=${(belief.l1Inferences.trustScore[caller.actorId] ?? 0).toFixed(1)}`,
           });
         }
       }
@@ -276,6 +303,9 @@ export const VillagerDayStrategy: Strategy = {
         score: 95,
         confidence: 0.7,
         reason: `快全员沉默了，我必须说点什么推动讨论。`,
+        strategy: 'VillagerDayStrategy',
+        rule: 'break_silence',
+        trigger: `consecutiveSilence=${consecutiveSilence} >= aliveCount-${SILENCE_NEAR_FULL_THRESHOLD}=${aliveCount - SILENCE_NEAR_FULL_THRESHOLD}`,
       });
     }
 
@@ -293,6 +323,10 @@ export const VillagerDayStrategy: Strategy = {
             score: 50,
             confidence: 0.3,
             reason: `第一天信息不足，我打算观察${randomTarget.name}获取更多情报。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'default_round1_observe',
+            trigger: '无更高优先级规则命中，且为第一轮',
+            random: true,
           });
         } else {
           result.push({
@@ -301,6 +335,10 @@ export const VillagerDayStrategy: Strategy = {
             score: 50,
             confidence: 0.3,
             reason: `目前没什么明确线索，我打算观察${randomTarget.name}获取更多情报。`,
+            strategy: 'VillagerDayStrategy',
+            rule: 'default_other_observe',
+            trigger: '无更高优先级规则命中',
+            random: true,
           });
         }
       }
@@ -311,6 +349,9 @@ export const VillagerDayStrategy: Strategy = {
           score: 40,
           confidence: 0.3,
           reason: `第一天信息不足，我先听听大家的发言。`,
+          strategy: 'VillagerDayStrategy',
+          rule: 'default_round1_speak',
+          trigger: '无更高优先级规则命中，且为第一轮',
         });
       } else {
         result.push({
@@ -319,6 +360,9 @@ export const VillagerDayStrategy: Strategy = {
           score: 40,
           confidence: 0.3,
           reason: `目前没什么明确线索，先看看大家的发言。`,
+          strategy: 'VillagerDayStrategy',
+          rule: 'default_other_speak',
+          trigger: '无更高优先级规则命中',
         });
       }
     }
@@ -349,6 +393,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
           score: 130,
           confidence: 0.8,
           reason: `${attacker.name}在攻击我，我觉得他才是狼人！${getWerewolfAttackReason(belief, attacker.id, actions, allPlayers)}。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'defend_attacked_accuse',
+          trigger: `被攻击次数=${attacksOnMe.length} > 0`,
         });
         result.push({
           action: 'suspect',
@@ -356,6 +403,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
           score: 100,
           confidence: 0.7,
           reason: `我怀疑${attacker.name}，他的攻击没有依据。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'defend_attacked_suspect',
+          trigger: `被攻击次数=${attacksOnMe.length} > 0`,
         });
       }
     }
@@ -377,6 +427,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
           score: 70 + targetSuspicion * 10,
           confidence: 0.6,
           reason: `我觉得${target.name}有点可疑，${fakeReason}。大家注意观察。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'camouflage_suspect',
+          trigger: `wolfProb=${wolfProb.toFixed(2)} < 0.5 且 (targetSuspicion=${targetSuspicion} >= 1 或 targetSilence=${targetSilence} >= 2)`,
         });
       }
     });
@@ -396,6 +449,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
             score: 90,
             confidence: 0.7,
             reason: `我怀疑${teammate.name}，他行为太可疑了，不像是好人。`,
+            strategy: 'WerewolfCamouflageStrategy',
+            rule: 'teammate_exposed_gouge',
+            trigger: `队友暴露度=${exposure.toFixed(2)} > 0.8 且 自身暴露度=${belief.getExposure().toFixed(2)} < 0.5`,
           });
         }
         result.push({
@@ -404,6 +460,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
           score: 60,
           confidence: 0.5,
           reason: `我觉得${teammate.name}被冤枉了，大家再想想。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'teammate_exposed_defend',
+          trigger: `队友暴露度=${exposure.toFixed(2)} > 阈值=${EXPOSURE_HIGH_THRESHOLD}`,
         });
       }
     });
@@ -416,6 +475,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
         score: 90,
         confidence: 0.7,
         reason: `快全员沉默了，我得当个好人样打破沉默。`,
+        strategy: 'WerewolfCamouflageStrategy',
+        rule: 'break_silence',
+        trigger: `consecutiveSilence=${consecutiveSilence} >= aliveCount-${SILENCE_NEAR_FULL_THRESHOLD}=${aliveCount - SILENCE_NEAR_FULL_THRESHOLD}`,
       });
     }
 
@@ -431,6 +493,10 @@ export const WerewolfCamouflageStrategy: Strategy = {
             score: 55,
             confidence: 0.5,
             reason: `第一天信息不多，我先观察${random.name}，看看他有什么表现。`,
+            strategy: 'WerewolfCamouflageStrategy',
+            rule: 'default_round1_speak_target',
+            trigger: '无更高优先级规则命中，且为第一轮',
+            random: true,
           });
         } else {
           result.push({
@@ -439,6 +505,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
             score: 50,
             confidence: 0.5,
             reason: `第一天信息不多，我先看看局势。`,
+            strategy: 'WerewolfCamouflageStrategy',
+            rule: 'default_round1_speak',
+            trigger: '无更高优先级规则命中，且为第一轮',
           });
         }
       } else {
@@ -448,6 +517,9 @@ export const WerewolfCamouflageStrategy: Strategy = {
           score: 50,
           confidence: 0.5,
           reason: `我也没什么头绪，先看看大家怎么说。`,
+          strategy: 'WerewolfCamouflageStrategy',
+          rule: 'default_other_speak',
+          trigger: '无更高优先级规则命中',
         });
       }
     }
@@ -477,6 +549,9 @@ export const ProphetClaimStrategy: Strategy = {
             confidence: 1.0,
             reason: `公布查验结果：${target.name} 是狼人。`,
             details: { claimedRole: 'prophet', checkResult, checkTarget: targetId },
+            strategy: 'ProphetClaimStrategy',
+            rule: 'claim_check',
+            trigger: `l0Facts.checks[${targetId}] = 'werewolf'`,
           });
           break;
         }
@@ -509,6 +584,9 @@ export const BerserkerSuicideStrategy: Strategy = {
             score: SCORE_BERSERKER_SUICIDE,
             confidence: 0.8,
             reason: `狼队劣势(${werewolfCount} vs ${villagerCount})，${target.name}疑似神职，同归于尽。`,
+            strategy: 'BerserkerSuicideStrategy',
+            rule: 'suicide_kill',
+            trigger: `werewolfCount=${werewolfCount} < villagerCount=${villagerCount} 且 werewolfCount <= 2，目标 claims.length=${claims.length} > 0`,
           });
         }
       });
