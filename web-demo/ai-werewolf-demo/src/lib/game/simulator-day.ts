@@ -29,13 +29,32 @@ export function runDayAction(sim: GameSimulator, playerId: string) {
 
   if (!decision) {
     sim.consecutiveSilenceCount++;
-    log(sim, 'action', `${player.name} 选择沉默。（连续沉默: ${sim.consecutiveSilenceCount}/${sim.getAliveCount()}）`);
-
     if (sim.consecutiveSilenceCount >= sim.getAliveCount()) {
       log(sim, 'phase', '全员连续沉默，进入投票阶段。');
       skipToVote(sim);
     }
     return;
+  }
+
+  // 检查今天是否已对目标执行过动作（同一人对同一人一天只能动作一次）
+  if (decision.target) {
+    const targets = sim.dayActionTargets.get(playerId);
+    if (targets && targets.has(decision.target)) {
+      sim.consecutiveSilenceCount++;
+      if (sim.consecutiveSilenceCount >= sim.getAliveCount()) {
+        log(sim, 'phase', '全员连续沉默，进入投票阶段。');
+        skipToVote(sim);
+      }
+      return;
+    }
+  }
+
+  // 记录今天对目标执行的动作
+  if (decision.target) {
+    if (!sim.dayActionTargets.has(playerId)) {
+      sim.dayActionTargets.set(playerId, new Set());
+    }
+    sim.dayActionTargets.get(playerId)!.add(decision.target);
   }
 
   const actionRecord: PublicActionRecord = {
@@ -47,14 +66,12 @@ export function runDayAction(sim: GameSimulator, playerId: string) {
   };
   sim.publicActions.push(actionRecord);
 
-  // 执行行动，根据返回值决定是否重置沉默计数
+  // 执行行动，观察/沉默视为沉默（不重置），其他动作重置计数
   const shouldResetSilence = resolveDayAction(sim, player, decision.action as DayActionType, decision.target, decision.details || {}, decision.reason || '', decision.process);
   if (shouldResetSilence) {
     sim.consecutiveSilenceCount = 0;
   } else {
-    // 观察未被发现 = 视同沉默，递增计数
     sim.consecutiveSilenceCount++;
-    log(sim, 'action', `${player.name} 的观察未被发现，视同沉默。（连续沉默: ${sim.consecutiveSilenceCount}/${sim.getAliveCount()}）`);
     if (sim.consecutiveSilenceCount >= sim.getAliveCount()) {
       log(sim, 'phase', '全员连续沉默，进入投票阶段。');
       skipToVote(sim);
@@ -148,9 +165,6 @@ export function resolveDayAction(
         logAction(sim, 'action', `${targetName} 察觉到 ${actor.name} 在观察自己`, '', [], { actorId: target.id, action: 'observe_detected', targetId: actor.id, process });
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
-      } else {
-        // 目标b未察觉到
-        logAction(sim, 'action', `${targetName} 未察觉到 ${actor.name} 正在观察 ${targetName}`, '', [], { actorId: target.id, action: 'observe_detected', targetId: actor.id, process });
       }
       // 是否被其他旁观者发现
       sim.players.forEach((observer) => {
@@ -174,10 +188,8 @@ export function resolveDayAction(
       if (agent && target) {
         agent.recordObservation(target.id, target.stress, target.attributes);
       }
-      // 观察未被发现 = 视同沉默，不重置计数
-      if (!discoveredResult.success) {
-        shouldResetSilence = false;
-      }
+      // 观察视同沉默，不重置计数
+      shouldResetSilence = false;
       break;
     }
     case 'suspect': {
@@ -330,6 +342,7 @@ export function resolveDayAction(
             agent.onEvent({ type: 'death', playerId: target.id });
           }
         });
+        sim._checkWinCondition();
         skipToVote(sim);
       }
       break;

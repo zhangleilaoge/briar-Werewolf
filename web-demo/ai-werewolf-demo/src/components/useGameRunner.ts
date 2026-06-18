@@ -10,6 +10,39 @@ export interface GameConfig {
 
 export type PlayerState = Player;
 
+function exportGameLog(sim: GameSimulator) {
+  const data = {
+    timestamp: new Date().toISOString(),
+    winner: sim.getWinner(),
+    totalRounds: sim.round,
+    players: sim.getPlayers().map(p => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      team: p.team,
+      alive: p.alive,
+      attributes: p.attributes,
+      alignment: p.alignment,
+      stress: p.stress,
+      items: p.items,
+      traits: p.traits,
+      relations: p.relations,
+    })),
+    logs: sim.getLogs(),
+    publicActions: sim.getPublicActions(),
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `werewolf-log-${data.timestamp.replace(/[:.]/g, '-')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function useGameRunner() {
   const [phase, setPhase] = useState<'setup' | 'running' | 'paused' | 'ended'>('setup');
   const [round, setRound] = useState(0);
@@ -57,6 +90,7 @@ export function useGameRunner() {
       if (win) {
         setWinner(win);
         setPhase('ended');
+        exportGameLog(sim);
         return;
       }
       sim.generateRoundSteps();
@@ -122,6 +156,7 @@ export function useGameRunner() {
       if (win) {
         setWinner(win);
         setPhase('ended');
+        exportGameLog(sim);
       } else {
         sim.generateRoundSteps();
       }

@@ -51,15 +51,12 @@ export default function GameApp() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <select
-            className="bg-secondary text-secondary-foreground rounded px-2 py-1 text-sm"
-            value={game.speed}
-            onChange={(e) => game.setSpeed(Number(e.target.value))}
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors"
+            onClick={() => game.setSpeed(game.speed === 0.5 ? 1 : game.speed === 1 ? 2 : 0.5)}
           >
-            <option value={0.5}>0.5x</option>
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
-          </select>
+            {game.speed}x
+          </button>
           {!isEnded && (
             <>
               {isRunning ? (
@@ -71,9 +68,6 @@ export default function GameApp() {
                   ▶ 继续
                 </button>
               )}
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:opacity-90" onClick={game.nextStep}>
-                ⏭ 下一步
-              </button>
             </>
           )}
           <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-bold hover:opacity-90" onClick={game.resetGame}>

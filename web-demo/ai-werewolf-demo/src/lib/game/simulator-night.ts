@@ -162,6 +162,7 @@ export function resolveNightActions(sim: GameSimulator) {
         agent.onEvent({ type: 'death', playerId: killer.id });
       }
     });
+    sim._checkWinCondition();
     return;
   }
 
@@ -172,4 +173,5 @@ export function resolveNightActions(sim: GameSimulator) {
     const agent = sim._aiAgents[p.id];
     if (agent) agent.onEvent({ type: 'death', playerId: target.id });
   });
+  sim._checkWinCondition();
 }

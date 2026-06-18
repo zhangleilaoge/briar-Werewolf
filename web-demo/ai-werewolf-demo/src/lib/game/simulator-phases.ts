@@ -128,6 +128,7 @@ export class DayPhaseController extends TickPhase {
     this.silenceCount = 0;
     this.aliveOrder = sim.getAlivePlayerIds();
     this.nextIndex = 0;
+    sim.dayActionTargets.clear();
 
     log(sim, 'phase', '-- 白天阶段 --');
     debugLog('[消息中心] 🌅 进入白天阶段');

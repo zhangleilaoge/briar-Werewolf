@@ -105,6 +105,8 @@ export class GameSimulator {
   consecutiveSilenceCount: number;
   dayActionIndex: number;
   alivePlayerIds: string[];
+  // 记录今天白天每个玩家已经执行过动作的目标（同一人同天对同一人只能动作一次）
+  dayActionTargets: Map<string, Set<string>>;
 
   // Vote state
   voteRound: number;
@@ -171,6 +173,8 @@ export class GameSimulator {
     this.prophetClaims = {};
     this.thiefUsed = {};
     this.coronerUsed = {};
+
+    this.dayActionTargets = new Map();
 
     this.gameConfig = { totalPlayers: playerConfigs.length, werewolfConfig: [], villagerConfig: [] };
     this.options = options;
