@@ -442,7 +442,7 @@ export class BeliefSystem {
       role: this.myRole,
       l0: { checks: this.l0Facts.checks, deaths: this.l0Facts.deaths },
       l1: { topSuspect: this._getTopSuspect() },
-      l2: { myExposure: this._calculateExposure() },
+      l2: { myExposure: this.getExposure() },
       l3: { relations: this.l3Social.relations, pressure: this.l3Social.pressure, emotionalState: this.l3Social.emotionalState },
     };
   }

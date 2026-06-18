@@ -1,6 +1,7 @@
 import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, } from '@/types';
 import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
+import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile } from '../intention-system';
 
 export interface StrategyContext {
   belief: BeliefSystem;
@@ -70,7 +71,8 @@ export class DecisionEngine {
     consecutiveSilence: number = 0,
     aliveCount: number = 0,
     voteRound: number = 1,
-    voteCandidates: string[] = []
+    voteCandidates: string[] = [],
+    pluginCandidates: DecisionCandidate[] = []
   ): DecisionResult {
     const context: StrategyContext = {
       belief, self, phase, availableActions, allPlayers,
@@ -78,6 +80,11 @@ export class DecisionEngine {
     };
 
     const candidates: DecisionCandidate[] = [];
+
+    // Add plugin candidates with 'plugin' stage
+    pluginCandidates.forEach((c) => {
+      candidates.push({ ...c, stageWeight: this._getStageWeight('plugin'), stage: 'plugin' });
+    });
 
     for (const stage of this.config.priorityOrder) {
       const stageStrategies = this.strategies[stage] || [];
@@ -92,10 +99,7 @@ export class DecisionEngine {
           result.forEach((r) => {
             candidates.push({ ...r, stageWeight: this._getStageWeight(stage), stage, strategy: strategy.name });
           });
-
-          if ((stage === 'duty' || stage === 'survival') && result.length === 1) {
-            return this._finalizeDecision(result[0], belief, self, stage, candidates, allPlayers);
-          }
+          // 不再短路：收集所有阶段的候选，最终加权随机选择
         }
       }
     }
@@ -104,11 +108,37 @@ export class DecisionEngine {
       return this._defaultDecision(self, allPlayers);
     }
 
-    const scored = candidates
-      .map((c) => ({ ...c, totalScore: (c.score || 0) + (c.stageWeight || 0) }))
+    // === 意图系统硬约束过滤 ===
+    // 职业义务不可被分数覆盖：狼人不得主动攻击队友、预言家必须公布查验等
+    const intentionContext: IntentionContext = {
+      belief, self, phase, allPlayers, publicActions, voteRound, voteCandidates,
+    };
+    const { allowed, blocked } = filterByHardConstraints(candidates, intentionContext);
+    const desire = generateDesireProfile(self, belief, allPlayers);
+    const intentionExplanation = explainIntention(desire, blocked, allPlayers);
+
+    const effectiveCandidates = allowed.length > 0 ? allowed : candidates; // 如果全部拦截，回退到原始候选（兜底）
+
+    const scored = effectiveCandidates
+      .map((c) => {
+        const mods = this._buildModifiers(self, c);
+        return { ...c, totalScore: (c.score || 0) + (c.stageWeight || 0) + mods.total };
+      })
       .sort((a, b) => b.totalScore - a.totalScore);
 
-    return this._finalizeDecision(scored[0], belief, self, scored[0].stage || 'default', candidates, allPlayers);
+    // 去重：只保留不同 action+target 组合的第一个
+    const seen = new Set<string>();
+    const unique = scored.filter((c) => {
+      const key = `${c.action}:${c.target || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // 加权随机选择：以分数作为权重概率
+    const selected = unique.length > 0 ? this._weightedRandom(unique) : scored[0];
+
+    return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation);
   }
 
   private _getStageWeight(stage: string): number {
@@ -117,6 +147,7 @@ export class DecisionEngine {
       case 'survival': return this.config.survivalWeight;
       case 'information': return this.config.infoWeight;
       case 'social': return this.config.socialWeight;
+      case 'plugin': return this.config.infoWeight; // Plugin strategies use info weight
       default: return 0;
     }
   }
@@ -145,7 +176,7 @@ export class DecisionEngine {
     };
   }
 
-  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[]): DecisionProcess {
+  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string): DecisionProcess {
     const all = candidates.map((c) => {
       const modifiers = this._buildModifiers(self, c);
       return {
@@ -228,9 +259,20 @@ export class DecisionEngine {
   [${c.strategy}.${c.rule}]
   触发：${c.trigger}
   分数：基础${c.score} + 阶段${c.stageWeight}(${stageName})${modifierLine}
-  总分：${c.totalScore}
-  原因：${c.reason}`;
+  总分：${c.totalScore}`;
     });
+
+    // 硬约束拦截信息
+    const blockedLines: string[] = [];
+    if (blocked && blocked.length > 0) {
+      blockedLines.push('');
+      blockedLines.push('【被硬约束拦截】');
+      blocked.forEach((b) => {
+        const actionName = actionNames[b.candidate.action] || b.candidate.action;
+        const targetName = getName(b.candidate.target);
+        blockedLines.push(`  ✗ ${actionName}${targetName ? `→${targetName}` : ''}: ${b.reason}`);
+      });
+    }
 
     const winnerAction = actionNames[winner.action] || winner.action;
     const winnerTarget = getName(winner.target);
@@ -243,8 +285,10 @@ export class DecisionEngine {
     const winnerTotal = all.find((a) => a.action === winner.action && a.target === winner.target)?.totalScore || 0;
 
     const shortlist = [
+      intentionExplanation || '',
       '【可选行动】',
       ...lines,
+      ...blockedLines,
       '',
       `【最终选择】${winnerAction}${winnerTarget ? `→${winnerTarget}` : ''}`,
       `  命中规则：${winnerStr}`,
@@ -256,8 +300,19 @@ export class DecisionEngine {
     return { candidates: all, winner: winnerActionStr, shortlist };
   }
 
-  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = []): DecisionResult {
-    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers) : undefined;
+  private _weightedRandom(candidates: (DecisionCandidate & { totalScore?: number })[]): DecisionCandidate {
+    const weights = candidates.map((c) => Math.max(1, c.totalScore || c.score || 1));
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let random = Math.random() * totalWeight;
+    for (let i = 0; i < candidates.length; i++) {
+      random -= weights[i];
+      if (random <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
+  }
+
+  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = [], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string): DecisionResult {
+    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers, blocked, intentionExplanation) : undefined;
     return {
       action: candidate.action,
       target: candidate.target,

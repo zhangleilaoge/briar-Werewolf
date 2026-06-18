@@ -186,7 +186,7 @@ export function resolveDayAction(
       });
       const agent = sim._aiAgents[actor.id];
       if (agent && target) {
-        agent.recordObservation(target.id, target.stress, target.attributes);
+        agent.recordObservation(target.id, target.stress, target.attributes as unknown as Record<string, number>);
       }
       // 观察视同沉默，不重置计数
       shouldResetSilence = false;

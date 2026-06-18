@@ -1,6 +1,5 @@
-import { ProphetCheckStrategy, WerewolfKillStrategy, ThiefStealStrategy, CoronerInspectStrategy } from './night';
 import { VillagerDayStrategy, WerewolfCamouflageStrategy, ProphetClaimStrategy, BerserkerSuicideStrategy } from './day';
-import { ProphetVoteDutyStrategy, WerewolfVoteDutyStrategy, MaxInfoVoteStrategy, FollowCallVoteStrategy, SocialTieBreakerStrategy, SurvivalVoteStrategy } from './vote';
+import { CheckRevelationVoteStrategy, AllyProtectionVoteStrategy, MaxInfoVoteStrategy, FollowCallVoteStrategy, SocialTieBreakerStrategy, SurvivalVoteStrategy } from './vote';
 import { JoinSuspectStrategy, JoinDefendStrategy, RebutStrategy } from './appendix';
 import type { Strategy } from './engine';
 
@@ -11,11 +10,11 @@ export interface StrategyEntry {
 
 export function buildStrategies(): StrategyEntry[] {
   return [
-    // Night
-    { category: 'information', strategy: ProphetCheckStrategy },
-    { category: 'information', strategy: WerewolfKillStrategy },
-    { category: 'information', strategy: ThiefStealStrategy },
-    { category: 'information', strategy: CoronerInspectStrategy },
+    // Night strategies are now provided by item plugins:
+    // - CrystalBallPlugin (check)
+    // - ClawsPlugin (kill)
+    // - ThiefGlovesPlugin (steal)
+    // - CoronerToolsPlugin (inspect)
 
     // Day
     { category: 'duty', strategy: ProphetClaimStrategy },
@@ -24,8 +23,8 @@ export function buildStrategies(): StrategyEntry[] {
     { category: 'information', strategy: WerewolfCamouflageStrategy },
 
     // Vote
-    { category: 'duty', strategy: ProphetVoteDutyStrategy },
-    { category: 'duty', strategy: WerewolfVoteDutyStrategy },
+    { category: 'duty', strategy: CheckRevelationVoteStrategy },
+    { category: 'duty', strategy: AllyProtectionVoteStrategy },
     { category: 'information', strategy: MaxInfoVoteStrategy },
     { category: 'social', strategy: FollowCallVoteStrategy },
     { category: 'social', strategy: SocialTieBreakerStrategy },

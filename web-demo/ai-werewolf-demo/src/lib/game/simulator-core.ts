@@ -9,6 +9,7 @@ import { AIAgent } from '../ai/ai-agent';
 import {
   type PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
 } from './simulator-phases';
+import { PluginRegistry, registerDefaultPlugins } from '../plugins';
 
 const DEBUG = false;
 function debugLog(...args: unknown[]) {
@@ -121,6 +122,9 @@ export class GameSimulator {
   options: GameSimulatorOptions;
   _aiAgents: Record<string, AIAgent> = {};
 
+  // ---- Plugin System ----
+  pluginRegistry: PluginRegistry;
+
   // ---- Tick Engine ----
   actors: Map<string, PlayerActor> = new Map();
   eventBus: EventBus = new EventBus();
@@ -178,6 +182,10 @@ export class GameSimulator {
 
     this.gameConfig = { totalPlayers: playerConfigs.length, werewolfConfig: [], villagerConfig: [] };
     this.options = options;
+
+    // Initialize plugin registry
+    this.pluginRegistry = new PluginRegistry();
+    registerDefaultPlugins(this.pluginRegistry);
 
     this._createPlayers(playerConfigs);
 
@@ -244,7 +252,7 @@ export class GameSimulator {
     // Initialize AI agents
     this._aiAgents = {};
     this.players.forEach((p) => {
-      this._aiAgents[p.id] = new AIAgent(p, this.players);
+      this._aiAgents[p.id] = new AIAgent(p, this.players, this.pluginRegistry);
     });
   }
 

@@ -32,10 +32,10 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
 
 // ---------- rollD20 ----------
 describe('rollD20', () => {
-  it('returns a number between 1 and 20', () => {
+  it('returns a number between 2 and 20', () => {
     for (let i = 0; i < 100; i++) {
       const roll = rollD20();
-      expect(roll).toBeGreaterThanOrEqual(1);
+      expect(roll).toBeGreaterThanOrEqual(2);
       expect(roll).toBeLessThanOrEqual(20);
     }
   });
@@ -45,7 +45,7 @@ describe('rollD20', () => {
 describe('performCheck', () => {
   it('produces valid check results', () => {
     const result = performCheck(5, 12);
-    expect(result.roll).toBeGreaterThanOrEqual(1);
+    expect(result.roll).toBeGreaterThanOrEqual(2);
     expect(result.roll).toBeLessThanOrEqual(20);
     expect(result.total).toBe(result.roll + result.modifier);
     expect(result.success).toBe(result.total >= result.difficulty);
@@ -71,8 +71,8 @@ describe('performCheck', () => {
 describe('performOpposedCheck', () => {
   it('produces valid opposed check results', () => {
     const result = performOpposedCheck(5, 3);
-    expect(result.actorRoll).toBeGreaterThanOrEqual(1);
-    expect(result.targetRoll).toBeGreaterThanOrEqual(1);
+    expect(result.actorRoll).toBeGreaterThanOrEqual(2);
+    expect(result.targetRoll).toBeGreaterThanOrEqual(2);
     expect(result.actorTotal).toBe(result.actorRoll + 5);
     expect(result.targetTotal).toBe(result.targetRoll + 3);
     expect(result.success).toBe(result.actorTotal > result.targetTotal);

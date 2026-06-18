@@ -1,6 +1,7 @@
 import { BeliefSystem } from './belief-system';
 import { DecisionEngine, buildStrategies } from './strategies';
 import type { Player, DecisionResult, LogEntry, Phase, } from '@/types';
+import type { PluginRegistry } from '../plugins';
 
 export interface AgentEvent {
   type: 'death' | 'check_result' | 'public_claim' | 'relation_update' | 'observation' | 'inspection';
@@ -23,8 +24,11 @@ export class AIAgent {
   engine: DecisionEngine;
   logs: LogEntry[];
   currentRound: number = 0;
+  pluginRegistry?: PluginRegistry;
 
-  constructor(player: Player, allPlayers: Player[]) {
+  private _allPlayers: Player[];
+
+  constructor(player: Player, allPlayers: Player[], pluginRegistry?: PluginRegistry) {
     this.id = player.id;
     this.player = player;
     this.belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment);
@@ -32,6 +36,7 @@ export class AIAgent {
     this._registerDefaultStrategies();
     this.logs = [];
     this._allPlayers = allPlayers;
+    this.pluginRegistry = pluginRegistry;
   }
 
   private _registerDefaultStrategies() {
@@ -47,7 +52,32 @@ export class AIAgent {
     if (!this.player?.alive) return null;
     const availableActions = this._getAvailableNightActions();
     this.belief.updateInferences(allPlayers, this.player, []);
-    const decision = this.engine.decide(this.belief, this.player, 'night', availableActions, allPlayers, nightDecisions, []);
+    
+    // Get plugin strategies if available
+    const pluginStrategies = this.pluginRegistry?.evaluateAll({
+      belief: this.belief,
+      self: this.player,
+      allPlayers,
+      nightDecisions,
+      round: this.currentRound,
+      phase: 'night',
+      players: allPlayers,
+    }) || [];
+    
+    const decision = this.engine.decide(
+      this.belief, 
+      this.player, 
+      'night', 
+      availableActions, 
+      allPlayers, 
+      nightDecisions, 
+      [],
+      0,
+      0,
+      1,
+      undefined,
+      pluginStrategies
+    );
     this._log('night', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
     return decision;
   }
@@ -163,25 +193,18 @@ export class AIAgent {
 
   private _getAvailableNightActions(): { type: string }[] {
     if (!this.player) return [];
-    const actions: { type: string }[] = [];
-    const p = this.player;
-    switch (p.role) {
-      case 'prophet':
-        if (p.items.some((i) => i.definitionId === 'crystal_ball' && i.durability > 0)) actions.push({ type: 'check' });
-        break;
-      case 'werewolf':
-      case 'lone_wolf':
-      case 'berserker':
-        if (p.items.some((i) => i.definitionId === 'claws' && i.durability > 0)) actions.push({ type: 'kill' });
-        break;
-      case 'thief':
-        if (p.items.some((i) => i.definitionId === 'thief_gloves' && i.durability > 0)) actions.push({ type: 'steal' });
-        break;
-      case 'coroner':
-        if (p.items.some((i) => i.definitionId === 'coroner_tools' && i.durability > 0)) actions.push({ type: 'inspect' });
-        break;
+    
+    // Use plugin registry to get available actions based on items
+    if (this.pluginRegistry) {
+      const pluginActions = this.pluginRegistry.getAvailableActions(this.player, {
+        round: this.currentRound,
+        phase: 'night',
+        players: this._allPlayers,
+      });
+      return pluginActions.map(a => ({ type: a.type }));
     }
-    return actions;
+    
+    return [];
   }
 
   private _getAvailableDayActions(): { type: string }[] {
@@ -189,42 +212,29 @@ export class AIAgent {
     const actions: { type: string }[] = [];
     const p = this.player;
 
-    // Silence is always available
+    // Use plugin registry for role-specific actions
+    if (this.pluginRegistry) {
+      const pluginActions = this.pluginRegistry.getAvailableActions(this.player, {
+        round: this.currentRound,
+        phase: 'day',
+        players: this._allPlayers,
+      });
+      actions.push(...pluginActions.map(a => ({ type: a.type })));
+    }
+
+    // Common day actions (always available)
     actions.push({ type: 'silence' });
-
-    // Claim identity
     actions.push({ type: 'claim_identity' });
-
-    // Reveal info
     actions.push({ type: 'reveal_info' });
-
-    // Observe
     actions.push({ type: 'observe' });
-
-    // Suspect
     actions.push({ type: 'suspect' });
-
-    // Defend
     actions.push({ type: 'defend' });
-
-    // Thank
     actions.push({ type: 'thank' });
-
-    // Call vote / Block vote
     actions.push({ type: 'call_vote' });
     actions.push({ type: 'block_vote' });
-
-    // Guarantee / Accuse
     actions.push({ type: 'guarantee' });
     actions.push({ type: 'accuse' });
-
-    // Exclude all
     actions.push({ type: 'exclude_all' });
-
-    // Berserker special
-    if (p.role === 'berserker' && p.items.some((i) => i.definitionId === 'double_sword' && i.durability > 0)) {
-      actions.push({ type: 'berserker_kill' });
-    }
 
     return actions;
   }

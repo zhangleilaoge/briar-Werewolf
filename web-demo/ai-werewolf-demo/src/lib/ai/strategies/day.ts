@@ -12,6 +12,7 @@ import {EXPOSURE_HIGH_THRESHOLD,
 import type { BeliefSystem } from '../belief-system';
 import type { Strategy, } from './engine';
 import type { Player } from '@/types';
+import { canUseItem } from '@/types';
 
 // ---------- Helper: Generate rich suspicion reason from public actions ----------
 function getSuspicionReason(
@@ -134,12 +135,16 @@ function getWerewolfAttackReason(
 // ---------- Villager: Rich Day Strategy with Real Motivations ----------
 export const VillagerDayStrategy: Strategy = {
   name: 'villager_day',
-  requiredRoles: ['villager', 'prophet', 'thief', 'coroner'],
+  requiredRoles: undefined,
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers, consecutiveSilence, aliveCount, publicActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
     const actions = publicActions || [];
+
+    // === 意图系统硬约束：此策略专为非狼人设计 ===
+    // 狼人白天行为由 WerewolfCamouflageStrategy 完全接管，避免"知道队友是狼人→号召投票队友"的荒谬逻辑
+    if (self.team === 'werewolf') return result;
 
     // 局势分析
     const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === 'suspect' || a.type === 'accuse'));
@@ -210,7 +215,7 @@ export const VillagerDayStrategy: Strategy = {
     }
 
     // 3. 高可疑目标 -> 指认/怀疑/号召
-    if (topSuspect && topSuspect.werewolfProb > 0.5) {
+    if (topSuspect && topSuspect.werewolfProb >= 0.5) {
       const target = allPlayers.find(p => p.id === topSuspect.id);
       if (target) {
         const reason = getSuspicionReason(belief, topSuspect.id, actions, allPlayers);
@@ -312,6 +317,24 @@ export const VillagerDayStrategy: Strategy = {
       });
     }
 
+    // NEW: Behavioral suspicion fallback - suspect high-stress players
+    if (result.length === 0 || (result.length === 1 && result[0].action === 'observe')) {
+      const stressedPlayers = allPlayers.filter(p => p.id !== self.id && p.alive && p.stress > 2);
+      if (stressedPlayers.length > 0) {
+        const target = stressedPlayers[0];
+        result.push({
+          action: 'suspect',
+          target: target.id,
+          score: 65,
+          confidence: 0.4,
+          reason: `${target.name}看起来很紧张（压力${target.stress}），行为可疑。`,
+          strategy: 'VillagerDayStrategy',
+          rule: 'behavior_suspect_stress',
+          trigger: `目标压力=${target.stress} > 2`,
+        });
+      }
+    }
+
     // 7. 默认：第一轮或有信息时的差异化表达
     if (result.length === 0) {
       const aliveOthers = allPlayers.filter(p => p.id !== self.id && p.alive);
@@ -376,15 +399,21 @@ export const VillagerDayStrategy: Strategy = {
 // ---------- Werewolf: Rich Camouflage Strategy with Real Motivations ----------
 export const WerewolfCamouflageStrategy: Strategy = {
   name: 'werewolf_camouflage',
-  requiredRoles: ['werewolf', 'lone_wolf', 'berserker'],
+  requiredRoles: undefined,
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers, consecutiveSilence, aliveCount, publicActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
     const actions = publicActions || [];
-    const aliveVillagers = allPlayers.filter(p => p.id !== self.id && p.alive && p.team !== 'werewolf');
 
-    // 1. 被攻击 -> 反咬/反驳
+    // === 意图系统硬约束：此策略专为狼人设计 ===
+    // 非狼人走 VillagerDayStrategy，避免角色行为混淆
+    if (self.team !== 'werewolf') return result;
+
+    // 根据阵营动态确定目标：狼人伪装时找对立阵营
+    const potentialTargets = allPlayers.filter(p => p.id !== self.id && p.alive && p.team !== self.team);
+
+    // 1. 被攻击 -> 反咬/反驳（所有角色通用）
     const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === 'suspect' || a.type === 'accuse'));
     if (attacksOnMe.length > 0) {
       const attacker = allPlayers.find(p => p.id === attacksOnMe[0].actorId);
@@ -412,32 +441,53 @@ export const WerewolfCamouflageStrategy: Strategy = {
       }
     }
 
-    // 2. 伪装：怀疑一个有"理由"的好人
-    aliveVillagers.forEach(target => {
+    // 2. 怀疑策略：狼人伪装怀疑"像好人"的目标，村民真正怀疑"像狼人"的目标
+    potentialTargets.forEach(target => {
       const wolfProb = belief.getWerewolfProbability(target.id);
       const targetSuspicion = actions.filter(a => a.targetId === target.id && (a.type === 'suspect' || a.type === 'accuse')).length;
       const targetSilence = actions.filter(a => a.actorId === target.id && a.type === 'silence').length;
 
-      if (wolfProb < 0.5 && (targetSuspicion >= 1 || targetSilence >= 2)) {
-        const fakeReason = targetSuspicion >= 1
-          ? `已经被一些玩家怀疑，我分析也觉得他有问题`
-          : `连续${targetSilence}次沉默，行为很可疑`;
+      if (self.team === 'werewolf') {
+        // 狼人伪装：怀疑 wolfProb < 0.5 的目标（看起来像好人）
+        if (wolfProb < 0.5 && (targetSuspicion >= 1 || targetSilence >= 1)) {
+          const fakeReason = targetSuspicion >= 1
+            ? `已经被一些玩家怀疑，我分析也觉得他有问题`
+            : `连续${targetSilence}次沉默，行为很可疑`;
 
-        result.push({
-          action: 'suspect',
-          target: target.id,
-          score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
-          confidence: 0.6,
-          reason: `我觉得${target.name}有点可疑，${fakeReason}。大家注意观察。`,
-          strategy: 'WerewolfCamouflageStrategy',
-          rule: 'camouflage_suspect',
-          trigger: `wolfProb=${wolfProb.toFixed(2)} < 0.5 且 (targetSuspicion=${targetSuspicion} >= 1 或 targetSilence=${targetSilence} >= 2)`,
-        });
+          result.push({
+            action: 'suspect',
+            target: target.id,
+            score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
+            confidence: 0.6,
+            reason: `我觉得${target.name}有点可疑，${fakeReason}。大家注意观察。`,
+            strategy: 'WerewolfCamouflageStrategy',
+            rule: 'camouflage_suspect',
+            trigger: `wolfProb=${wolfProb.toFixed(2)} < 0.5 且 (targetSuspicion=${targetSuspicion} >= 1 或 targetSilence=${targetSilence} >= 2)`,
+          });
+        }
+      } else {
+        // 村民真正怀疑：怀疑 wolfProb > 0.5 的目标（看起来像狼人）
+        if (wolfProb > 0.5 && (targetSuspicion >= 1 || targetSilence >= 1)) {
+          const realReason = targetSuspicion >= 1
+            ? `已经被一些玩家怀疑，行为确实可疑`
+            : `连续${targetSilence}次沉默，不像好人`;
+
+          result.push({
+            action: 'suspect',
+            target: target.id,
+            score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
+            confidence: 0.6,
+            reason: `我怀疑${target.name}，${realReason}。`,
+            strategy: 'WerewolfCamouflageStrategy',
+            rule: 'villager_suspect',
+            trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.5 且 (targetSuspicion=${targetSuspicion} >= 1 或 targetSilence=${targetSilence} >= 2)`,
+          });
+        }
       }
     });
 
-    // 3. 队友暴露 -> 袒护/切割
-    const teammates = allPlayers.filter(p => p.id !== self.id && p.alive && p.team === 'werewolf');
+    // 3. 队友暴露 -> 袒护/切割（根据 self.team 动态找队友）
+    const teammates = allPlayers.filter(p => p.id !== self.id && p.alive && p.team === self.team);
     teammates.forEach(teammate => {
       const exposure = belief.getPlayerExposure(teammate.id);
       if (exposure > EXPOSURE_HIGH_THRESHOLD) {
@@ -485,7 +535,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
     if (result.length === 0) {
       const isRound1 = (publicActions?.filter(a => a.type === 'speak' || a.type === 'suspect' || a.type === 'accuse' || a.type === 'defend').length ?? 0) < 3;
       if (isRound1) {
-        const random = aliveVillagers[Math.floor(Math.random() * aliveVillagers.length)];
+        const random = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
         if (random) {
           result.push({
             action: 'speak',
@@ -530,7 +580,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
 // ---------- Prophet: Claim Check Results ----------
 export const ProphetClaimStrategy: Strategy = {
   name: 'prophet_claim',
-  requiredRoles: ['prophet'],
+  requiredRoles: undefined,
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, allPlayers } = context;
@@ -564,11 +614,14 @@ export const ProphetClaimStrategy: Strategy = {
 // ---------- Berserker: Suicide Kill ----------
 export const BerserkerSuicideStrategy: Strategy = {
   name: 'berserker_suicide',
-  requiredRoles: ['berserker'],
+  requiredRoles: undefined,
   requiredPhase: ['day'],
   evaluate(context) {
     const { belief, self, allPlayers } = context;
     const result: import('@/types').DecisionCandidate[] = [];
+    // 狂狼同归于尽需要双刃剑，且只对狼人阵营有意义
+    if (self.team !== 'werewolf' || !canUseItem(self, 'double_sword')) return result;
+
     const alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
     const werewolfCount = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
     const villagerCount = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;

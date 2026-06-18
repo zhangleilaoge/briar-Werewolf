@@ -111,7 +111,8 @@ export interface DecisionProcess {
     rule: string; trigger: string; random: boolean;
     modifiers: { alignment: number; stress: number; relation: number; total: number };
   }[];
-  winner: string; shortlist: string;
+  winner: string;
+  shortlist: string;
 }
 
 export interface DecisionResult {
@@ -155,9 +156,9 @@ export const ALIGNMENT_NAMES: Record<string, string> = {
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = {
   claws: { id: 'claws', name: '尖牙利爪', type: 'action_prerequisite', maxDurability: 1, werewolfEffect: '拥有时可在夜晚执行一对一杀戮', villagerEffect: '被攻击时可选择与攻击者同归于尽', description: '狼人的天然武器' },
-  crystal_ball: { id: 'crystal_ball', name: '水晶球', type: 'action_prerequisite', maxDurability: 1, werewolfEffect: '无效果', villagerEffect: '预言家持有时可执行夜间查验；若查验到狼人，水晶球碎裂损坏', description: '预言家的查验工具' },
-  thief_gloves: { id: 'thief_gloves', name: '小偷手套', type: 'action_prerequisite', maxDurability: 1, werewolfEffect: '无效果', villagerEffect: '窃贼持有时可执行一次偷取；使用后损坏', description: '窃贼的偷窃工具' },
-  coroner_tools: { id: 'coroner_tools', name: '验尸工具', type: 'consumable', maxDurability: 1, werewolfEffect: '无效果', villagerEffect: '验尸官持有时可执行一次尸检，查看一名死亡角色的所有道具；使用后损坏', description: '验尸官的检验工具' },
+  crystal_ball: { id: 'crystal_ball', name: '水晶球', type: 'action_prerequisite', maxDurability: 1, werewolfEffect: '持有时可执行夜间查验；若查验到狼人，水晶球碎裂损坏', villagerEffect: '持有时可执行夜间查验；若查验到狼人，水晶球碎裂损坏', description: '查验身份的神秘道具' },
+  thief_gloves: { id: 'thief_gloves', name: '小偷手套', type: 'action_prerequisite', maxDurability: 1, werewolfEffect: '持有时可执行一次偷取；使用后损坏', villagerEffect: '持有时可执行一次偷取；使用后损坏', description: '偷取他人道具的手套' },
+  coroner_tools: { id: 'coroner_tools', name: '验尸工具', type: 'consumable', maxDurability: 1, werewolfEffect: '持有时可执行一次尸检，查看一名死亡角色的所有道具；使用后损坏', villagerEffect: '持有时可执行一次尸检，查看一名死亡角色的所有道具；使用后损坏', description: '检验尸体的工具' },
   amulet: { id: 'amulet', name: '护身符', type: 'consumable', maxDurability: 1, werewolfEffect: '抵挡一次夜晚杀戮，使用后损坏', villagerEffect: '抵挡一次夜晚杀戮，使用后损坏', description: '可抵挡一次致命攻击' },
   double_sword: { id: 'double_sword', name: '双刃剑', type: 'consumable', maxDurability: 1, werewolfEffect: '狂狼持有时可与一名玩家同归于尽，并触发平安夜；使用后消耗', villagerEffect: '无效果', description: '狂狼的毁灭性武器' },
 };
@@ -242,14 +243,16 @@ export const SCORE_FOLLOW_CALL_VOTE = 40;
 export const SCORE_SOCIAL_TIE_BREAKER = 20;
 export const SCORE_SURVIVAL_VOTE = 70;
 export const SCORE_WEREWOLF_KILL_GOD_BONUS = 30;
+export const SCORE_WEREWOLF_KILL_HIGH_INSIGHT = 15;
 export const SCORE_WEREWOLF_KILL_BASE = 50;
 export const SCORE_PROPHET_CHECK_BASE = 50;
 export const SCORE_THIEF_STEAL_BASE = 40;
 export const SCORE_CORONER_INSPECT_BASE = 50;
 export const SCORE_BERSERKER_SUICIDE = 90;
-export const SCORE_SPEAK_BREAK_SILENCE = 90;
-export const SCORE_SPEAK_DEFAULT = 20;
+export const SCORE_SPEAK_BREAK_SILENCE = 80;
+export const SCORE_SPEAK_DEFAULT = 50;
 export const SCORE_EMPTY_KILL = 15;
+export const SCORE_SPEAK_BASE = 50;  // equal to observe for balance
 
 // ---------- Strategy Scores (Day) ----------
 export const SCORE_PROPHET_CLAIM = 1000;
@@ -328,8 +331,9 @@ export const EMPTY_KILL_CHANCE = 0.1;
 
 // ---------- Dice / Check ----------
 
+/** 2d10 bell curve: range 2-20, average 11, less extreme variance than d20 */
 export function rollD20(): number {
-  return Math.floor(Math.random() * 20) + 1;
+  return Math.floor(Math.random() * 10) + 1 + Math.floor(Math.random() * 10) + 1;
 }
 
 export function performCheck(modifier: number, difficulty: number): CheckResult {

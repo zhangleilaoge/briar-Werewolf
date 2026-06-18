@@ -10,6 +10,41 @@ export interface GameConfig {
 
 export type PlayerState = Player;
 
+function compressLogForExport(logs: GameLogItem[]): GameLogItem[] {
+  return logs.map((log) => {
+    if (!log.details) return log;
+    const details = { ...log.details };
+
+    // 压缩 process：移除 candidates 非 winner 和 shortlist
+    if (details.process && typeof details.process === 'object') {
+      const proc = details.process as Record<string, unknown>;
+      const winnerStr = proc.winner as string;
+      const candidates = proc.candidates as Record<string, unknown>[] | undefined;
+      // 只保留 winner 对应的候选（精简字段）
+      const winnerCandidate = candidates?.find((c) => {
+        const key = `${c.action} → ${c.target || '无目标'}`;
+        return key === winnerStr;
+      });
+      if (winnerCandidate) {
+        const { reason: _r, trigger: _t, ...slimWinner } = winnerCandidate;
+        details.process = { winner: slimWinner, candidateCount: candidates?.length ?? 0 };
+      } else {
+        details.process = { winner: winnerStr, candidateCount: candidates?.length ?? 0 };
+      }
+    }
+
+    // 移除空 checks 数组
+    if (Array.isArray(details.checks) && details.checks.length === 0) {
+      delete details.checks;
+    }
+
+    // 移除 mentions（内部字段）
+    delete details.mentions;
+
+    return { ...log, details };
+  });
+}
+
 function exportGameLog(sim: GameSimulator) {
   const data = {
     timestamp: new Date().toISOString(),
@@ -28,7 +63,7 @@ function exportGameLog(sim: GameSimulator) {
       traits: p.traits,
       relations: p.relations,
     })),
-    logs: sim.getLogs(),
+    logs: compressLogForExport(sim.getLogs()),
     publicActions: sim.getPublicActions(),
   };
 
@@ -90,7 +125,6 @@ export function useGameRunner() {
       if (win) {
         setWinner(win);
         setPhase('ended');
-        exportGameLog(sim);
         return;
       }
       sim.generateRoundSteps();
@@ -156,7 +190,6 @@ export function useGameRunner() {
       if (win) {
         setWinner(win);
         setPhase('ended');
-        exportGameLog(sim);
       } else {
         sim.generateRoundSteps();
       }
@@ -182,6 +215,11 @@ export function useGameRunner() {
     };
   }, []);
 
+  const exportLog = useCallback(() => {
+    const sim = simulatorRef.current;
+    if (sim) exportGameLog(sim);
+  }, []);
+
   return {
     phase,
     round,
@@ -195,5 +233,6 @@ export function useGameRunner() {
     resumeGame,
     nextStep,
     resetGame,
+    exportLog,
   };
 }

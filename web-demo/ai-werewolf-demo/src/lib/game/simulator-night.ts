@@ -1,7 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '@/types';
-import { hasItem, damageItem, canUseItem, ITEM_DEFINITIONS, addItem } from '@/types';
-import { getName, log, logAction, getPublicPlayerStates } from './simulator-utils';
+import { hasItem, damageItem, addItem } from '@/types';
+import { getName, log, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
   if (!player.alive) return;
@@ -18,69 +18,62 @@ export function runNightAction(sim: GameSimulator, player: Player) {
     reason: decision.reason,
   });
 
-  switch (decision.action) {
-    case 'kill': {
-      const targetName = getName(sim, decision.target || '');
-      logAction(sim, 'action', `${player.name} 选择袭击 ${targetName || '空刀'}`, decision.reason, [], { actorId: player.id, action: 'kill', targetId: decision.target, process: decision.process });
-      break;
-    }
-    case 'check': {
-      const target = sim.players.find((p) => p.id === decision.target);
-      if (target && canUseItem(player, 'crystal_ball')) {
-        const result = target.team === 'werewolf' ? 'werewolf' : 'villager';
-        agent.recordCheckResult(target.id, result);
-        logAction(sim, 'action', `${player.name} 查验 ${target.name} → ${result === 'werewolf' ? '狼人' : '村民'}`, decision.reason, [], { actorId: player.id, action: 'check', targetId: target.id, process: decision.process });
-        if (result === 'werewolf') {
-          damageItem(player, 'crystal_ball');
-          log(sim, 'item', `${player.name} 的水晶球在查验狼人时碎裂！`);
-        }
-      } else {
-        log(sim, 'action', `${player.name} 尝试查验但缺少水晶球`);
-      }
-      break;
-    }
-    case 'steal': {
-      if (sim.thiefUsed[player.id]) {
-        log(sim, 'action', `${player.name} 已使用过偷窃能力`);
-        return;
-      }
-      const target = sim.players.find((p) => p.id === decision.target);
-      if (target?.alive && canUseItem(player, 'thief_gloves')) {
-        sim.thiefUsed[player.id] = true;
-        if (target.items.length > 0) {
-          const stolenIdx = Math.floor(Math.random() * target.items.length);
-          const stolen = target.items.splice(stolenIdx, 1)[0];
-          if (addItem(player, stolen.definitionId)) {
-            damageItem(player, 'thief_gloves');
-            log(sim, 'item', `${player.name} 偷取了 ${target.name} 的 ${ITEM_DEFINITIONS[stolen.definitionId]?.name || stolen.definitionId}！小偷手套损坏。`);
-          } else {
-            target.items.push(stolen);
-            log(sim, 'item', `${player.name} 尝试偷取但道具栏已满`);
+  // Execute via plugin system
+  const target = decision.target ? sim.players.find((p) => p.id === decision.target) : undefined;
+  
+  try {
+    const result = sim.pluginRegistry.executeAction(decision.action, {
+      actor: player,
+      target,
+      action: decision.action,
+      context: {
+        round: sim.round,
+        phase: 'night',
+        players: sim.players,
+        nightDecisions: sim.nightDecisions,
+      },
+    });
+    
+    if (result.success) {
+      // Apply state changes
+      result.stateChanges.forEach((change) => {
+        switch (change.type) {
+          case 'item_damage':
+            damageItem(sim.players.find(p => p.id === change.targetId)!, change.payload.itemId as string);
+            break;
+          case 'item_add':
+            addItem(sim.players.find(p => p.id === change.targetId)!, change.payload.itemId as string);
+            break;
+          case 'item_remove': {
+            const player = sim.players.find(p => p.id === change.targetId)!;
+            const idx = player.items.findIndex(i => i.definitionId === change.payload.itemId);
+            if (idx >= 0) player.items.splice(idx, 1);
+            break;
           }
-        } else {
-          sim.thiefUsed[player.id] = true;
-          log(sim, 'item', `${player.name} 尝试偷窃 ${target.name}，但目标没有道具，能力浪费。`);
         }
-      }
-      break;
+      });
+      
+      // Emit events
+      result.events.forEach((event) => {
+        if (event.type === 'check_result' && event.payload.targetId && event.payload.result) {
+          agent.recordCheckResult(event.payload.targetId as string, event.payload.result as 'werewolf' | 'villager');
+        }
+        if (event.type === 'inspection' && event.payload.targetId && event.payload.items) {
+          agent.recordInspection(event.payload.targetId as string, event.payload.items as string[]);
+        }
+      });
+      
+      // Add logs
+      result.logs.forEach((logItem) => {
+        sim.tickLogBuffer.push({
+          round: sim.round,
+          phase: 'night',
+          ...logItem,
+        });
+      });
     }
-    case 'inspect': {
-      if (sim.coronerUsed[player.id]) {
-        log(sim, 'action', `${player.name} 已使用过验尸能力`);
-        return;
-      }
-      const target = sim.players.find((p) => p.id === decision.target);
-      if (target && !target.alive && canUseItem(player, 'coroner_tools')) {
-        sim.coronerUsed[player.id] = true;
-        const items = target.items.map((i) => ITEM_DEFINITIONS[i.definitionId]?.name || i.definitionId).join(', ') || '无';
-        log(sim, 'item', `${player.name} 验尸 ${target.name}，发现道具：${items}。验尸工具损坏。`);
-        damageItem(player, 'coroner_tools');
-        agent.recordInspection(target.id, target.items.map((i) => i.definitionId));
-      } else {
-        log(sim, 'action', `${player.name} 尝试验尸但条件不满足`);
-      }
-      break;
-    }
+  } catch (error) {
+    console.error(`[simulator-night] Plugin execution failed for ${decision.action}:`, error);
   }
 }
 
@@ -92,6 +85,7 @@ export function resolveNightActions(sim: GameSimulator) {
     return;
   }
 
+  // Separate werewolf and lone wolf kills
   const werewolfKills = sim.nightDecisions.filter(
     (d) => d.action === 'kill' && sim.players.find((p) => p.id === d.playerId)?.role !== 'lone_wolf'
   );
@@ -99,6 +93,7 @@ export function resolveNightActions(sim: GameSimulator) {
     (d) => d.action === 'kill' && sim.players.find((p) => p.id === d.playerId)?.role === 'lone_wolf'
   );
 
+  // Find primary werewolf kill target
   let killTarget: string | null = null;
   let killerId: string | null = null;
 
@@ -111,6 +106,7 @@ export function resolveNightActions(sim: GameSimulator) {
     }
   }
 
+  // Find lone wolf kill target
   let loneWolfTarget: string | null = null;
   let loneWolfId: string | null = null;
 
@@ -123,23 +119,50 @@ export function resolveNightActions(sim: GameSimulator) {
     }
   }
 
-  const aliveWerewolves = sim.players.filter((p) => p.team === 'werewolf' && p.alive);
-  const isLoneWolfOnly = aliveWerewolves.length === 1 && aliveWerewolves[0].role === 'lone_wolf';
-
-  if (loneWolfTarget && killTarget && !isLoneWolfOnly && loneWolfTarget === killTarget) {
-    log(sim, 'death', `孤狼与普通狼人目标相同（${getName(sim, killTarget)}），本次杀戮无效！`);
-    return;
+  // Use trait plugin to handle lone wolf coordination
+  if (loneWolfId && loneWolfTarget) {
+    const coordinationResult = sim.pluginRegistry.modifyNightKillCoordination(
+      {
+        round: sim.round,
+        phase: 'night',
+        players: sim.players,
+        nightDecisions: sim.nightDecisions,
+      },
+      werewolfKills.map(d => ({ playerId: d.playerId, targetId: d.targetId })),
+      { playerId: loneWolfId, targetId: loneWolfTarget }
+    );
+    
+    if (!coordinationResult.valid) {
+      // Trait invalidated the kill (e.g., lone wolf target matches regular wolf target)
+      log(sim, 'death', coordinationResult.reason || '杀戮无效');
+      return;
+    }
+    
+    // Use trait's final decision if provided
+    if (coordinationResult.finalTarget !== undefined) {
+      killTarget = coordinationResult.finalTarget;
+      killerId = coordinationResult.finalKiller || killerId;
+    }
   }
 
-  const finalTarget = isLoneWolfOnly && loneWolfTarget ? loneWolfTarget : killTarget;
-  const finalKiller = isLoneWolfOnly && loneWolfTarget ? loneWolfId : killerId;
+  // If no regular wolf kill, check if only lone wolf remains
+  if (!killTarget && loneWolfTarget) {
+    const aliveWerewolves = sim.players.filter((p) => p.team === 'werewolf' && p.alive);
+    const isLoneWolfOnly = aliveWerewolves.length === 1 && aliveWerewolves[0].role === 'lone_wolf';
+    
+    if (isLoneWolfOnly) {
+      killTarget = loneWolfTarget;
+      killerId = loneWolfId;
+    }
+  }
 
-  if (!finalTarget || !finalKiller) return;
+  if (!killTarget || !killerId) return;
 
-  const target = sim.players.find((p) => p.id === finalTarget);
-  const killer = sim.players.find((p) => p.id === finalKiller);
+  const target = sim.players.find((p) => p.id === killTarget);
+  const killer = sim.players.find((p) => p.id === killerId);
   if (!target?.alive || !killer) return;
 
+  // Check for amulet protection
   if (hasItem(target, 'amulet')) {
     damageItem(target, 'amulet');
     log(sim, 'item', `${target.name} 的护身符抵挡了致命一击！护身符损坏。`);
@@ -166,6 +189,7 @@ export function resolveNightActions(sim: GameSimulator) {
     return;
   }
 
+  // Normal kill
   target.alive = false;
   sim.nightDeaths.push(target.id);
   log(sim, 'death', `${killer.name} 刀了 ${target.name}，${target.name} 死亡！`, { playerId: target.id });
