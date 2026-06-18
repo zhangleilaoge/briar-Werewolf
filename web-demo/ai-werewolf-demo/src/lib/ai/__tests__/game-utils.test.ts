@@ -8,7 +8,8 @@ import {
   calculateFinalModifier, calculateModifierBreakdown,
   getAlignmentName,
 } from '@/types';
-import type { Player, } from '@/types';
+import type { Player } from '@/types';
+import { randomInt, randomPick, shuffle } from '@/utils/math';
 
 const MAX_ITEM_SLOTS = 3;
 
@@ -21,7 +22,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     team: 'villager',
     alive: true,
     items: [],
-    attributes: { affinity: 5, logic: 5, leadership: 5, deception: 5, stealth: 5, insight: 5 },
+    attributes: { affinity: 10, logic: 10, leadership: 10, deception: 10, stealth: 10, insight: 10 },
     alignment: { law: 'neutral_law', good: 'neutral_good' },
     traits: [],
     stress: 0,
@@ -32,10 +33,10 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
 
 // ---------- rollD20 ----------
 describe('rollD20', () => {
-  it('returns a number between 2 and 20', () => {
+  it('returns a number between 1 and 20', () => {
     for (let i = 0; i < 100; i++) {
       const roll = rollD20();
-      expect(roll).toBeGreaterThanOrEqual(2);
+      expect(roll).toBeGreaterThanOrEqual(1);
       expect(roll).toBeLessThanOrEqual(20);
     }
   });
@@ -45,25 +46,31 @@ describe('rollD20', () => {
 describe('performCheck', () => {
   it('produces valid check results', () => {
     const result = performCheck(5, 12);
-    expect(result.roll).toBeGreaterThanOrEqual(2);
+    expect(result.roll).toBeGreaterThanOrEqual(1);
     expect(result.roll).toBeLessThanOrEqual(20);
     expect(result.total).toBe(result.roll + result.modifier);
     expect(result.success).toBe(result.total >= result.difficulty);
     expect(result.margin).toBe(result.total - result.difficulty);
   });
 
-  it('detects critical success when total >= difficulty + 10', () => {
-    // modifier 20 ensures total >= difficulty + 10 for any roll
-    const result = performCheck(20, 10);
+  it('detects critical success on natural 20', () => {
+    // Mock Math.random to return 0.95 (which gives 20)
+    const originalRandom = Math.random;
+    Math.random = () => 0.95;
+    const result = performCheck(0, 10);
     expect(result.criticalSuccess).toBe(true);
     expect(result.criticalFail).toBe(false);
+    Math.random = originalRandom;
   });
 
-  it('detects critical fail when total <= difficulty - 10', () => {
-    // modifier -20 ensures total <= difficulty - 10 for any roll
-    const result = performCheck(-20, 20);
+  it('detects critical fail on natural 1', () => {
+    // Mock Math.random to return 0 (which gives 1)
+    const originalRandom = Math.random;
+    Math.random = () => 0;
+    const result = performCheck(20, 10);
     expect(result.criticalFail).toBe(true);
     expect(result.criticalSuccess).toBe(false);
+    Math.random = originalRandom;
   });
 });
 
@@ -71,12 +78,56 @@ describe('performCheck', () => {
 describe('performOpposedCheck', () => {
   it('produces valid opposed check results', () => {
     const result = performOpposedCheck(5, 3);
-    expect(result.actorRoll).toBeGreaterThanOrEqual(2);
-    expect(result.targetRoll).toBeGreaterThanOrEqual(2);
+    expect(result.actorRoll).toBeGreaterThanOrEqual(1);
+    expect(result.targetRoll).toBeGreaterThanOrEqual(1);
     expect(result.actorTotal).toBe(result.actorRoll + 5);
     expect(result.targetTotal).toBe(result.targetRoll + 3);
     expect(result.success).toBe(result.actorTotal > result.targetTotal);
     expect(result.margin).toBe(result.actorTotal - result.targetTotal);
+  });
+
+  it('actor natural 20 always wins unless target also natural 20', () => {
+    // Mock Math.random to give actor 20, target 10
+    const originalRandom = Math.random;
+    let callCount = 0;
+    Math.random = () => {
+      callCount++;
+      return callCount === 1 ? 0.95 : 0.45; // actor=20, target=10
+    };
+    const result = performOpposedCheck(0, 100); // target has huge modifier
+    expect(result.actorRoll).toBe(20);
+    expect(result.targetRoll).toBe(10);
+    expect(result.criticalSuccess).toBe(true);
+    expect(result.success).toBe(true); // actor wins despite lower total
+    Math.random = originalRandom;
+  });
+
+  it('actor natural 1 always loses unless target also natural 1', () => {
+    // Mock Math.random to give actor 1, target 20
+    const originalRandom = Math.random;
+    let callCount = 0;
+    Math.random = () => {
+      callCount++;
+      return callCount === 1 ? 0 : 0.95; // actor=1, target=20
+    };
+    const result = performOpposedCheck(100, 0); // actor has huge modifier
+    expect(result.actorRoll).toBe(1);
+    expect(result.targetRoll).toBe(20);
+    expect(result.criticalFail).toBe(true);
+    expect(result.success).toBe(false); // actor loses despite higher total
+    Math.random = originalRandom;
+  });
+
+  it('both natural 20 compares totals', () => {
+    // Mock Math.random to give both 20
+    const originalRandom = Math.random;
+    Math.random = () => 0.95;
+    const result = performOpposedCheck(5, 3);
+    expect(result.actorRoll).toBe(20);
+    expect(result.targetRoll).toBe(20);
+    expect(result.criticalSuccess).toBe(true);
+    expect(result.success).toBe(true); // actor wins with higher total
+    Math.random = originalRandom;
   });
 });
 
@@ -152,13 +203,32 @@ describe('Item helpers', () => {
 
 // ---------- Random generation ----------
 describe('generateRandomAttributes', () => {
-  it('generates attributes in range 3-7', () => {
+  it('generates attributes in range 1-20', () => {
     for (let i = 0; i < 50; i++) {
       const attrs = generateRandomAttributes();
       Object.values(attrs).forEach((v) => {
-        expect(v).toBeGreaterThanOrEqual(3);
-        expect(v).toBeLessThanOrEqual(7);
+        expect(v).toBeGreaterThanOrEqual(1);
+        expect(v).toBeLessThanOrEqual(20);
       });
+    }
+  });
+  
+  it('generates attributes summing to 72', () => {
+    for (let i = 0; i < 50; i++) {
+      const attrs = generateRandomAttributes();
+      const sum = Object.values(attrs).reduce((a, b) => a + b, 0);
+      expect(sum).toBe(72);
+    }
+  });
+  
+  it('limits variance - max difference between attributes is reasonable', () => {
+    for (let i = 0; i < 50; i++) {
+      const attrs = generateRandomAttributes();
+      const values = Object.values(attrs);
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+      // Max difference should be around 10-16 (not 18+ like before)
+      expect(max - min).toBeLessThanOrEqual(16);
     }
   });
 });
@@ -238,5 +308,40 @@ describe('getAlignmentName', () => {
   it('returns 未知 for unknown alignment', () => {
     // This shouldn't happen with valid types, but tests the fallback
     expect(getAlignmentName({ law: 'lawful' as any, good: 'unknown' as any })).toBe('未知');
+  });
+});
+
+// ---------- Math utilities ----------
+describe('Math utilities', () => {
+  it('randomInt returns integer in range', () => {
+    for (let i = 0; i < 100; i++) {
+      const val = randomInt(5, 10);
+      expect(val).toBeGreaterThanOrEqual(5);
+      expect(val).toBeLessThanOrEqual(10);
+      expect(Number.isInteger(val)).toBe(true);
+    }
+  });
+
+  it('randomPick returns element from array', () => {
+    const arr = ['a', 'b', 'c', 'd'];
+    for (let i = 0; i < 50; i++) {
+      const picked = randomPick(arr);
+      expect(arr).toContain(picked);
+    }
+  });
+
+  it('shuffle returns shuffled array', () => {
+    const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const shuffled = shuffle(arr);
+    expect(shuffled.length).toBe(arr.length);
+    expect(shuffled.sort()).toEqual(arr.sort()); // Same elements
+    // Note: There's a tiny chance shuffle returns same order, but very unlikely
+  });
+
+  it('shuffle does not modify original array', () => {
+    const arr = [1, 2, 3, 4, 5];
+    const original = [...arr];
+    shuffle(arr);
+    expect(arr).toEqual(original);
   });
 });

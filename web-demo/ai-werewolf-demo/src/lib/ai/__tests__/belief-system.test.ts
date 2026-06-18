@@ -10,7 +10,7 @@ function makePlayer(id: string, team: 'werewolf' | 'villager' = 'villager'): Pla
     team,
     alive: true,
     items: [],
-    attributes: { affinity: 5, logic: 5, leadership: 5, deception: 5, stealth: 5, insight: 5 },
+    attributes: { affinity: 10, logic: 10, leadership: 10, deception: 10, stealth: 10, insight: 10 },
     alignment: { law: 'neutral_law', good: 'neutral_good' },
     traits: [],
     stress: 0,

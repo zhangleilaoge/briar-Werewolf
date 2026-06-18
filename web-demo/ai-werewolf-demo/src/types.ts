@@ -20,8 +20,8 @@ export interface Attributes {
 export type AttributeKey = keyof Attributes;
 
 export const DEFAULT_ATTRIBUTES: Attributes = {
-  affinity: 5, logic: 5, leadership: 5,
-  deception: 5, stealth: 5, insight: 5,
+  affinity: 10, logic: 10, leadership: 10,
+  deception: 10, stealth: 10, insight: 10,
 };
 
 // ---------- Alignment (阵营九宫格) ----------
@@ -72,10 +72,7 @@ export type NightActionType = 'kill' | 'check' | 'steal' | 'inspect';
 export type ActionType = DayActionType | AppendixActionType | NightActionType | 'vote';
 
 // ---------- Check / Roll (检定) ----------
-export interface CheckResult {
-  roll: number; modifier: number; total: number; difficulty: number;
-  success: boolean; criticalSuccess: boolean; criticalFail: boolean; margin: number;
-}
+// Re-exported from @/utils/dice
 
 // ---------- Player (玩家) ----------
 export interface Player {
@@ -126,7 +123,7 @@ export interface PublicClaim { playerId: string; claim: string; content: Record<
 export interface LogEntry { round: number; phase: Phase; message: string; timestamp: number }
 
 // ---------- Check Log ----------
-export interface ModifierBreakdown { baseAttribute: number; alignmentMod: number; stressMod: number; total: number }
+// ModifierBreakdown is re-exported from @/lib/game/modifiers
 
 export interface CheckLog {
   type: 'check' | 'opposed'; actorName: string; actorAttribute: string;
@@ -183,10 +180,9 @@ export const TRAITS: Record<string, Trait> = {
 
 // ---------- Attribute System ----------
 export const ATTRIBUTE_MIN = 1;
-export const ATTRIBUTE_MAX = 10;
-export const ATTRIBUTE_DEFAULT = 5;
-export const ATTRIBUTE_RANDOM_BASE = 3;
-export const ATTRIBUTE_RANDOM_RANGE = 5;
+export const ATTRIBUTE_MAX = 20;
+export const ATTRIBUTE_DEFAULT = 10;
+export const ATTRIBUTE_TOTAL_POINTS = 72; // Total points to distribute across 6 attributes
 
 // ---------- Stress System ----------
 export const STRESS_MIN = -10;
@@ -205,9 +201,7 @@ export const RELATION_NATURAL_RECOVERY = 0.5;
 export const MAX_ITEM_SLOTS = 3;
 
 // ---------- Dice & Check System ----------
-export const DICE_SIDES = 20;
-export const CRITICAL_SUCCESS_MARGIN = 10;
-export const CRITICAL_FAIL_MARGIN = -10;
+// Re-exported from @/utils/dice
 
 // ---------- Alignment Modifiers ----------
 export const ALIGNMENT_LAWFUL_LEADERSHIP_BONUS = 1;
@@ -318,7 +312,7 @@ export const REL_CHANGE_MAJOR_NEG = -3;
 export const REL_CHANGE_MAJOR_POS = 3;
 
 // ---------- Default Fallback Values ----------
-export const DEFAULT_ATTRIBUTE_FALLBACK = ATTRIBUTE_DEFAULT;
+export const DEFAULT_ATTRIBUTE_FALLBACK = ATTRIBUTE_DEFAULT; // 10
 export const DEFAULT_STRESS_FALLBACK = 0;
 export const DEFAULT_ALIGNMENT_FALLBACK: { law: 'neutral_law'; good: 'neutral_good' } = { law: 'neutral_law', good: 'neutral_good' };
 
@@ -329,41 +323,18 @@ export const EMPTY_KILL_CHANCE = 0.1;
 // SECTION 4: Utility Functions
 // =====================================================================
 
-// ---------- Dice / Check ----------
+// Re-export from utils for backward compatibility
+export { rollD20, performCheck, performOpposedCheck, DICE_SIDES, NATURAL_20, NATURAL_1 } from '@/utils/dice';
+export type { CheckResult, OpposedCheckResult } from '@/utils/dice';
+export { clamp } from '@/utils/math';
 
-/** 2d10 bell curve: range 2-20, average 11, less extreme variance than d20 */
-export function rollD20(): number {
-  return Math.floor(Math.random() * 10) + 1 + Math.floor(Math.random() * 10) + 1;
-}
+// Import clamp for use in game-specific functions
+import { clamp } from '@/utils/math';
 
-export function performCheck(modifier: number, difficulty: number): CheckResult {
-  const roll = rollD20();
-  const total = roll + modifier;
-  const margin = total - difficulty;
-  return {
-    roll, modifier, total, difficulty,
-    success: total >= difficulty,
-    criticalSuccess: total >= difficulty + 10,
-    criticalFail: total <= difficulty - 10,
-    margin,
-  };
-}
+// ---------- Game-specific Clamps ----------
 
-export function performOpposedCheck(
-  actorModifier: number, targetModifier: number
-): { actorRoll: number; targetRoll: number; actorTotal: number; targetTotal: number; success: boolean; margin: number } {
-  const actorRoll = rollD20();
-  const targetRoll = rollD20();
-  const actorTotal = actorRoll + actorModifier;
-  const targetTotal = targetRoll + targetModifier;
-  return { actorRoll, targetRoll, actorTotal, targetTotal, success: actorTotal > targetTotal, margin: actorTotal - targetTotal };
-}
-
-// ---------- Clamps ----------
-
-export function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
-export function clampStress(value: number): number { return clamp(value, -10, 10); }
-export function clampRelation(value: number): number { return clamp(value, -10, 10); }
+export function clampStress(value: number): number { return clamp(value, STRESS_MIN, STRESS_MAX); }
+export function clampRelation(value: number): number { return clamp(value, RELATION_MIN, RELATION_MAX); }
 
 // ---------- Alignment ----------
 
@@ -408,11 +379,51 @@ export function canUseItem(player: Player, itemId: string): boolean { return has
 // ---------- Random generation ----------
 
 export function generateRandomAttributes(): Attributes {
-  return {
-    affinity: 3 + Math.floor(Math.random() * 5), logic: 3 + Math.floor(Math.random() * 5),
-    leadership: 3 + Math.floor(Math.random() * 5), deception: 3 + Math.floor(Math.random() * 5),
-    stealth: 3 + Math.floor(Math.random() * 5), insight: 3 + Math.floor(Math.random() * 5),
+  const keys: (keyof Attributes)[] = ['affinity', 'logic', 'leadership', 'deception', 'stealth', 'insight'];
+  
+  // Average value: 72 / 6 = 12
+  const average = ATTRIBUTE_TOTAL_POINTS / 6;
+  
+  // Start with average values
+  const result: Attributes = {
+    affinity: average,
+    logic: average,
+    leadership: average,
+    deception: average,
+    stealth: average,
+    insight: average,
   };
+  
+  // Redistribute points with limited variance
+  // Each attribute can deviate from average by max ±5
+  const maxDeviation = 5;
+  let remaining = 0;
+  
+  // Randomly adjust each attribute
+  for (const key of keys) {
+    const deviation = Math.floor(Math.random() * (maxDeviation * 2 + 1)) - maxDeviation;
+    const newValue = Math.max(ATTRIBUTE_MIN, Math.min(ATTRIBUTE_MAX, result[key] + deviation));
+    remaining += result[key] - newValue;
+    result[key] = newValue;
+  }
+  
+  // Distribute remaining points to maintain total
+  let attempts = 0;
+  while (remaining !== 0 && attempts < 1000) {
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    if (remaining > 0 && result[key] < ATTRIBUTE_MAX) {
+      const add = Math.min(remaining, ATTRIBUTE_MAX - result[key], 3); // Max +3 per adjustment
+      result[key] += add;
+      remaining -= add;
+    } else if (remaining < 0 && result[key] > ATTRIBUTE_MIN) {
+      const sub = Math.min(-remaining, result[key] - ATTRIBUTE_MIN, 3); // Max -3 per adjustment
+      result[key] -= sub;
+      remaining += sub;
+    }
+    attempts++;
+  }
+  
+  return result;
 }
 
 export function generateRandomAlignment(): Alignment {
@@ -421,47 +432,11 @@ export function generateRandomAlignment(): Alignment {
   return { law: laws[Math.floor(Math.random() * laws.length)], good: goods[Math.floor(Math.random() * goods.length)] };
 }
 
-// ---------- Alignment & Stress Check Modifiers ----------
-
-export function getStressModifier(stress: number, attribute: 'deception' | 'stealth' | 'other'): number {
-  if ((attribute === 'deception' || attribute === 'stealth') && stress > 0) return -Math.floor(stress * 0.5);
-  return 0;
-}
-
-export function getAlignmentModifier(
-  alignment: Alignment, actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other', isGoodAction = false
-): number {
-  switch (actionType) {
-    case 'leadership': return alignment.law === 'lawful' ? 1 : 0;
-    case 'deception': case 'stealth':
-      if (alignment.law === 'lawful') return -2;
-      if (alignment.law === 'chaotic') return 2;
-      if (alignment.good === 'evil') return 1;
-      return 0;
-    case 'affinity': return (alignment.good === 'good' && isGoodAction) ? 1 : 0;
-    default: return 0;
-  }
-}
+// Re-export from game/modifiers for backward compatibility
+export { getStressModifier, getAlignmentModifier, calculateModifierBreakdown, calculateFinalModifier } from '@/lib/game/modifiers';
+export type { ModifierBreakdown } from '@/lib/game/modifiers';
 
 export const ATTRIBUTE_NAMES: Record<keyof Attributes, string> = {
   affinity: '亲和', logic: '逻辑', leadership: '领导',
   deception: '诡诈', stealth: '隐蔽', insight: '洞察',
 };
-
-// ---------- Modifier Calculation ----------
-
-export function calculateModifierBreakdown(
-  baseAttribute: number, alignment: Alignment, stress: number,
-  actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other', isGoodAction = false
-): ModifierBreakdown {
-  const alignmentMod = getAlignmentModifier(alignment, actionType, isGoodAction);
-  const stressMod = getStressModifier(stress, actionType === 'deception' || actionType === 'stealth' ? actionType : 'other');
-  return { baseAttribute, alignmentMod, stressMod, total: baseAttribute + alignmentMod + stressMod };
-}
-
-export function calculateFinalModifier(
-  baseAttribute: number, alignment: Alignment, stress: number,
-  actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other', isGoodAction = false
-): number {
-  return calculateModifierBreakdown(baseAttribute, alignment, stress, actionType, isGoodAction).total;
-}

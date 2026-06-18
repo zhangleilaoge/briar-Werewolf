@@ -2,7 +2,6 @@ import type { GameSimulator, PublicActionRecord } from './simulator-core';
 import type { Player, DayActionType, ActionType, DecisionProcess } from '@/types';
 import { clampStress, performCheck, damageItem, hasItem, calculateModifierBreakdown, performOpposedCheck, type CheckLog, } from '@/types';
 import {
-  CRITICAL_SUCCESS_MARGIN, 
   STRESS_CHANGE_MINOR_POS, 
   STRESS_CHANGE_MODERATE_POS, 
   REL_CHANGE_MINOR_NEG, REL_CHANGE_MINOR_POS, REL_CHANGE_MODERATE_POS, REL_CHANGE_MAJOR_NEG, REL_CHANGE_MAJOR_POS,
@@ -204,7 +203,7 @@ export function resolveDayAction(
         target?.stress || DEFAULT_STRESS_FALLBACK, 'stealth'
       );
       const suspectResult = performOpposedCheck(suspectMod.total, targetHideMod.total);
-      const successLevel = suspectResult.success ? (suspectResult.margin >= CRITICAL_SUCCESS_MARGIN ? '大成功' : '成功') : '失败';
+      const successLevel = suspectResult.success ? (suspectResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const suspectCheck = buildCheckLog(
         actor, suspectActorAttr, suspectMod,
         { roll: suspectResult.actorRoll, total: suspectResult.actorTotal, margin: suspectResult.margin, success: suspectResult.success },
@@ -301,7 +300,7 @@ export function resolveDayAction(
         target?.stress || DEFAULT_STRESS_FALLBACK, 'stealth'
       );
       const accuseResult = performOpposedCheck(accuseMod.total, targetHideMod.total);
-      const successLevel = accuseResult.success ? (accuseResult.margin >= CRITICAL_SUCCESS_MARGIN ? '大成功' : '成功') : '失败';
+      const successLevel = accuseResult.success ? (accuseResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const accuseCheck = buildCheckLog(
         actor, accuseActorAttr, accuseMod,
         { roll: accuseResult.actorRoll, total: accuseResult.actorTotal, margin: accuseResult.margin, success: accuseResult.success },
