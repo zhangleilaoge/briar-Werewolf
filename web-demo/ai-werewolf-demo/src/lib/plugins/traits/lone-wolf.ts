@@ -18,8 +18,6 @@ import type {
   DecisionContext,
 } from '../types';
 import type { Player } from '@/types';
-import { createGameLog } from '../base';
-import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 
 export class LoneWolfTraitPlugin implements TraitProvider {
   id = 'lone_wolf_trait';

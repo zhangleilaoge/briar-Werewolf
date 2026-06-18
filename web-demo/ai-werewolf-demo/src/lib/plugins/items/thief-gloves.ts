@@ -16,8 +16,8 @@ import type {
   StateChange,
 } from '../types';
 import type { Player } from '@/types';
-import { hasItem, damageItem, addItem, ITEM_DEFINITIONS } from '@/types';
-import { createGameLog, getPlayerName } from '../base';
+import { hasItem, addItem, ITEM_DEFINITIONS } from '@/types';
+import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_THIEF_STEAL_BASE,

@@ -38,8 +38,7 @@ src/
       behavior-modifiers.ts # 行为修正计算
       strategies/       # 策略体系
         engine.ts       # 决策引擎
-        index.ts        # 策略注册
-        night.ts        # 夜间策略
+        index.ts        # 策略注册（白天/投票/追加行动）
         day.ts          # 白天策略
         vote.ts         # 投票策略
         appendix.ts     # 追加行动策略
@@ -47,12 +46,26 @@ src/
       simulator.ts      # 入口，导出 GameSimulator
       simulator-core.ts # 核心类（状态管理、Tick 引擎、Actor 状态机）
       simulator-phases.ts # PhaseController 子类（Day/Night/Vote/Morning/CheckWin）
-      simulator-night.ts   # 夜间行动处理
+      simulator-night.ts   # 夜间行动处理（使用插件系统）
       simulator-morning.ts # 早晨事件处理
       simulator-day.ts     # 白天行动处理
       simulator-vote.ts    # 投票处理
       simulator-utils.ts   # 通用工具函数（日志、关系、状态获取）
       simulator-config.ts  # 开局配置生成
+    plugins/            # 插件系统
+      types.ts          # 插件接口定义（ActionProvider, TraitProvider）
+      registry.ts       # 插件注册表（PluginRegistry）
+      base.ts           # 基础工具函数
+      index.ts          # 入口文件，注册所有插件
+      items/            # 道具插件（提供能力）
+        claws.ts        # 尖牙利爪（杀戮/反击）
+        crystal-ball.ts # 水晶球（查验）
+        thief-gloves.ts # 小偷手套（偷窃）
+        coroner-tools.ts# 验尸工具（验尸）
+        amulet.ts       # 护身符（被动防护）
+        double-sword.ts # 双刃剑（同归于尽）
+      traits/           # 特质插件（修改规则）
+        lone-wolf.ts    # 孤狼特质（独立行动）
 ```
 
 > 设计文档位于 `web-demo/doc/`，详见 `../doc/README.md`。
@@ -61,7 +74,25 @@ src/
 
 ## 关键设计模式
 
-### 1. 四层信念系统 (BeliefSystem)
+### 1. 插件化架构 (Plugin System)
+
+**三层架构：**
+- **职业（配置层）**：预言家 = 村民 + 水晶球，窃贼 = 村民 + 小偷手套
+- **道具插件（能力层）**：水晶球 → 查验能力，小偷手套 → 偷窃能力
+- **特质插件（规则层）**：孤狼特质 → 修改狼人协调逻辑
+
+**核心接口：**
+- `ActionProvider`：道具插件接口，提供行动能力
+- `TraitProvider`：特质插件接口，修改游戏规则
+- `PluginRegistry`：插件注册表，管理所有插件
+
+**设计原则：**
+- 道具是通用的，任何人都可以使用（不绑定职业）
+- 职业只是初始道具配置
+- 特质修改规则，不可转移
+- 新增道具/特质只需新增 1 个文件
+
+### 2. 四层信念系统 (BeliefSystem)
 
 每个 AI 拥有四层认知层次：
 - **L0**: 原始事实（查验结果、死亡记录、公开宣称）
@@ -69,12 +100,13 @@ src/
 - **L2**: 心智理论（推断其他玩家对自己的看法）
 - **L3**: 社交情感（关系网络、压力状态、情绪）
 
-### 2. 策略引擎 (DecisionEngine)
+### 3. 策略引擎 (DecisionEngine)
 
 策略按优先级执行：Duty > Survival > Information > Social
 每个策略返回候选行动列表，引擎综合评分选出最终行动。
+插件策略使用 'plugin' 阶段，权重与 'information' 相同。
 
-### 3. Tick-Based 并发 Actor 模型 (替代旧版步骤队列)
+### 4. Tick-Based 并发 Actor 模型 (替代旧版步骤队列)
 
 游戏使用 Tick 引擎 + Actor 状态机 + EventBus：
 - `GameSimulator.tick()` 每次调用推进一个 tick
@@ -82,11 +114,11 @@ src/
 - PhaseController 子类管理各阶段逻辑（Day/Night/Vote/Morning/CheckWin）
 - EventBus 解耦事件发送和接收，支持追加行动反应
 
-### 4. PhaseController 模式
+### 5. PhaseController 模式
 
 各阶段由 PhaseController 子类管理：
 - `DayPhaseController`: 顺序发言，追加行动反应
-- `NightPhaseController`: 分组行动（狼人→预言家→窃贼→验尸官）
+- `NightPhaseController`: 分组行动（使用插件系统执行）
 - `VotePhaseController`: 两轮投票
 - `MorningPhaseController`: 早晨事件（单 tick 同步）
 - `CheckWinPhaseController`: 胜利检查
@@ -195,11 +227,14 @@ bun run lint     # 代码检查（biome：未使用变量/导入检查）
 - [x] 压力过载系统设计文档
 - [x] types/constants 统一到 src/types.ts（@/types 导入）
 - [x] Biome lint 配置（未使用变量/导入检查）
-- [x] vitest 测试框架（59 个核心测试）
+- [x] vitest 测试框架（68 个核心测试）
 - [x] tick 循环 try-catch 安全保护
 - [x] stuck-actor 超时安全阀
 - [x] console.log DEBUG 开关
 - [x] 死代码清理（GameStore.tsx、未使用接口、useGameRunner 无用变量）
+- [x] **插件化架构**（道具插件 + 特质插件）
+- [x] **职业与道具解耦**（道具通用，职业只是初始配置）
+- [x] **特质插件化**（孤狼特质独立封装）
 
 ### 待实现功能
 - [ ] 压力过载系统代码实现（美德/affliction）
@@ -223,10 +258,9 @@ bun run lint     # 代码检查（biome：未使用变量/导入检查）
 
 ## 技术债务
 
-1. **simulator 文件仍有部分魔法值**: 策略文件和 day.ts 的评分已提取到 constants.ts，但 simulator 文件（simulator-night.ts 等）中仍有少量硬编码数字。这些也应逐步替换为 constants.ts 中的常量。
-2. **追加行动窗口的日志不够详细**: 当前反驳、一同怀疑的日志较简略，应增加检定结果的具体数值展示。
-3. **性能优化**: 当玩家数量 > 10 时，AI 推理（特别是 L2 Theory of Mind）的计算量可能较大。未来可考虑 Web Worker 或推理缓存。
-4. **类型安全**: 部分 `details` 对象使用 `Record<string, unknown>`，可进一步收紧为联合类型。
+1. **追加行动窗口的日志不够详细**: 当前反驳、一同怀疑的日志较简略，应增加检定结果的具体数值展示。
+2. **性能优化**: 当玩家数量 > 10 时，AI 推理（特别是 L2 Theory of Mind）的计算量可能较大。未来可考虑 Web Worker 或推理缓存。
+3. **类型安全**: 部分 `details` 对象使用 `Record<string, unknown>`，可进一步收紧为联合类型。
 
 ---
 
@@ -262,8 +296,9 @@ bun run lint     # 代码检查（biome：未使用变量/导入检查）
 | 数值设计 | `../doc/core/numeric.md` | 属性、关系、压力、检定规则 |
 | 阵营设计 | `../doc/core/alignment.md` | 九宫格阵营对检定的修正 |
 | 压力过载 | `../doc/core/stress-overload.md` | 美德/affliction 系统设计 |
-| 职业设计 | `../doc/content/professions.md` | 7种职业的能力和限制 |
-| 道具设计 | `../doc/content/items.md` | 6种道具的双阵营效果 |
+| 职业设计 | `../doc/content/professions.md` | 7种职业的初始配置 |
+| 道具设计 | `../doc/content/items.md` | 6种道具的通用能力 |
 | 行动规则 | `../doc/actions/actions.md` | 白天普通行动的详细规则 |
 | 追加行动 | `../doc/actions/extra-actions.md` | 追加行动的触发和效果 |
 | AI 架构 | `../doc/ai/ARCHITECTURE.md` | 四层信念系统 + 硬约束决策引擎 |
+| 插件架构 | `PLUGIN-REFACTOR-COMPLETE.md` | 插件化架构详解 |

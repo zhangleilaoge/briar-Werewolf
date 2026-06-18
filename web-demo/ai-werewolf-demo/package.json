@@ -5,10 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "biome lint src/ && astro build",
     "preview": "astro preview",
     "test": "vitest run",
     "lint": "biome lint src/",
+    "lint:fix": "biome lint --fix src/",
     "astro": "astro"
   },
   "dependencies": {

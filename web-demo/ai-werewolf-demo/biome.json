@@ -5,8 +5,8 @@
 		"rules": {
 			"preset": "recommended",
 			"correctness": {
-				"noUnusedImports": "warn",
-				"noUnusedVariables": "warn",
+				"noUnusedImports": "error",
+				"noUnusedVariables": "error",
 				"noUnusedFunctionParameters": "off"
 			},
 			"style": {

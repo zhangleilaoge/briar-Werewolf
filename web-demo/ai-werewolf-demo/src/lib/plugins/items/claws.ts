@@ -16,7 +16,7 @@ import type {
   StateChange,
 } from '../types';
 import type { Player } from '@/types';
-import { hasItem, damageItem, ITEM_DEFINITIONS } from '@/types';
+import { hasItem } from '@/types';
 import { createGameLog, getPlayerName } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {

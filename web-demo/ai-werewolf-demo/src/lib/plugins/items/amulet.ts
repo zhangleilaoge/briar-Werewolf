@@ -11,24 +11,23 @@ import type {
   ActionContext,
   ActionExecutionParams,
   ActionResult,
-  DecisionContext,
-  PluginEvent,
   StateChange,
+  PluginEvent,
 } from '../types';
 import type { Player } from '@/types';
-import { hasItem, damageItem } from '@/types';
+import { hasItem } from '@/types';
 import { createGameLog } from '../base';
 
 export class AmuletPlugin implements ActionProvider {
   id = 'amulet';
   type = 'item' as const;
   
-  getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getAvailableActions(_player: Player, _context: ActionContext): ActionDefinition[] {
     // Amulet is passive, no active actions
     return [];
   }
   
-  execute(params: ActionExecutionParams): ActionResult {
+  execute(_params: ActionExecutionParams): ActionResult {
     // Amulet is passive, should not be executed directly
     return {
       success: false,

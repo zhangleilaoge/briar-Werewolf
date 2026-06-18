@@ -17,8 +17,8 @@ import type {
   StateChange,
 } from '../types';
 import type { Player } from '@/types';
-import { hasItem, damageItem } from '@/types';
-import { createGameLog, getPlayerName } from '../base';
+import { hasItem } from '@/types';
+import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_BERSERKER_SUICIDE,

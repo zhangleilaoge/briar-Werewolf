@@ -1,7 +1,7 @@
 import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, } from '@/types';
 import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
-import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile } from '../intention-system';
+import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager } from '../intention-system';
 
 export interface StrategyContext {
   belief: BeliefSystem;
@@ -72,7 +72,8 @@ export class DecisionEngine {
     aliveCount: number = 0,
     voteRound: number = 1,
     voteCandidates: string[] = [],
-    pluginCandidates: DecisionCandidate[] = []
+    pluginCandidates: DecisionCandidate[] = [],
+    intentionManager?: IntentionManager
   ): DecisionResult {
     const context: StrategyContext = {
       belief, self, phase, availableActions, allPlayers,
@@ -119,6 +120,30 @@ export class DecisionEngine {
 
     const effectiveCandidates = allowed.length > 0 ? allowed : candidates; // 如果全部拦截，回退到原始候选（兜底）
 
+    // === 意图驱动评分调整 ===
+    // 当前最高意图匹配的候选获得额外分数加成，实现意图一致性
+    let intentionInfo = '';
+    if (intentionManager) {
+      const topIntention = intentionManager.getTopIntention(phase);
+      if (topIntention) {
+        intentionInfo = `当前意图: ${topIntention.type}→${topIntention.targetId || '无'} (优先级${topIntention.priority}, 来源${topIntention.source})`;
+        const currentStep = topIntention.plan[topIntention.currentStepIndex];
+        if (currentStep) {
+          for (const c of effectiveCandidates) {
+            // 如果候选行为匹配意图当前步骤的行为：+200分
+            if (c.action === currentStep.action) {
+              c.score = (c.score || 0) + 200;
+              c.reason = `[意图驱动] ${topIntention.type}计划(${currentStep.phase}:${currentStep.action}) → ${c.reason}`;
+            }
+            // 如果候选目标匹配意图目标：+100分
+            if (c.target === topIntention.targetId && topIntention.targetId) {
+              c.score = (c.score || 0) + 100;
+            }
+          }
+        }
+      }
+    }
+
     const scored = effectiveCandidates
       .map((c) => {
         const mods = this._buildModifiers(self, c);
@@ -138,7 +163,7 @@ export class DecisionEngine {
     // 加权随机选择：以分数作为权重概率
     const selected = unique.length > 0 ? this._weightedRandom(unique) : scored[0];
 
-    return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation);
+    return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation, intentionManager, intentionInfo);
   }
 
   private _getStageWeight(stage: string): number {
@@ -176,7 +201,7 @@ export class DecisionEngine {
     };
   }
 
-  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string): DecisionProcess {
+  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager, intentionInfo?: string): DecisionProcess {
     const all = candidates.map((c) => {
       const modifiers = this._buildModifiers(self, c);
       return {
@@ -274,6 +299,17 @@ export class DecisionEngine {
       });
     }
 
+    // 意图栈信息
+    const intentionLines: string[] = [];
+    if (intentionManager) {
+      intentionLines.push('');
+      intentionLines.push('【意图栈】');
+      if (intentionInfo) {
+        intentionLines.push(`  ${intentionInfo}`);
+      }
+      intentionLines.push(intentionManager.getSummary());
+    }
+
     const winnerAction = actionNames[winner.action] || winner.action;
     const winnerTarget = getName(winner.target);
     const winnerStage = stageNames[winner.stage || ''] || winner.stage || 'unknown';
@@ -289,6 +325,7 @@ export class DecisionEngine {
       '【可选行动】',
       ...lines,
       ...blockedLines,
+      ...intentionLines,
       '',
       `【最终选择】${winnerAction}${winnerTarget ? `→${winnerTarget}` : ''}`,
       `  命中规则：${winnerStr}`,
@@ -311,8 +348,8 @@ export class DecisionEngine {
     return candidates[candidates.length - 1];
   }
 
-  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = [], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string): DecisionResult {
-    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers, blocked, intentionExplanation) : undefined;
+  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = [], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager, intentionInfo?: string): DecisionResult {
+    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers, blocked, intentionExplanation, intentionManager, intentionInfo) : undefined;
     return {
       action: candidate.action,
       target: candidate.target,

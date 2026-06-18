@@ -1,7 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '@/types';
 import { hasItem, damageItem, addItem } from '@/types';
-import { getName, log, getPublicPlayerStates } from './simulator-utils';
+import { log, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
   if (!player.alive) return;

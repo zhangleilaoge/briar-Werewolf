@@ -5,28 +5,14 @@
  */
 
 import type { Player } from '@/types';
-import type { ActionContext, DecisionContext, GameContext } from '../types';
-import { hasItem, canUseItem, ITEM_DEFINITIONS } from '@/types';
+import type { GameContext } from '../types';
+import { hasItem } from '@/types';
 
 /**
  * Check if player has a specific item with durability > 0
  */
 export function playerHasItem(player: Player, itemId: string): boolean {
   return hasItem(player, itemId);
-}
-
-/**
- * Check if player can use a specific item
- */
-export function playerCanUseItem(player: Player, itemId: string): boolean {
-  return canUseItem(player, itemId);
-}
-
-/**
- * Get item definition
- */
-export function getItemDefinition(itemId: string) {
-  return ITEM_DEFINITIONS[itemId];
 }
 
 /**
@@ -53,9 +39,3 @@ export function createGameLog(
 export function getPlayerName(players: Player[], playerId: string): string {
   return players.find(p => p.id === playerId)?.name || playerId;
 }
-
-/**
- * Calculate behavior score delta (imported from AI module)
- * This is a bridge function to avoid circular dependencies
- */
-export { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';

@@ -1,5 +1,6 @@
 import { BeliefSystem } from './belief-system';
 import { DecisionEngine, buildStrategies } from './strategies';
+import { IntentionManager } from './intention-system';
 import type { Player, DecisionResult, LogEntry, Phase, } from '@/types';
 import type { PluginRegistry } from '../plugins';
 
@@ -22,6 +23,7 @@ export class AIAgent {
   player: Player | null;
   belief: BeliefSystem;
   engine: DecisionEngine;
+  intentionManager: IntentionManager;
   logs: LogEntry[];
   currentRound: number = 0;
   pluginRegistry?: PluginRegistry;
@@ -33,6 +35,7 @@ export class AIAgent {
     this.player = player;
     this.belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment);
     this.engine = new DecisionEngine();
+    this.intentionManager = new IntentionManager();
     this._registerDefaultStrategies();
     this.logs = [];
     this._allPlayers = allPlayers;
@@ -52,6 +55,9 @@ export class AIAgent {
     if (!this.player?.alive) return null;
     const availableActions = this._getAvailableNightActions();
     this.belief.updateInferences(allPlayers, this.player, []);
+    
+    // === 意图系统更新 ===
+    this.intentionManager.update(this.player, this.belief, allPlayers, this.currentRound);
     
     // Get plugin strategies if available
     const pluginStrategies = this.pluginRegistry?.evaluateAll({
@@ -76,9 +82,11 @@ export class AIAgent {
       0,
       1,
       undefined,
-      pluginStrategies
+      pluginStrategies,
+      this.intentionManager
     );
     this._log('night', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
+    this._advanceIntentionIfMatch(decision, 'night');
     return decision;
   }
 
@@ -87,8 +95,13 @@ export class AIAgent {
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = this._getAvailableDayActions();
     this.belief.updateInferences(allPlayers, this.player, publicActions);
-    const decision = this.engine.decide(this.belief, this.player, 'day', availableActions, allPlayers, [], publicActions, consecutiveSilence, aliveCount);
+    
+    // === 意图系统更新 ===
+    this.intentionManager.update(this.player, this.belief, allPlayers, this.currentRound, publicActions || []);
+    
+    const decision = this.engine.decide(this.belief, this.player, 'day', availableActions, allPlayers, [], publicActions, consecutiveSilence, aliveCount, 1, undefined, undefined, this.intentionManager);
     this._log('day', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
+    this._advanceIntentionIfMatch(decision, 'day');
     return decision;
   }
 
@@ -97,8 +110,10 @@ export class AIAgent {
     const availableActions = this._getAvailableAppendixActions(triggerAction);
     if (availableActions.length === 0) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
-    const decision = this.engine.decide(this.belief, this.player, 'appendix', availableActions, allPlayers, [], publicActions);
+    
+    const decision = this.engine.decide(this.belief, this.player, 'appendix', availableActions, allPlayers, [], publicActions, 0, 0, 1, undefined, undefined, this.intentionManager);
     this._log('day', `追加行动：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
+    this._advanceIntentionIfMatch(decision, 'appendix');
     return decision;
   }
 
@@ -107,8 +122,10 @@ export class AIAgent {
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
     const availableActions = [{ type: 'vote' }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
-    const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, voteRound);
+    
+    const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, voteRound, undefined, undefined, this.intentionManager);
     this._log('vote', `投票：${decision.target || '无目标'}，原因：${decision.reason}`);
+    this._advanceIntentionIfMatch(decision, 'vote');
     return decision;
   }
 
@@ -116,8 +133,10 @@ export class AIAgent {
     if (!this.player?.alive) return null;
     const availableActions = [{ type: 'vote' }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
-    const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates);
+    
+    const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates, undefined, this.intentionManager);
     this._log('vote', `第二轮投票：${decision.target || '无目标'}，原因：${decision.reason}`);
+    this._advanceIntentionIfMatch(decision, 'vote');
     return decision;
   }
 
@@ -187,8 +206,23 @@ export class AIAgent {
       l1: this.belief.l1Inferences,
       l2: this.belief.l2TheoryOfMind,
       l3: this.belief.l3Social,
+      intentions: this.intentionManager.getSummary(),
       logs: this.logs,
     };
+  }
+
+  private _advanceIntentionIfMatch(decision: DecisionResult, phase: string) {
+    // 找到当前最高意图
+    const topIntention = this.intentionManager.getTopIntention(phase);
+    if (!topIntention) return;
+
+    // 检查决策是否与意图的计划步骤匹配
+    const currentStep = topIntention.plan[topIntention.currentStepIndex];
+    if (!currentStep) return;
+
+    if (currentStep.phase === phase && (currentStep.action === decision.action || (currentStep.action === 'speak' && decision.action === 'speak'))) {
+      this.intentionManager.advanceStep(topIntention.id, phase, decision.action);
+    }
   }
 
   private _getAvailableNightActions(): { type: string }[] {
@@ -210,7 +244,6 @@ export class AIAgent {
   private _getAvailableDayActions(): { type: string }[] {
     if (!this.player) return [];
     const actions: { type: string }[] = [];
-    const p = this.player;
 
     // Use plugin registry for role-specific actions
     if (this.pluginRegistry) {

@@ -5,8 +5,6 @@
  * This file is kept empty for backward compatibility.
  */
 
-import type { Strategy } from './engine';
-
 // All night strategies are now provided by item plugins:
 // - CrystalBallPlugin (check)
 // - ClawsPlugin (kill)

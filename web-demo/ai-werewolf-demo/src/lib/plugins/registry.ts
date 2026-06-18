@@ -15,11 +15,9 @@ import type {
   DecisionContext,
   FullActionProvider,
   FullTraitProvider,
-  PluginEvent,
-  StateChange,
   GameContext,
 } from './types';
-import type { Player, GameLogItem } from '@/types';
+import type { Player } from '@/types';
 import type { DecisionCandidate } from '@/types';
 
 export class PluginRegistry {
