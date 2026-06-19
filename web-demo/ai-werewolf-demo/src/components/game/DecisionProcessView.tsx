@@ -131,7 +131,7 @@ function CandidateCard({
     <div className={`pl-4 ${isWinner ? 'text-green-400' : ''}`}>
       <div className={isWinner ? 'font-bold' : ''}>
         {isWinner ? '✓' : '○'} {actionName}{roleLabel ? `(${roleLabel})` : ''}
-        <PlayerName id={candidate.target} players={players} />
+        {candidate.target ? ` → ` : ''}<PlayerName id={candidate.target} players={players} />
       </div>
       <div className="text-cyan-400">[{candidate.strategy}.{candidate.rule}]</div>
       <ScoreLine candidate={candidate} />
