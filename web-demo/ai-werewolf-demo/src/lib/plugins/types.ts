@@ -10,6 +10,25 @@ import type { Player, GameLogItem, Phase, CheckLog, DecisionProcess } from '@/ty
 import type { DecisionCandidate } from '@/types';
 import type { BeliefSystem } from '../ai/belief-system';
 
+// ==================== Belief Reader Interface ====================
+
+/**
+ * Minimal interface for reading belief state.
+ * Plugins should depend on this instead of full BeliefSystem.
+ */
+export interface BeliefReader {
+  getWerewolfProbability(playerId: string): number;
+  /** Public claims (for checking prophetic claims) */
+  l0Facts?: {
+    publicClaims: { playerId: string; claim: string; content: Record<string, unknown>; round: number }[];
+    checks: Record<string, string>;
+  };
+  /** Theory of mind (for checking if others know your role) */
+  l2TheoryOfMind?: {
+    othersKnowMyRole: Record<string, number>;
+  };
+}
+
 // ==================== Context Types ====================
 
 /**
@@ -33,7 +52,7 @@ export interface ActionContext extends GameContext {
  * Decision context for AI evaluation
  */
 export interface DecisionContext extends GameContext {
-  belief: BeliefSystem;
+  belief: BeliefReader;
   self: Player;
   allPlayers: Player[];
   nightDecisions?: { playerId: string; action: string; targetId: string | null; reason: string }[];

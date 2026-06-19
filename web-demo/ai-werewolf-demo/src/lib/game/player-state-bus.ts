@@ -7,7 +7,6 @@
 
 import type { Player, Relation, RelationDelta, ItemInstance } from '@/types';
 import { clampStress, clampRelation, hasItem, damageItem as damageItemFn, addItem as addItemFn } from '@/types';
-import { AIAgent } from '../ai/ai-agent';
 import type { PluginRegistry } from '../plugins';
 
 // ==================== Event Types ====================
@@ -25,11 +24,14 @@ export interface StateEvent {
 
 export type StateEventListener = (event: StateEvent) => void;
 
+/** Callback for death notifications (decoupled from AIAgent) */
+export type DeathNotificationCallback = (playerId: string) => void;
+
 // ==================== PlayerStateBus ====================
 
 export class PlayerStateBus {
   private _players: Player[] = [];
-  private _agents: Map<string, AIAgent> = new Map();
+  private _deathCallbacks: DeathNotificationCallback[] = [];
   private _pluginRegistry: PluginRegistry | null = null;
   private _eventLog: StateEvent[] = [];
   private _listeners: StateEventListener[] = [];
@@ -44,8 +46,9 @@ export class PlayerStateBus {
     return this._players;
   }
 
-  setAgents(agents: Record<string, AIAgent>): void {
-    this._agents = new Map(Object.entries(agents));
+  /** Register a callback for death notifications */
+  onDeath(callback: DeathNotificationCallback): void {
+    this._deathCallbacks.push(callback);
   }
 
   setPluginRegistry(registry: PluginRegistry): void {
@@ -85,7 +88,7 @@ export class PlayerStateBus {
 
   // ---- Mutations ----
 
-  /** 杀死玩家：设 alive=false + 通知所有 Agent + 发射事件 */
+  /** 杀死玩家：设 alive=false + 通知所有监听者 + 发射事件 */
   killPlayer(playerId: string, source: string = 'system'): boolean {
     const player = this.getPlayer(playerId);
     if (!player || !player.alive) return false;
@@ -102,10 +105,8 @@ export class PlayerStateBus {
       source,
     });
 
-    // 通知所有 AI Agent
-    this._agents.forEach(agent => {
-      agent.onEvent({ type: 'death', playerId });
-    });
+    // 通知所有死亡监听者（解耦 AIAgent）
+    this._deathCallbacks.forEach(callback => callback(playerId));
 
     return true;
   }

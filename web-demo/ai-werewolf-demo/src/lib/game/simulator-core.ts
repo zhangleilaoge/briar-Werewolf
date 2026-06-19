@@ -201,9 +201,11 @@ export class GameSimulator {
 
     this._createPlayers(playerConfigs);
 
-    // Wire bus to players and agents
+    // Wire bus to players and register death callbacks
     this.playerStateBus.setPlayers(this.players);
-    this.playerStateBus.setAgents(this._aiAgents);
+    Object.values(this._aiAgents).forEach(agent => {
+      this.playerStateBus.onDeath((playerId) => agent.onEvent({ type: 'death', playerId }));
+    });
 
     // Initialize appendix reaction subscription (FIXED: was 'appendix_trigger')
     this.eventBus.subscribe('appendix_reaction', (event) => {
@@ -274,8 +276,10 @@ export class GameSimulator {
       this._aiAgents[p.id] = new AIAgent(p, this.players, this.pluginRegistry);
     });
 
-    // Update bus with agents
-    this.playerStateBus.setAgents(this._aiAgents);
+    // Register death callbacks for new agents
+    Object.values(this._aiAgents).forEach(agent => {
+      this.playerStateBus.onDeath((playerId) => agent.onEvent({ type: 'death', playerId }));
+    });
   }
 
   // ==================== TICK API ====================
@@ -409,7 +413,9 @@ export class GameSimulator {
   private _prepareNextRound() {
     this.round++;
     this.thinkingLogPlayerIds.clear();
-    this.logs.push({ round: this.round, phase: 'init', message: `=== 第 ${this.round} 轮 ===`, type: 'phase' });
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    this.logs.push({ round: this.round, phase: 'init', message: `[${time}] === 第 ${this.round} 轮 ===`, type: 'phase' });
 
     this.phaseQueue = [
       new DayPhaseController(),

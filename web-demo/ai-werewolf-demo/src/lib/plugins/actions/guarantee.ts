@@ -4,7 +4,7 @@
  * Strong guarantee with larger stress/relation impact
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '../types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
 import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_GUARANTEE } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -65,6 +65,7 @@ export class GuaranteePlugin implements ActionProvider {
   }
 
   evaluate(context: DecisionContext): DecisionCandidate[] {
+        if (context.phase !== 'day') return [];
     const { self, allPlayers, belief } = context;
     const result: DecisionCandidate[] = [];
 

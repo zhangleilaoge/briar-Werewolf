@@ -16,7 +16,7 @@ import type {
   ActionContext,
   ActionDefinition,
   DecisionContext,
-} from '../types';
+} from '@/lib/plugins/types';
 import type { Player } from '@/types';
 
 export class LoneWolfTraitPlugin implements TraitProvider {

@@ -359,15 +359,12 @@ export class PluginRegistry {
         
         if (actions.some(a => a.type === actionType)) {
           // Return a wrapper that delegates to the trait provider
+          // Note: TraitProvider doesn't have execute, so we throw an error
           return {
             id: traitProvider.id,
-            type: 'trait',
+            type: 'trait' as const,
             getAvailableActions: (player, context) => traitProvider.getTraitActions!(player, context),
-            execute: (params) => {
-              const tp = traitProvider as unknown as { execute?: (params: ActionExecutionParams) => ActionResult };
-              if (tp.execute) {
-                return tp.execute(params);
-              }
+            execute: (_params) => {
               throw new Error(`Trait provider ${traitProvider.id} does not implement execute for action ${actionType}`);
             },
           };

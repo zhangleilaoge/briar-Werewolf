@@ -53,7 +53,7 @@ export function explainIntention(
   const teamNames = TEAM_OBJECTIVE_NAMES;
   const personalNames = PERSONAL_OBJECTIVE_NAMES;
   const lines: string[] = [];
-  lines.push(`【意图状态】 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 个人目标=${personalNames[desire.personalObjective] || desire.personalObjective}`);
+  lines.push(`【意图状态】 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 主意图=${personalNames[desire.personalObjective] || desire.personalObjective}`);
 
   if (blocked.length > 0) {
     lines.push(`[被硬约束拦截的候选]`);

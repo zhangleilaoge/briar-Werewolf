@@ -14,8 +14,8 @@ import type {
   DecisionContext,
   PluginEvent,
   StateChange,
-} from '../types';
-import type { Player } from '@/types';
+} from '@/lib/plugins/types';
+import type { Player, GameLogItem } from '@/types';
 import { hasItem } from '@/types';
 import { createGameLog, getPlayerName } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
@@ -50,7 +50,7 @@ export class ClawsPlugin implements ActionProvider {
   
   execute(params: ActionExecutionParams): ActionResult {
     const { actor, target, context } = params;
-    const logs: any[] = [];
+    const logs: GameLogItem[] = [];
     const stateChanges: StateChange[] = [];
     const events: PluginEvent[] = [];
     
@@ -102,8 +102,8 @@ export class ClawsPlugin implements ActionProvider {
     }
     
     aliveTargets.forEach((target) => {
-      const claims = belief.l0Facts.publicClaims.filter((c: any) => c.playerId === target.id);
-      const isLikelyGod = claims.length > 0 || (belief.l2TheoryOfMind.othersKnowMyRole[target.id] ?? 0) > 0.5;
+      const claims = belief.l0Facts?.publicClaims.filter((c) => c.playerId === target.id) ?? [];
+      const isLikelyGod = claims.length > 0 || ((belief.l2TheoryOfMind?.othersKnowMyRole[target.id] ?? 0) > 0.5);
       const isHighInsight = target.attributes.insight >= 6;
       
       let score = SCORE_WEREWOLF_KILL_BASE;

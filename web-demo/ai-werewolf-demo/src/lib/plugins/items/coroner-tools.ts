@@ -13,8 +13,8 @@ import type {
   DecisionContext,
   PluginEvent,
   StateChange,
-} from '../types';
-import type { Player } from '@/types';
+} from '@/lib/plugins/types';
+import type { Player, GameLogItem } from '@/types';
 import { hasItem, ITEM_DEFINITIONS } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog, SingleUseItemPlugin } from '../base';
@@ -52,7 +52,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
   
   execute(params: ActionExecutionParams): ActionResult {
     const { actor, target, context } = params;
-    const logs: any[] = [];
+    const logs: GameLogItem[] = [];
     const stateChanges: StateChange[] = [];
     const events: PluginEvent[] = [];
     

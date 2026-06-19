@@ -14,8 +14,8 @@ import type {
   DecisionContext,
   PluginEvent,
   StateChange,
-} from '../types';
-import type { Player } from '@/types';
+} from '@/lib/plugins/types';
+import type { Player, GameLogItem } from '@/types';
 import { hasItem } from '@/types';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
@@ -46,7 +46,7 @@ export class CrystalBallPlugin implements ActionProvider {
   
   execute(params: ActionExecutionParams): ActionResult {
     const { actor, target, context } = params;
-    const logs: any[] = [];
+    const logs: GameLogItem[] = [];
     const stateChanges: StateChange[] = [];
     const events: PluginEvent[] = [];
     
@@ -104,7 +104,7 @@ export class CrystalBallPlugin implements ActionProvider {
     
     alivePlayers.forEach((target) => {
       // Skip already checked players
-      if (belief.l0Facts.checks[target.id] !== undefined) return;
+      if (belief.l0Facts?.checks[target.id] !== undefined) return;
       
       const wolfProb = belief.getWerewolfProbability(target.id);
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, target.id);
@@ -123,7 +123,7 @@ export class CrystalBallPlugin implements ActionProvider {
     
     // If no high-suspect targets, pick random unchecked player
     if (result.length === 0) {
-      const unchecked = alivePlayers.filter((p) => belief.l0Facts.checks[p.id] === undefined);
+      const unchecked = alivePlayers.filter((p) => belief.l0Facts?.checks[p.id] === undefined);
       if (unchecked.length > 0) {
         const random = unchecked[Math.floor(Math.random() * unchecked.length)];
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, random.id);

@@ -296,7 +296,7 @@ export class DecisionEngine {
     ].join('\n');
 
     const winnerActionStr = `${winner.action} → ${winner.target || '无目标'}`;
-    return { candidates: all, winner: winnerActionStr, shortlist };
+    return { candidates: unique, winner: winnerActionStr, shortlist };
   }
 
   private _weightedRandom(candidates: (DecisionCandidate & { totalScore?: number })[]): DecisionCandidate {

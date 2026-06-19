@@ -4,7 +4,7 @@
  * Influences others' voting behavior
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '../types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
 import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_CALL_VOTE } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -65,6 +65,7 @@ export class CallVotePlugin implements ActionProvider {
   }
 
   evaluate(context: DecisionContext): DecisionCandidate[] {
+        if (context.phase !== 'day') return [];
     const { belief, self, allPlayers } = context;
     const result: DecisionCandidate[] = [];
 

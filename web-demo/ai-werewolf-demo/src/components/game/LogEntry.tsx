@@ -3,6 +3,33 @@ import type { ActionLogDetail, DecisionProcess, GameLogItem, Player } from '@/ty
 import { getLogColor, highlightNames } from '../ui-utils';
 import { buildCheckExpr } from '@/lib/utils/expr';
 import DecisionProcessView from './DecisionProcessView';
+import { REACTION_ACTION, DAY_ACTION, NIGHT_ACTION, VOTE_ACTION } from '@/lib/constants/action-constants';
+
+function getLogEmoji(log: GameLogItem): string {
+  const action = (log.details as ActionLogDetail)?.action;
+  if (log.type === 'thinking') return '💭';
+  if (log.type === 'phase') return '🌙';
+  if (log.type === 'death') return '💀';
+  if (log.type === 'victory') return '🏆';
+  if (log.type === 'relation') return '💜';
+  if (log.type === 'stress') return '😰';
+  if (log.type === 'item') return '🎒';
+  // 反应行为
+  if (action && Object.values(REACTION_ACTION).includes(action as typeof REACTION_ACTION[keyof typeof REACTION_ACTION])) return '💬';
+  // 主动行为
+  if (action && Object.values(DAY_ACTION).includes(action as typeof DAY_ACTION[keyof typeof DAY_ACTION])) return '🎯';
+  if (action && Object.values(NIGHT_ACTION).includes(action as typeof NIGHT_ACTION[keyof typeof NIGHT_ACTION])) return '🌙';
+  if (action && Object.values(VOTE_ACTION).includes(action as typeof VOTE_ACTION[keyof typeof VOTE_ACTION])) return '🗳️';
+  return '📋';
+}
+
+function insertEmojiAfterTimestamp(message: string, emoji: string): string {
+  const match = message.match(/^(\[\d{2}:\d{2}:\d{2}\])\s*/);
+  if (match) {
+    return `${match[1]} ${emoji} ${message.slice(match[0].length)}`;
+  }
+  return message;
+}
 
 interface LogEntryProps {
   log: GameLogItem;
@@ -15,6 +42,7 @@ interface LogEntryProps {
 export default function LogEntry({ log, idx, players, expanded, onToggle }: LogEntryProps) {
   const detail = log.details as ActionLogDetail | undefined;
   const hasExtra = !!(detail && ((detail.checks && detail.checks.length > 0) || (detail as Record<string, unknown>).process || detail.decisionReason));
+  const emoji = getLogEmoji(log);
 
   // 从 details 中提取需要高亮的玩家ID
   const _mentions = (detail as any)?.mentions as string[] | undefined;
@@ -31,7 +59,7 @@ export default function LogEntry({ log, idx, players, expanded, onToggle }: LogE
       {log.type === 'thinking' ? (
         <div className="flex items-center gap-1">
           <span>
-            {highlightNames(log.message, playersToHighlight).map((part, pi) =>
+            {highlightNames(insertEmojiAfterTimestamp(log.message, emoji), playersToHighlight).map((part, pi) =>
               part.isName ? (
                 <span key={pi} className={`font-bold ${part.team === 'werewolf' ? 'text-red-200' : 'text-blue-200'}`}>
                   {part.text}
@@ -46,7 +74,7 @@ export default function LogEntry({ log, idx, players, expanded, onToggle }: LogE
         <>
           <div className="flex items-center gap-1">
             <span>
-              {highlightNames(log.message, playersToHighlight).map((part, pi) =>
+              {highlightNames(insertEmojiAfterTimestamp(log.message, emoji), playersToHighlight).map((part, pi) =>
                 part.isName ? (
                   <span key={pi} className={`font-bold ${part.team === 'werewolf' ? 'text-red-200' : 'text-blue-200'}`}>
                     {part.text}

@@ -123,7 +123,7 @@ export const TEAM_OBJECTIVE = {
 
 export type TeamObjective = typeof TEAM_OBJECTIVE[keyof typeof TEAM_OBJECTIVE];
 
-// 个人目标
+// 主意图
 export const PERSONAL_OBJECTIVE = {
   MAINTAIN_COVER: 'maintain_cover',
   SURVIVE: 'survive',
@@ -156,8 +156,6 @@ export const ROLE = {
   THIEF: 'thief',
   CORONER: 'coroner',
 } as const;
-
-export type RoleType = typeof ROLE[keyof typeof ROLE];
 
 // 日志行动类型（用于日志记录，非游戏行动）
 export const LOG_ACTION = {

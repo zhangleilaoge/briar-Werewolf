@@ -4,7 +4,7 @@
  * Success increases target stress, decreases relation
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '../types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
 import { calculateModifierBreakdown, performOpposedCheck } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -72,6 +72,7 @@ export class SuspectPlugin implements ActionProvider {
   }
 
   evaluate(context: DecisionContext): DecisionCandidate[] {
+        if (context.phase !== 'day') return [];
     const { belief, self, allPlayers } = context;
     const result: DecisionCandidate[] = [];
 

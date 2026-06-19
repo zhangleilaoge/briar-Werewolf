@@ -2,7 +2,8 @@ import type { GameSimulator, PublicActionRecord, GameEvent, PlayerActor } from '
 import type { Phase, Player, DecisionProcess } from '@/types';
 import { ROLE_INFO } from '@/types';
 import { log, } from './simulator-utils';
-import { runDayAction, runAppendixAction } from './simulator-day';
+import { runDayAction } from './simulator-day';
+import { runAppendixAction } from './simulator-day-appendix';
 import { runNightAction, resolveNightActions } from './simulator-night';
 import { resolveMorningEvents } from './simulator-morning';
 import { runVote, runVoteRound2, resolveVotesRound1, resolveVotesRound2 } from './simulator-vote';

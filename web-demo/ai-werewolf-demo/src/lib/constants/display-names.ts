@@ -10,7 +10,7 @@ export const INTENTION_TYPE_NAMES: Record<string, string> = {
 
 // 意图来源
 export const INTENTION_SOURCE_NAMES: Record<string, string> = {
-  team_duty: '阵营职责', personal_goal: '个人目标', crisis: '危机',
+  team_duty: '阵营职责', personal_goal: '主意图', crisis: '危机',
   strategic: '战略', external: '外部压力', role_duty: '职业职责', bus: '背锅',
 };
 
@@ -44,7 +44,7 @@ export const TEAM_OBJECTIVE_NAMES: Record<string, string> = {
   eliminate_opposition: '消灭对手', find_wolves: '找出狼人',
 };
 
-// 个人目标
+// 主意图
 export const PERSONAL_OBJECTIVE_NAMES: Record<string, string> = {
   maintain_cover: '潜伏', survive: '生存', gain_trust: '获得信任', reveal_truth: '揭示真相',
 };

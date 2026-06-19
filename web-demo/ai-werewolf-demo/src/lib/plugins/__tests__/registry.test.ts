@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginRegistry } from '../registry';
-import type { ActionProvider, TraitProvider, ActionDefinition, ActionContext, DecisionContext } from '../types';
+import type { ActionProvider, TraitProvider, ActionDefinition, ActionContext, DecisionContext } from '@/lib/plugins/types';
 import type { Player, DecisionCandidate } from '@/types';
 
 // ---------- Mock Helpers ----------

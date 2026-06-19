@@ -5,7 +5,7 @@
  */
 
 import type { Player, DecisionCandidate } from '@/types';
-import type { GameContext } from '../types';
+import type { GameContext } from '@/lib/plugins/types';
 import type {
   ActionProvider,
   ActionDefinition,

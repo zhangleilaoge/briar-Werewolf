@@ -135,18 +135,18 @@ export default function PlayerDrawer({
                     if (!isEnemy && Math.abs(favor) <= RELATION_DISPLAY_THRESHOLD) return null;
 
                     return (
-                      <div key={other.id} className="text-sm flex items-center justify-between">
-                        <span className="text-muted-foreground">{other.name}</span>
-                        <div className="flex items-center gap-3 text-xs">
+                      <div key={other.id} className="text-sm flex items-center">
+                        <span className="text-muted-foreground shrink-0">{other.name}</span>
+                        <div className="flex items-center gap-2 text-xs ml-auto shrink-0">
                           {/* 好感度（敌人显示，友方只在有变化时显示） */}
                           {(isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD) && (
-                            <span className={favor > 0 ? 'text-green-400' : favor < 0 ? 'text-red-400' : 'text-gray-500'}>
+                            <span className={`${favor > 0 ? 'text-green-400' : favor < 0 ? 'text-red-400' : 'text-gray-500'} w-16 text-right`}>
                               好感{favor > 0 ? '+' : ''}{favor.toFixed(1)}
                             </span>
                           )}
-                          {/* 怀疑度（只显示敌人） */}
+                          {/* 怀疑度（敌人始终显示） */}
                           {isEnemy && (
-                            <span className={suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
+                            <span className={`${suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'} w-16 text-right`}>
                               怀疑{(suspicion * 100).toFixed(0)}%
                             </span>
                           )}

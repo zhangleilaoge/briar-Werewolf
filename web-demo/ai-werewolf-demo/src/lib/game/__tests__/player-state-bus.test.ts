@@ -84,14 +84,15 @@ describe('PlayerStateBus', () => {
       const p1 = makePlayer('p1');
       bus.setPlayers([p1]);
 
-      const mockAgent1 = { onEvent: vi.fn() };
-      const mockAgent2 = { onEvent: vi.fn() };
-      bus.setAgents({ p1: mockAgent1 as any, p2: mockAgent2 as any });
+      const mockCallback1 = vi.fn();
+      const mockCallback2 = vi.fn();
+      bus.onDeath(mockCallback1);
+      bus.onDeath(mockCallback2);
 
       bus.killPlayer('p1', 'test');
 
-      expect(mockAgent1.onEvent).toHaveBeenCalledWith({ type: 'death', playerId: 'p1' });
-      expect(mockAgent2.onEvent).toHaveBeenCalledWith({ type: 'death', playerId: 'p1' });
+      expect(mockCallback1).toHaveBeenCalledWith('p1');
+      expect(mockCallback2).toHaveBeenCalledWith('p1');
     });
   });
 

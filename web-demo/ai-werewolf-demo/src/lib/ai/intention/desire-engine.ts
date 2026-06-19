@@ -97,7 +97,7 @@ export class DesireEngine {
       }
     }
 
-    // === PERSONAL_GOAL: 个人目标 ===
+    // === PERSONAL_GOAL: 主意图 ===
     // 生存压力
     if (myExposure > 0.6) {
       desires.push({

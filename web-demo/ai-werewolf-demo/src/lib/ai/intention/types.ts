@@ -21,7 +21,7 @@ export enum IntentionType {
 export enum IntentionSource {
   ROLE_DUTY = 'role_duty', // 角色义务（硬约束）
   TEAM_DUTY = 'team_duty', // 团队义务（硬约束）
-  PERSONAL_GOAL = 'personal_goal', // 个人目标
+  PERSONAL_GOAL = 'personal_goal', // 主意图
   REACTION = 'reaction', // 对事件的即时反应
   OPPORTUNITY = 'opportunity', // 机会驱动
 }

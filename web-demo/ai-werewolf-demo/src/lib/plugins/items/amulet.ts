@@ -13,8 +13,8 @@ import type {
   ActionResult,
   StateChange,
   PluginEvent,
-} from '../types';
-import type { Player } from '@/types';
+} from '@/lib/plugins/types';
+import type { Player, GameLogItem } from '@/types';
 import { hasItem } from '@/types';
 import { createGameLog } from '../base';
 
@@ -50,7 +50,7 @@ export class AmuletPlugin implements ActionProvider {
    * @returns ActionResult with logs and state changes
    */
   blockAttack(player: Player, context: ActionContext): ActionResult {
-    const logs: any[] = [];
+    const logs: GameLogItem[] = [];
     const stateChanges: StateChange[] = [];
     const events: PluginEvent[] = [];
     

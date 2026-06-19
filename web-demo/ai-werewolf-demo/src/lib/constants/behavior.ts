@@ -44,6 +44,7 @@ export const ALIGNMENT_TENDENCY_CHAOTIC_CLAIM_PROPHET = 30;   // 混乱狼人：
 export const ALIGNMENT_TENDENCY_LAWFUL_CLAIM_PROPHET = -20;   // 守序狼人：保守，不轻易跳
 export const ALIGNMENT_TENDENCY_CHAOTIC_CLAIM_HUNTER = 20;    // 混乱狼人：跳猎人
 export const ALIGNMENT_TENDENCY_LAWFUL_CLAIM_HUNTER = -10;    // 守序狼人：不跳猎人
+export const ALIGNMENT_TENDENCY_EVIL_CLAIM = 15;              // 邪恶阵营跳身份的基础收益
 
 // 反驳
 export const ALIGNMENT_TENDENCY_CHAOTIC_REBUT = 12;       // 混乱：情绪化反驳
