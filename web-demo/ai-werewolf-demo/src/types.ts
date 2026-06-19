@@ -31,8 +31,16 @@ export type GoodAxis = 'good' | 'neutral_good' | 'evil';
 export interface Alignment { law: LawAxis; good: GoodAxis }
 
 // ---------- Relations (关系) ----------
-export interface Relation { favor: number } // 好感度（-10 ~ +10），合并信任和友好
-export interface RelationDelta { favorDelta: number }
+export interface Relation {
+  favor: number;    // 综合好感度
+  trust: number;    // 信任度
+  friendly: number; // 友好度
+}
+export interface RelationDelta {
+  favorDelta?: number;
+  trustDelta?: number;
+  friendlyDelta?: number;
+}
 
 // ---------- Items (道具) ----------
 export type ItemType = 'action_prerequisite' | 'check_bonus' | 'consumable' | 'passive';

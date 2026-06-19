@@ -114,12 +114,26 @@ export function buildCheckLog(
 
 export function updateRelation(sim: GameSimulator, fromPlayer: Player, toPlayer: Player, delta: RelationDelta) {
   if (!fromPlayer.relations[toPlayer.id]) {
-    fromPlayer.relations[toPlayer.id] = { favor: 0 };
+    fromPlayer.relations[toPlayer.id] = { favor: 0, trust: 0, friendly: 0 };
   }
   const rel = fromPlayer.relations[toPlayer.id];
-  rel.favor = clampRelation(rel.favor + delta.favorDelta);
 
-  if (Math.abs(delta.favorDelta) >= 2) {
-    log(sim, 'relation', `${fromPlayer.name} 对 ${toPlayer.name} 的好感度变化：${delta.favorDelta > 0 ? '+' : ''}${delta.favorDelta}`);
+  if (delta.favorDelta !== undefined) {
+    rel.favor = clampRelation(rel.favor + delta.favorDelta);
+  }
+  if (delta.trustDelta !== undefined) {
+    rel.trust = clampRelation((rel.trust || 0) + delta.trustDelta);
+  }
+  if (delta.friendlyDelta !== undefined) {
+    rel.friendly = clampRelation((rel.friendly || 0) + delta.friendlyDelta);
+  }
+  // 当传了 trustDelta 或 friendlyDelta 时，自动计算 favor = (trust + friendly) / 2
+  if (delta.trustDelta !== undefined || delta.friendlyDelta !== undefined) {
+    rel.favor = clampRelation(((rel.trust || 0) + (rel.friendly || 0)) / 2);
+  }
+
+  const logDelta = delta.favorDelta ?? ((delta.trustDelta || 0) + (delta.friendlyDelta || 0)) / 2;
+  if (Math.abs(logDelta) >= 2) {
+    log(sim, 'relation', `${fromPlayer.name} 对 ${toPlayer.name} 的好感度变化：${logDelta > 0 ? '+' : ''}${logDelta}`);
   }
 }
