@@ -71,9 +71,12 @@ export function calculateFakeIdentityMotivation(
   const prophetMotivation = calculateProphetMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myExposure, aliveWerewolves, aliveVillagers);
   if (prophetMotivation) motivations.push(prophetMotivation);
 
-  // 伪装猎人
-  const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myExposure);
-  if (hunterMotivation) motivations.push(hunterMotivation);
+  // 伪装猎人（仅当场上有猎人职业时才考虑）
+  const hasHunter = allPlayers.some(p => p.role === 'hunter');
+  if (hasHunter) {
+    const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myExposure);
+    if (hunterMotivation) motivations.push(hunterMotivation);
+  }
 
   return motivations.sort((a, b) => b.totalScore - a.totalScore);
 }

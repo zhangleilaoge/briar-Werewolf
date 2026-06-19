@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameConfig } from './useGameRunner';
+import type { GameConfig } from '@/hooks/useGameRunner';
 import type { Role } from '@/types';
 import { MIN_PLAYERS } from '@/types';
 

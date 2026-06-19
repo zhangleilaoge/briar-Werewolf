@@ -101,8 +101,9 @@ export function resolveDayAction(
       logAction(sim, 'action', `${actor.name} 选择沉默`, decisionReason, [], { actorId: actor.id, action: ACTION.SILENCE , process });
       break;
     case ACTION.CLAIM_IDENTITY: {
-      const claimedRole = details.claimedRole as string || '村民';
-      logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRole}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole , process });
+      const claimedRoleKey = details.claimedRole as string || 'villager';
+      const claimedRoleName = ROLE_INFO[claimedRoleKey as keyof typeof ROLE_INFO]?.label || claimedRoleKey;
+      logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRoleName}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole: claimedRoleKey , process });
       if (actor.role === 'prophet' && claimedRole === 'prophet') {
         sim.prophetClaims[actor.id] = true;
         const agent = sim._aiAgents[actor.id];
@@ -123,6 +124,7 @@ export function resolveDayAction(
       break;
     }
     case ACTION.REVEAL_INFO: {
+      // TODO: 公开信息行动 - 需要实现具体的信息公开逻辑（如窃贼公开偷到的道具等）
       const _infoType = details.infoType as string;
       const infoTarget = details.infoTarget as string;
       const infoContent = details.infoContent as string;

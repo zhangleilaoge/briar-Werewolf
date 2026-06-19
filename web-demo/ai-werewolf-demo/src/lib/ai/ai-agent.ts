@@ -259,7 +259,7 @@ export class AIAgent {
     // Common day actions (always available)
     actions.push({ type: ACTION.SILENCE });
     actions.push({ type: ACTION.CLAIM_IDENTITY });
-    actions.push({ type: ACTION.REVEAL_INFO });
+    actions.push({ type: ACTION.REVEAL_INFO }); // TODO: 公开信息 - 缺少决策策略，AI不会主动使用
     actions.push({ type: ACTION.OBSERVE });
     actions.push({ type: ACTION.SUSPECT });
     actions.push({ type: ACTION.DEFEND });

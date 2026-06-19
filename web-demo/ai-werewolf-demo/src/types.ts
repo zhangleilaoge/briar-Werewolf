@@ -132,6 +132,7 @@ export interface DecisionProcess {
     rule: string; trigger: string; random: boolean;
     modifiers: { alignment: number; stress: number; relation: number; total: number };
     intentionDrivenBonus?: number;
+    details?: Record<string, unknown>;
   }[];
   winner: string;
   shortlist: string;

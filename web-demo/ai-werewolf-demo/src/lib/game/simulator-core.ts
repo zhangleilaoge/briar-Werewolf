@@ -438,12 +438,12 @@ export class GameSimulator {
 
     if (aliveWerewolves === 0) {
       this.winner = 'villager';
-      this.logs.push({ round: this.round, phase: 'init', message: '=== 村民阵营胜利！所有狼人已被消灭。 ===', type: 'victory' });
+      this.tickLogBuffer.push({ round: this.round, phase: 'init', message: '=== 村民阵营胜利！所有狼人已被消灭。 ===', type: 'victory' });
       this.phase = 'ended';
       debugLog('[消息中心] 🏆 村民胜利！');
     } else if (aliveWerewolves >= aliveVillagers) {
       this.winner = 'werewolf';
-      this.logs.push({ round: this.round, phase: 'init', message: '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===', type: 'victory' });
+      this.tickLogBuffer.push({ round: this.round, phase: 'init', message: '=== 狼人阵营胜利！狼人数量 >= 村民数量。 ===', type: 'victory' });
       this.phase = 'ended';
       debugLog('[消息中心] 🏆 狼人胜利！');
     }

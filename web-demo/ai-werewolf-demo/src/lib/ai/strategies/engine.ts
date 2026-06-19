@@ -1,5 +1,6 @@
 import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, } from '@/types';
+import { ROLE_INFO } from '@/types';
 import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
 import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager, PlanLibrary } from '../intention-system';
 
@@ -219,8 +220,9 @@ export class DecisionEngine {
       return true;
     });
 
-    // 加权随机选择：以分数作为权重概率
-    const selected = unique.length > 0 ? this._weightedRandom(unique) : scored[0];
+    // 加权随机选择：从 top 3 中选择（与 UI 展示一致）
+    const topCandidates = unique.slice(0, 3);
+    const selected = topCandidates.length > 0 ? this._weightedRandom(topCandidates) : scored[0];
 
     return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation, intentionManager, intentionInfo);
   }
@@ -277,6 +279,7 @@ export class DecisionEngine {
         trigger: c.trigger || '无特定触发条件',
         random: c.random || false,
         modifiers,
+        details: c.details,
       };
     }).sort((a, b) => b.totalScore - a.totalScore);
 
@@ -317,9 +320,12 @@ export class DecisionEngine {
         c.totalScore, c.score, c.intentionDrivenBonus, c.stageWeight, stageName, c.modifiers
       );
 
-      return `${prefix} ${actionName}${targetName ? `→${targetName}` : ''}${randomMark}
+      // 解析 claimedRole（如"公布身份"行动需要显示角色）
+      const claimedRole = c.details?.claimedRole as string | undefined;
+      const roleLabel = claimedRole ? (ROLE_INFO[claimedRole as keyof typeof ROLE_INFO]?.label || claimedRole) : null;
+
+      return `${prefix} ${actionName}${roleLabel ? `(${roleLabel})` : ''}${targetName ? `→${targetName}` : ''}${randomMark}
   [${c.strategy}.${c.rule}]
-  触发：${c.trigger}
   ${scoreLine} (概率 ${prob}%)`;
     });
 

@@ -2,6 +2,7 @@ import { fileURLToPath } from 'url'
 import react from '@astrojs/react'
 import tailwind from '@astrojs/tailwind'
 import { defineConfig } from 'astro/config'
+import { codeInspectorPlugin } from 'code-inspector-plugin'
 
 export default defineConfig({
   integrations: [react(), tailwind()],
@@ -11,5 +12,6 @@ export default defineConfig({
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    plugins: [codeInspectorPlugin({ bundler: 'vite' })],
   },
 })
