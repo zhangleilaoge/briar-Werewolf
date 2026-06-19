@@ -24,6 +24,7 @@ export const LOG_PRIORITY: Record<string, number> = {
   item: 6,
   info: 7,
   system: 8,
+  thinking: 9,
 };
 
 // ---------- PhaseController Interface ----------

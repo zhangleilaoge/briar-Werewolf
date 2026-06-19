@@ -106,12 +106,12 @@ export class BeliefSystem {
     }
   }
 
-  recordPublicClaim(playerId: string, claim: string, content: Record<string, unknown>) {
+  recordPublicClaim(playerId: string, claim: string, content: Record<string, unknown>, round: number = 0) {
     this.l0Facts.publicClaims.push({
       playerId,
       claim,
       content,
-      round: 0, // will be set by caller if available
+      round,
     });
   }
 

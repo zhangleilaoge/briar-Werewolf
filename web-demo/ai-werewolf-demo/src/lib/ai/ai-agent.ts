@@ -49,10 +49,6 @@ export class AIAgent {
     strategies.forEach((s) => this.engine.registerStrategy(s.category, s.strategy));
   }
 
-  setPlayers(allPlayers: Player[]) {
-    this._allPlayers = allPlayers;
-  }
-
   nightAction(allPlayers: Player[], nightDecisions: { playerId: string; action: string; targetId: string | null; reason: string }[]): DecisionResult | null {
     if (!this.player?.alive) return null;
     const availableActions = this._getAvailableNightActions();
@@ -161,7 +157,7 @@ export class AIAgent {
         break;
       case 'public_claim':
         if (event.playerId && event.claimType) {
-          this.belief.recordPublicClaim(event.playerId, event.claimType, event.content || {});
+          this.belief.recordPublicClaim(event.playerId, event.claimType, event.content || {}, this.currentRound);
           this._log('event', `玩家 ${event.playerId} 声称：${event.claimType}`);
         }
         break;
