@@ -4,6 +4,7 @@ import {
   RELATION_MIN, RELATION_MAX, EXPOSURE_HIGH_THRESHOLD,
 } from '@/types';
 import type { Player } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
 import type { Strategy, } from './engine';
 
@@ -29,7 +30,7 @@ export const CheckRevelationVoteStrategy: Strategy = {
             ? -SCORE_PROPHET_VOTE_DUTY + scoreDelta
             : SCORE_PROPHET_VOTE_DUTY + scoreDelta;
           result.push({
-            action: 'vote',
+            action: ACTION.VOTE,
             target: targetId,
             score,
             confidence: 1.0,
@@ -65,7 +66,7 @@ export const AllyProtectionVoteStrategy: Strategy = {
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', teammate.id);
       // 给队友一个负分数，确保加权随机中不会选中队友
       result.push({
-        action: 'vote',
+        action: ACTION.VOTE,
         target: teammate.id,
         score: -SCORE_WEREWOLF_VOTE_DUTY + scoreDelta,
         confidence: 0.0,
@@ -103,7 +104,7 @@ export const MaxInfoVoteStrategy: Strategy = {
       }
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
       result.push({
-        action: 'vote',
+        action: ACTION.VOTE,
         target: target.id,
         score: baseScore + scoreDelta,
         confidence: Math.abs(wolfProb - 0.5),
@@ -133,7 +134,7 @@ export const FollowCallVoteStrategy: Strategy = {
     const { self, allPlayers, belief, publicActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
 
-    const calls = (publicActions || []).filter((a) => a.type === 'call_vote' && a.targetId);
+    const calls = (publicActions || []).filter((a) => a.type === ACTION.CALL_VOTE && a.targetId);
 
     calls.forEach((call) => {
       const caller = allPlayers.find((p) => p.id === call.actorId);
@@ -147,7 +148,7 @@ export const FollowCallVoteStrategy: Strategy = {
       if (followScore > (SCORE_FOLLOW_CALL_VOTE / 2)) {
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', call.targetId!);
         result.push({
-          action: 'vote',
+          action: ACTION.VOTE,
           target: call.targetId!,
           score: followScore + scoreDelta,
           confidence: relation.trust / 10,
@@ -190,7 +191,7 @@ export const SocialTieBreakerStrategy: Strategy = {
       }
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
       result.push({
-        action: 'vote',
+        action: ACTION.VOTE,
         target: target.id,
         score: socialScore + scoreDelta,
         confidence: 0.3,
@@ -234,7 +235,7 @@ export const SurvivalVoteStrategy: Strategy = {
       safeTargets.forEach((target) => {
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
         result.push({
-          action: 'vote',
+          action: ACTION.VOTE,
           target: target.id,
           score: SCORE_SURVIVAL_VOTE - myExposure * SCORE_MAX_INFO_VOTE + scoreDelta,
           confidence: 0.6,

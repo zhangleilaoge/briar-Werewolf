@@ -31,14 +31,13 @@ const ACTION_LOG_COLORS: Record<string, string> = {
   vote: 'text-yellow-300',
   // 绿色：日常行动、侦查、特殊能力
   observe: 'text-green-300',
-  speak: 'text-green-300',
   defend: 'text-green-300',
   guarantee: 'text-green-300',
   check: 'text-green-300',
   steal: 'text-green-300',
   inspect: 'text-green-300',
-  // 白色：察觉、反应
-  observe_detected: 'text-white',
+  // 绿色：察觉、反应
+  observe_detected: 'text-green-300',
   // 灰色：沉默
   silence: 'text-gray-400',
 };

@@ -39,31 +39,22 @@ export function getStressModifier(stress: number, attribute: 'deception' | 'stea
 
 /**
  * Get alignment modifier for a check
- * 
+ *
+ * 注意：阵营修正已禁用。阵营现在只影响行动取向（behavior-modifiers.ts），
+ * 不再影响检定数值。
+ *
  * @param alignment - Character's alignment
  * @param actionType - Type of action being performed
  * @param isGoodAction - Whether the action is considered "good" (for affinity checks)
- * @returns Modifier value
+ * @returns 0 (阵营修正已禁用)
  */
 export function getAlignmentModifier(
-  alignment: Alignment,
-  actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other',
-  isGoodAction = false
+  _alignment: Alignment,
+  _actionType: 'leadership' | 'deception' | 'affinity' | 'stealth' | 'other',
+  _isGoodAction = false
 ): number {
-  switch (actionType) {
-    case 'leadership':
-      return alignment.law === 'lawful' ? 1 : 0;
-    case 'deception':
-    case 'stealth':
-      if (alignment.law === 'lawful') return -2;
-      if (alignment.law === 'chaotic') return 2;
-      if (alignment.good === 'evil') return 1;
-      return 0;
-    case 'affinity':
-      return (alignment.good === 'good' && isGoodAction) ? 1 : 0;
-    default:
-      return 0;
-  }
+  // 阵营修正已禁用，阵营只影响行动取向，不影响检定
+  return 0;
 }
 
 /**

@@ -260,40 +260,32 @@ describe('getStressModifier', () => {
 });
 
 describe('getAlignmentModifier', () => {
-  it('gives lawful leadership bonus', () => {
-    expect(getAlignmentModifier({ law: 'lawful', good: 'good' }, 'leadership')).toBe(1);
+  // 注意：阵营修正已禁用，现在所有检定返回0
+  // 阵营只影响行动取向（behavior-modifiers.ts），不影响检定数值
+  it('returns 0 for all cases (alignment disabled for checks)', () => {
+    expect(getAlignmentModifier({ law: 'lawful', good: 'good' }, 'leadership')).toBe(0);
     expect(getAlignmentModifier({ law: 'chaotic', good: 'good' }, 'leadership')).toBe(0);
-  });
-
-  it('applies deception penalty for lawful', () => {
-    expect(getAlignmentModifier({ law: 'lawful', good: 'good' }, 'deception')).toBe(-2);
-  });
-
-  it('applies deception bonus for chaotic', () => {
-    expect(getAlignmentModifier({ law: 'chaotic', good: 'good' }, 'deception')).toBe(2);
-  });
-
-  it('applies affinity bonus for good with good action', () => {
-    expect(getAlignmentModifier({ law: 'neutral_law', good: 'good' }, 'affinity', true)).toBe(1);
+    expect(getAlignmentModifier({ law: 'lawful', good: 'good' }, 'deception')).toBe(0);
+    expect(getAlignmentModifier({ law: 'chaotic', good: 'good' }, 'deception')).toBe(0);
+    expect(getAlignmentModifier({ law: 'neutral_law', good: 'good' }, 'affinity', true)).toBe(0);
     expect(getAlignmentModifier({ law: 'neutral_law', good: 'good' }, 'affinity', false)).toBe(0);
   });
 });
 
 describe('calculateFinalModifier', () => {
-  it('sums base + alignment + stress modifiers', () => {
-    // lawful + leadership = +1 alignment
+  it('sums base + stress modifiers (alignment disabled)', () => {
     const mod = calculateFinalModifier(5, { law: 'lawful', good: 'good' }, 0, 'leadership');
-    expect(mod).toBe(6); // 5 + 1 + 0
+    expect(mod).toBe(5); // 5 + 0 + 0 (alignment disabled)
   });
 });
 
 describe('calculateModifierBreakdown', () => {
-  it('returns correct breakdown', () => {
+  it('returns correct breakdown with alignment disabled', () => {
     const bd = calculateModifierBreakdown(5, { law: 'lawful', good: 'good' }, 0, 'leadership');
     expect(bd.baseAttribute).toBe(5);
-    expect(bd.alignmentMod).toBe(1);
+    expect(bd.alignmentMod).toBe(0); // 阵营修正已禁用
     expect(bd.stressMod).toBe(0);
-    expect(bd.total).toBe(6);
+    expect(bd.total).toBe(5); // 5 + 0 + 0
   });
 });
 

@@ -16,6 +16,7 @@ import type {
 } from '../types';
 import type { Player } from '@/types';
 import { hasItem, ITEM_DEFINITIONS } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog, SingleUseItemPlugin } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
@@ -26,7 +27,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
   id = 'coroner_tools';
   type = 'item' as const;
   protected itemId = 'coroner_tools';
-  protected actionType = 'inspect';
+  protected actionType = ACTION.INSPECT;
   
   getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
     // Anyone with tools can inspect, but only once per game
@@ -40,7 +41,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
     }
     
     return [{
-      type: 'inspect',
+      type: ACTION.INSPECT,
       label: '验尸',
       description: '使用验尸工具查看死亡角色的道具',
       requiresTarget: true,
@@ -122,10 +123,10 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
     const deadTargets = allPlayers.filter((p) => !p.alive && p.items.length > 0);
     
     deadTargets.forEach((target) => {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'inspect', target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.INSPECT, target.id);
       
       result.push({
-        action: 'inspect',
+        action: ACTION.INSPECT,
         target: target.id,
         score: SCORE_CORONER_INSPECT_BASE + target.items.length * (SCORE_CORONER_INSPECT_BASE / 5) + scoreDelta,
         confidence: 0.6,

@@ -47,7 +47,7 @@ describe('DecisionEngine', () => {
         belief,
         self,
         'day',
-        [{ type: 'speak' }, { type: 'observe' }, { type: 'suspect' }],
+        [{ type: 'silence' }, { type: 'observe' }, { type: 'suspect' }],
         allPlayers,
       );
 
@@ -74,7 +74,7 @@ describe('DecisionEngine', () => {
         belief,
         self,
         'day',
-        [{ type: 'speak' }, { type: 'observe' }],
+        [{ type: 'silence' }, { type: 'observe' }],
         allPlayers,
       );
 
@@ -174,7 +174,7 @@ describe('DecisionEngine', () => {
           belief,
           wolf,
           'day',
-          [{ type: 'call_vote' }, { type: 'accuse' }, { type: 'suspect' }, { type: 'speak' }, { type: 'observe' }],
+          [{ type: 'call_vote' }, { type: 'accuse' }, { type: 'suspect' }, { type: 'silence' }, { type: 'observe' }],
           allPlayers,
         );
         if (decision.target) {

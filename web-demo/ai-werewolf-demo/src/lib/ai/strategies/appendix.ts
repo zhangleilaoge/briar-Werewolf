@@ -1,3 +1,4 @@
+import { ACTION } from '@/lib/constants/action-constants';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
 import {
   SCORE_JOIN_SUSPECT_BASE, SCORE_JOIN_SUSPECT_WOLF_BONUS,
@@ -19,7 +20,7 @@ export const JoinSuspectStrategy: Strategy = {
     const { belief, self, allPlayers, availableActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
 
-    const joinAction = availableActions.find((a) => a.type === 'join_suspect');
+    const joinAction = availableActions.find((a) => a.type === ACTION.JOIN_SUSPECT);
     if (!joinAction) return result;
 
     const originalTargetId = (joinAction as JoinAction).originalTargetId;
@@ -28,13 +29,17 @@ export const JoinSuspectStrategy: Strategy = {
 
     const wolfProb = belief.getWerewolfProbability(target.id);
     if (wolfProb > WEREWOLF_PROBABILITY_MEDIUM || (self.team === 'werewolf' && target.team !== 'werewolf')) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'join_suspect', originalTargetId);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_SUSPECT, originalTargetId);
+      const baseScore = Math.floor(wolfProb * SCORE_JOIN_SUSPECT_BASE);
+      const wolfBonus = self.team === 'werewolf' ? SCORE_JOIN_SUSPECT_WOLF_BONUS : 0;
+      const notJoinPenalty = -15; // 不做会失去与怀疑者的同盟关系
+
       result.push({
-        action: 'join_suspect',
+        action: ACTION.JOIN_SUSPECT,
         target: originalTargetId,
-        score: wolfProb * SCORE_JOIN_SUSPECT_BASE + (self.team === 'werewolf' ? SCORE_JOIN_SUSPECT_WOLF_BONUS : 0) + scoreDelta,
+        score: baseScore + wolfBonus + scoreDelta,
         confidence: CONFIDENCE_JOIN_SUSPECT,
-        reason: `附和怀疑${target.name}，狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}`,
+        reason: `做: +${baseScore}(狼嫌疑${(wolfProb * 100).toFixed(0)}%×基础)${wolfBonus > 0 ? ` +${wolfBonus}(狼人)` : ''}${scoreDelta > 0 ? ` +${scoreDelta}(修正)` : ''} vs 不做: ${notJoinPenalty}(失去同盟)`,
         strategy: 'JoinSuspectStrategy',
         rule: 'join_suspect',
         trigger: `wolfProb=${wolfProb.toFixed(2)} > ${WEREWOLF_PROBABILITY_MEDIUM} 或 (self.team=werewolf 且 target.team!=werewolf)`,
@@ -54,7 +59,7 @@ export const JoinDefendStrategy: Strategy = {
     const { belief, self, allPlayers, availableActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
 
-    const joinAction = availableActions.find((a) => a.type === 'join_defend');
+    const joinAction = availableActions.find((a) => a.type === ACTION.JOIN_DEFEND);
     if (!joinAction) return result;
 
     const originalTargetId = (joinAction as JoinAction).originalTargetId;
@@ -63,13 +68,17 @@ export const JoinDefendStrategy: Strategy = {
 
     const relation = belief.getRelation(target.id);
     if (relation.friendly > RELATION_FRIENDLY_JOIN_DEFEND || (self.team === 'werewolf' && target.team === 'werewolf')) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'join_defend', originalTargetId);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_DEFEND, originalTargetId);
+      const baseScore = Math.floor(relation.friendly * SCORE_JOIN_DEFEND_BASE);
+      const wolfBonus = self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0;
+      const notJoinPenalty = -10; // 不做会降低与被保护者的关系
+
       result.push({
-        action: 'join_defend',
+        action: ACTION.JOIN_DEFEND,
         target: originalTargetId,
-        score: relation.friendly * SCORE_JOIN_DEFEND_BASE + (self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0) + scoreDelta,
+        score: baseScore + wolfBonus + scoreDelta,
         confidence: CONFIDENCE_JOIN_DEFEND,
-        reason: `联合辩护${target.name}，友好度${relation.friendly.toFixed(1)}${reason}`,
+        reason: `做: +${baseScore}(友好度${relation.friendly.toFixed(1)}×基础)${wolfBonus > 0 ? ` +${wolfBonus}(狼队友)` : ''}${scoreDelta > 0 ? ` +${scoreDelta}(修正)` : ''} vs 不做: ${notJoinPenalty}(关系下降)`,
         strategy: 'JoinDefendStrategy',
         rule: 'join_defend',
         trigger: `friendly=${relation.friendly.toFixed(1)} > ${RELATION_FRIENDLY_JOIN_DEFEND} 或 (self.team=werewolf 且 target.team=werewolf)`,
@@ -89,26 +98,28 @@ export const RebutStrategy: Strategy = {
     const { belief, self, allPlayers, availableActions } = context;
     const result: import('@/types').DecisionCandidate[] = [];
 
-    const rebutAction = availableActions.find((a) => a.type === 'rebut');
+    const rebutAction = availableActions.find((a) => a.type === ACTION.REBUT);
     if (!rebutAction) return result;
 
     const originalActorId = (rebutAction as RebutAction).originalActorId;
     const actor = allPlayers.find((p) => p.id === originalActorId);
     if (!actor) return result;
 
-    // Always rebut if accused, but with varying confidence
-    const _myWolfProb = belief.getWerewolfProbability(self.id);
-    const score = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER; // villagers rebut harder
-    const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'rebut', originalActorId);
+    // 计算反驳收益 vs 不反驳损失
+    const baseScore = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER;
+    const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.REBUT, originalActorId);
+    const myExposure = belief.getExposure();
+    const notRebutPenalty = myExposure > 0.5 ? -30 : -10;
+
     result.push({
-      action: 'rebut',
+      action: ACTION.REBUT,
       target: originalActorId,
-      score: score + scoreDelta,
+      score: baseScore + scoreDelta,
       confidence: 0.8,
-      reason: `反驳${actor.name}的怀疑，为自己辩护${reason}`,
+      reason: `做: +${baseScore}(基础${self.team === 'werewolf' ? '狼人' : '村民'})${scoreDelta > 0 ? ` +${scoreDelta}(修正)` : ''} vs 不做: ${notRebutPenalty}(被怀疑扣信任)`,
       strategy: 'RebutStrategy',
       rule: 'rebut',
-      trigger: `被怀疑/被攻击，team=${self.team} 基础分=${score}`,
+      trigger: `被怀疑，反驳收益(${baseScore}) > 不反驳损失(${notRebutPenalty})`,
     });
 
     return result;

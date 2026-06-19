@@ -151,10 +151,8 @@ export function useGameRunner() {
       setPlayers(sim.getPlayers());
       setPhase('running');
       sim.generateRoundSteps();
-      const tickRate = sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
-      const delay = tickRate / speedRef.current;
-      console.log(`[startGame] first delay=${delay}ms tickRate=${tickRate}`);
-      timerRef.current = setTimeout(runNextStep, delay);
+      // 立即开始，不等待
+      timerRef.current = setTimeout(runNextStep, 0);
     },
     [runNextStep]
   );

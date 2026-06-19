@@ -2,6 +2,7 @@ import type { GameSimulator } from './simulator-core';
 import { clampStress, clampRelation } from '@/types';
 import { STRESS_RECOVERY_BASE, STRESS_RECOVERY_BONUS, RELATION_NATURAL_RECOVERY } from '@/types';
 import { log, getName } from './simulator-utils';
+import { ACTION } from '@/lib/constants/action-constants';
 
 export function resolveMorningEvents(sim: GameSimulator) {
   // 1. Announce deaths
@@ -25,7 +26,7 @@ export function resolveMorningEvents(sim: GameSimulator) {
             log(sim, 'action', `${p.name}（宣称预言家）公布查验：${target.name} 是 ${result === 'werewolf' ? '狼人' : '村民'}`);
             sim.publicActions.push({
               actorId: p.id,
-              type: 'claim_identity',
+              type: ACTION.CLAIM_IDENTITY,
               targetId: target.id,
               details: { claimType: 'prophet_check', result },
               round: sim.round,

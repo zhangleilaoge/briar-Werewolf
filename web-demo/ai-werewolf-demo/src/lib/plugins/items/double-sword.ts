@@ -23,6 +23,7 @@ import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_BERSERKER_SUICIDE,
 } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 
 export class DoubleSwordPlugin implements ActionProvider {
   id = 'double_sword';
@@ -40,7 +41,7 @@ export class DoubleSwordPlugin implements ActionProvider {
     }
     
     return [{
-      type: 'berserker_kill',
+      type: ACTION.BERSERKER_KILL,
       label: '同归于尽',
       description: '使用双刃剑与一名玩家同归于尽，触发平安夜',
       requiresTarget: true,
@@ -149,10 +150,10 @@ export class DoubleSwordPlugin implements ActionProvider {
       if (isHighThreat) score += 20;
       if (isLikelyVillager) score += 10;
       
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'berserker_kill', target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BERSERKER_KILL, target.id);
       
       result.push({
-        action: 'berserker_kill',
+        action: ACTION.BERSERKER_KILL,
         target: target.id,
         score: score + scoreDelta,
         confidence: 0.6,

@@ -19,6 +19,7 @@ import type { Player } from '@/types';
 import { hasItem } from '@/types';
 import { createGameLog, getPlayerName } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
+import { ACTION } from '@/lib/constants/action-constants';
 import {
   SCORE_WEREWOLF_KILL_BASE,
   SCORE_WEREWOLF_KILL_GOD_BONUS,
@@ -39,7 +40,7 @@ export class ClawsPlugin implements ActionProvider {
     }
     
     return [{
-      type: 'kill',
+      type: ACTION.KILL,
       label: '杀戮',
       description: '使用尖牙利爪袭击一名玩家',
       requiresTarget: true,
@@ -60,7 +61,7 @@ export class ClawsPlugin implements ActionProvider {
       context,
       'action',
       `${actor.name} 选择袭击 ${targetName}`,
-      { actorId: actor.id, action: 'kill', targetId: target?.id }
+      { actorId: actor.id, action: ACTION.KILL, targetId: target?.id }
     ));
     
     return { success: true, logs, stateChanges, events };
@@ -79,18 +80,18 @@ export class ClawsPlugin implements ActionProvider {
     
     // Check if other werewolves have already chosen a target
     const otherWolfDecisions = (nightDecisions || []).filter(
-      (d) => d.action === 'kill' && d.playerId !== self.id && allPlayers.find((p) => p.id === d.playerId)?.team === 'werewolf'
+      (d) => d.action === ACTION.KILL && d.playerId !== self.id && allPlayers.find((p) => p.id === d.playerId)?.team === 'werewolf'
     );
     
     if (otherWolfDecisions.length > 0) {
       const teammateTarget = otherWolfDecisions[0].targetId;
       if (teammateTarget) {
         const teammate = allPlayers.find((p) => p.id === otherWolfDecisions[0].playerId);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'kill', teammateTarget);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, teammateTarget);
         result.push({
-          action: 'kill',
+          action: ACTION.KILL,
           target: teammateTarget,
-          score: 80 + scoreDelta, // SCORE_SPEAK_BREAK_SILENCE
+          score: 80 + scoreDelta,
           confidence: 0.8,
           reason: `跟随队友${teammate?.name || ''}的目标，统一行动${reason}`,
           strategy: 'ClawsPlugin',
@@ -111,10 +112,10 @@ export class ClawsPlugin implements ActionProvider {
       if (belief.getWerewolfProbability(target.id) < WEREWOLF_PROBABILITY_LOW) score += SCORE_WEREWOLF_KILL_GOD_BONUS / 3;
       
       const relation = self.relations[target.id];
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'kill', target.id, relation);
-      
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, target.id, relation);
+
       result.push({
-        action: 'kill',
+        action: ACTION.KILL,
         target: target.id,
         score: score + scoreDelta,
         confidence: isLikelyGod ? 0.7 : 0.5,
@@ -135,9 +136,9 @@ export class ClawsPlugin implements ActionProvider {
     
     // Empty-kill option
     if (aliveTargets.length > 0 && Math.random() < EMPTY_KILL_CHANCE) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'kill', null);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, null);
       result.push({
-        action: 'kill',
+        action: ACTION.KILL,
         target: null,
         score: SCORE_EMPTY_KILL + scoreDelta,
         confidence: 0.3,

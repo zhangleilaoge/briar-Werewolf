@@ -17,6 +17,7 @@ import type {
 import type { Player } from '@/types';
 import { hasItem, addItem, ITEM_DEFINITIONS } from '@/types';
 import { createGameLog, SingleUseItemPlugin } from '../base';
+import { ACTION } from '@/lib/constants/action-constants';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_THIEF_STEAL_BASE,
@@ -26,7 +27,7 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
   id = 'thief_gloves';
   type = 'item' as const;
   protected itemId = 'thief_gloves';
-  protected actionType = 'steal';
+  protected actionType = ACTION.STEAL;
   
   getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
     // Anyone with gloves can steal, but only once per game
@@ -40,7 +41,7 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
     }
     
     return [{
-      type: 'steal',
+      type: ACTION.STEAL,
       label: '偷窃',
       description: '使用小偷手套偷取一名玩家的道具',
       requiresTarget: true,
@@ -138,10 +139,10 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
     const aliveTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.items.length > 0);
     
     aliveTargets.forEach((target) => {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'steal', target.id);
-      
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.STEAL, target.id);
+
       result.push({
-        action: 'steal',
+        action: ACTION.STEAL,
         target: target.id,
         score: SCORE_THIEF_STEAL_BASE + target.items.length * (SCORE_THIEF_STEAL_BASE / 4) + scoreDelta,
         confidence: 0.5,

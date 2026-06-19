@@ -19,6 +19,7 @@ import type { Player } from '@/types';
 import { hasItem } from '@/types';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
+import { ACTION } from '@/lib/constants/action-constants';
 import {
   SCORE_PROPHET_CHECK_BASE,
   SCORE_MAX_INFO_VOTE,
@@ -35,7 +36,7 @@ export class CrystalBallPlugin implements ActionProvider {
     }
     
     return [{
-      type: 'check',
+      type: ACTION.CHECK,
       label: '查验',
       description: '使用水晶球查验一名玩家的身份',
       requiresTarget: true,
@@ -66,7 +67,7 @@ export class CrystalBallPlugin implements ActionProvider {
       context,
       'action',
       `${actor.name} 查验 ${target.name} → ${isWerewolf ? '狼人' : '村民'}`,
-      { actorId: actor.id, action: 'check', targetId: target.id }
+      { actorId: actor.id, action: ACTION.CHECK, targetId: target.id }
     ));
     
     // Crystal ball breaks if checking a werewolf
@@ -106,10 +107,10 @@ export class CrystalBallPlugin implements ActionProvider {
       if (belief.l0Facts.checks[target.id] !== undefined) return;
       
       const wolfProb = belief.getWerewolfProbability(target.id);
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'check', target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, target.id);
       
       result.push({
-        action: 'check',
+        action: ACTION.CHECK,
         target: target.id,
         score: wolfProb * SCORE_MAX_INFO_VOTE + SCORE_PROPHET_CHECK_BASE + scoreDelta,
         confidence: 0.7,
@@ -125,10 +126,10 @@ export class CrystalBallPlugin implements ActionProvider {
       const unchecked = alivePlayers.filter((p) => belief.l0Facts.checks[p.id] === undefined);
       if (unchecked.length > 0) {
         const random = unchecked[Math.floor(Math.random() * unchecked.length)];
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'check', random.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, random.id);
         
         result.push({
-          action: 'check',
+          action: ACTION.CHECK,
           target: random.id,
           score: SCORE_PROPHET_CHECK_BASE - 20 + scoreDelta,
           confidence: 0.5,

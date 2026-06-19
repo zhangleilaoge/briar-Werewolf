@@ -1,6 +1,7 @@
-import { VillagerDayStrategy, WerewolfCamouflageStrategy, ProphetClaimStrategy, BerserkerSuicideStrategy } from './day';
+import { VillagerDayStrategy, WerewolfCamouflageStrategy, BerserkerSuicideStrategy } from './day';
 import { CheckRevelationVoteStrategy, AllyProtectionVoteStrategy, MaxInfoVoteStrategy, FollowCallVoteStrategy, SocialTieBreakerStrategy, SurvivalVoteStrategy } from './vote';
 import { JoinSuspectStrategy, JoinDefendStrategy, RebutStrategy } from './appendix';
+import { WerewolfFakeIdentityStrategy, RealProphetClaimStrategy, RealHunterClaimStrategy } from './claim-identity';
 import type { Strategy } from './engine';
 
 export interface StrategyEntry {
@@ -16,9 +17,13 @@ export function buildStrategies(): StrategyEntry[] {
     // - ThiefGlovesPlugin (steal)
     // - CoronerToolsPlugin (inspect)
 
-    // Day
-    { category: 'duty', strategy: ProphetClaimStrategy },
+    // Day - 身份公布策略（伪装身份系统）
+    { category: 'information', strategy: WerewolfFakeIdentityStrategy },   // 狼人伪装身份（不享受 duty 权重）
+    { category: 'duty', strategy: RealProphetClaimStrategy },        // 真预言家跳身份
+    { category: 'duty', strategy: RealHunterClaimStrategy },         // 真猎人跳身份
     { category: 'duty', strategy: BerserkerSuicideStrategy },
+
+    // Day - 行动策略
     { category: 'information', strategy: VillagerDayStrategy },
     { category: 'information', strategy: WerewolfCamouflageStrategy },
 

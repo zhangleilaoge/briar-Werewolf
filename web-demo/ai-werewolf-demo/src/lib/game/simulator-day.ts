@@ -98,11 +98,8 @@ export function resolveDayAction(
 
   switch (action) {
     case ACTION.SILENCE:
+      logAction(sim, 'action', `${actor.name} 选择沉默`, decisionReason, [], { actorId: actor.id, action: ACTION.SILENCE , process });
       break;
-    case ACTION.SPEAK: {
-      logAction(sim, 'action', `${actor.name} 发言：${details.message || '没什么头绪，先看看大家怎么说。'}`, decisionReason, [], { actorId: actor.id, action: ACTION.SPEAK , process });
-      break;
-    }
     case ACTION.CLAIM_IDENTITY: {
       const claimedRole = details.claimedRole as string || '村民';
       logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRole}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole , process });
@@ -150,21 +147,25 @@ export function resolveDayAction(
       const targetInsightBreakdown = calculateModifierBreakdown(target?.attributes.insight || DEFAULT_ATTRIBUTE_FALLBACK, target?.alignment || DEFAULT_ALIGNMENT_FALLBACK, target?.stress || DEFAULT_STRESS_FALLBACK, 'other');
       const actorStealthBreakdown = calculateModifierBreakdown(actor.attributes.stealth, actor.alignment, actor.stress, 'stealth');
       const discoveredResult = performOpposedCheck(targetInsightBreakdown.total, actorStealthBreakdown.total);
-      checks.push(buildCheckLog(
+      const discoveredCheck = buildCheckLog(
         target || actor, 'insight', targetInsightBreakdown,
         { roll: discoveredResult.actorRoll, total: discoveredResult.actorTotal, margin: discoveredResult.margin, success: discoveredResult.success },
         undefined, actor, 'stealth', actorStealthBreakdown,
         { roll: discoveredResult.targetRoll, total: discoveredResult.targetTotal }
-      ));
+      );
 
-      // 始终先输出 a观察了b
+      // 始终先输出 a观察了b（仅第一次检定）
       logAction(sim, 'action', `${actor.name} 观察了 ${targetName}`, decisionReason, checks, { actorId: actor.id, action: ACTION.OBSERVE, targetId, process });
 
-      if (discoveredResult.success && target) {
-        // 目标b察觉到了
-        logAction(sim, 'action', `${targetName} 察觉到 ${actor.name} 在观察自己`, '', [], { actorId: target.id, action: 'observe_detected', targetId: actor.id, process });
-        target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
-        updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
+      if (target) {
+        if (discoveredResult.success) {
+          // 目标察觉到了（不传 process，避免重复展示决策过程）
+          logAction(sim, 'action', `${targetName} 察觉到 ${actor.name} 在观察自己`, '', [discoveredCheck], { actorId: target.id, action: 'observe_detected', targetId: actor.id });
+          target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
+          updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
+        } else {
+          logAction(sim, 'action', `${targetName} 未察觉到 ${actor.name} 在观察自己`, '', [discoveredCheck], { actorId: target.id, action: 'observe_missed', targetId: actor.id });
+        }
       }
       // 是否被其他旁观者发现
       sim.players.forEach((observer) => {
@@ -172,16 +173,18 @@ export function resolveDayAction(
         const observerInsightBreakdown = calculateModifierBreakdown(observer.attributes.insight, observer.alignment, observer.stress, 'other');
         const actorStealthBreakdown2 = calculateModifierBreakdown(actor.attributes.stealth, actor.alignment, actor.stress, 'stealth');
         const discoveredByOther = performOpposedCheck(observerInsightBreakdown.total, actorStealthBreakdown2.total);
+        const otherChecks: CheckLog[] = [
+          buildCheckLog(
+            observer, 'insight', observerInsightBreakdown,
+            { roll: discoveredByOther.actorRoll, total: discoveredByOther.actorTotal, margin: discoveredByOther.margin, success: discoveredByOther.success },
+            undefined, actor, 'stealth', actorStealthBreakdown2,
+            { roll: discoveredByOther.targetRoll, total: discoveredByOther.targetTotal }
+          )
+        ];
         if (discoveredByOther.success) {
-          const otherChecks: CheckLog[] = [
-            buildCheckLog(
-              observer, 'insight', observerInsightBreakdown,
-              { roll: discoveredByOther.actorRoll, total: discoveredByOther.actorTotal, margin: discoveredByOther.margin, success: discoveredByOther.success },
-              undefined, actor, 'stealth', actorStealthBreakdown2,
-              { roll: discoveredByOther.targetRoll, total: discoveredByOther.targetTotal }
-            )
-          ];
-          logAction(sim, 'action', `${observer.name} 察觉到 ${actor.name} 在观察 ${targetName}。`, '', otherChecks, { actorId: observer.id, action: 'observe_detected', targetId: actor.id , process });
+          logAction(sim, 'action', `${observer.name} 察觉到 ${actor.name} 在观察 ${targetName}。`, '', otherChecks, { actorId: observer.id, action: 'observe_detected', targetId: actor.id });
+        } else {
+          logAction(sim, 'action', `${observer.name} 未察觉到 ${actor.name} 在观察 ${targetName}。`, '', otherChecks, { actorId: observer.id, action: 'observe_missed', targetId: actor.id });
         }
       });
       const agent = sim._aiAgents[actor.id];
@@ -352,7 +355,7 @@ export function openAppendixWindow(sim: GameSimulator, triggerAction: PublicActi
   });
 }
 
-export function runAppendixAction(sim: GameSimulator, playerId: string, triggerAction: PublicActionRecord, process?: DecisionProcess) {
+export function runAppendixAction(sim: GameSimulator, playerId: string, triggerAction: PublicActionRecord, _process?: DecisionProcess) {
   const player = sim.players.find((p) => p.id === playerId);
   if (!player?.alive) return;
 
@@ -374,7 +377,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
     actorId: player.id,
     type: decision.action as ActionType,
     targetId: decision.target ?? undefined,
-    details: { ...decision.details, process: decision.process },
+    details: { ...decision.details },
     round: sim.round,
   };
   sim.publicActions.push(actionRecord);
@@ -392,7 +395,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
       const joinSuspectCheckResult = performCheck(joinSuspectMod.total, CHECK_DIFFICULTY_JOIN_SUSPECT);
       const successLevel = joinSuspectCheckResult.success ? (joinSuspectCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const joinSuspectCheck = buildCheckLog(player, joinSuspectAttr, joinSuspectMod, joinSuspectCheckResult, CHECK_DIFFICULTY_JOIN_SUSPECT);
-      logAction(sim, 'action', `${player.name} 一同怀疑 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinSuspectCheck], { actorId: player.id, action: ACTION.JOIN_SUSPECT, targetId: originalTarget?.id , process });
+      logAction(sim, 'action', `${player.name} 一同怀疑 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinSuspectCheck], { actorId: player.id, action: ACTION.JOIN_SUSPECT, targetId: originalTarget?.id });
       if (originalTarget) {
         originalTarget.stress = clampStress(originalTarget.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, originalTarget, player, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
@@ -405,7 +408,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
       const joinDefendCheckResult = performCheck(joinDefendMod.total, CHECK_DIFFICULTY_JOIN_DEFEND);
       const successLevel = joinDefendCheckResult.success ? (joinDefendCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const joinDefendCheck = buildCheckLog(player, 'affinity', joinDefendMod, joinDefendCheckResult, CHECK_DIFFICULTY_JOIN_DEFEND);
-      logAction(sim, 'action', `${player.name} 一同袒护 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinDefendCheck], { actorId: player.id, action: ACTION.JOIN_DEFEND, targetId: originalTarget?.id , process });
+      logAction(sim, 'action', `${player.name} 一同袒护 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinDefendCheck], { actorId: player.id, action: ACTION.JOIN_DEFEND, targetId: originalTarget?.id });
       if (originalTarget) {
         originalTarget.stress = clampStress(originalTarget.stress - STRESS_CHANGE_MINOR_POS);
         updateRelation(sim, originalTarget, player, { trustDelta: 0, friendlyDelta: REL_CHANGE_MODERATE_POS });
@@ -413,7 +416,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
       break;
     }
     case ACTION.REBUT: {
-      logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」`, decision.reason || '', [], { actorId: player.id, action: ACTION.REBUT , process });
+      const rebutReason = decision.reason || '被怀疑，必须为自己辩护';
       if (triggerActor) {
         // 反驳检定：反驳者逻辑 + 阵营/压力修正 vs 怀疑者洞察 + 阵营/压力修正
         const rebutLogicBreakdown = calculateModifierBreakdown(player.attributes.logic, player.alignment, player.stress, 'other');
@@ -425,8 +428,9 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
           undefined, triggerActor, 'insight', suspectInsightBreakdown,
           { roll: rebutResult.targetRoll, total: rebutResult.targetTotal }
         );
+        const successText = rebutResult.success ? `（成功，优势 ${rebutResult.margin}）` : '（失败）';
+        logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」${successText}`, rebutReason, [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
         if (rebutResult.success) {
-          logAction(sim, 'check', `${player.name} 的反驳成功！(优势 ${rebutResult.margin})`, decision.reason || '', [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
           player.stress = clampStress(player.stress - STRESS_CHANGE_MINOR_POS);
           // 旁观者信任反驳者
           sim.players.forEach((p) => {
@@ -437,7 +441,6 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
             }
           });
         } else {
-          logAction(sim, 'check', `${player.name} 的反驳失败...`, decision.reason || '', [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
           player.stress = clampStress(player.stress + STRESS_CHANGE_MINOR_POS);
           // 反驳失败：旁观者更信任怀疑者
           sim.players.forEach((p) => {

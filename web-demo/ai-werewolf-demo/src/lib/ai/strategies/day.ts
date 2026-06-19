@@ -3,12 +3,13 @@ import {EXPOSURE_HIGH_THRESHOLD,
   SCORE_PROPHET_CLAIM, SCORE_PROPHET_CALL_VOTE, SCORE_DEFEND_ATTACKED, SCORE_DEFEND_ATTACKED_BONUS,
   SCORE_SELF_GUARANTEE, SCORE_HIGH_SUSPECT_ACCUSE, SCORE_HIGH_SUSPECT_SUSPECT, SCORE_HIGH_SUSPECT_CALL_VOTE,
   SCORE_BEHAVIOR_OBSERVE, SCORE_FOLLOW_TRUSTED, SCORE_BREAK_SILENCE,
-  SCORE_DEFAULT_ROUND1_OBSERVE, SCORE_DEFAULT_ROUND1_SPEAK, SCORE_DEFAULT_OTHER_OBSERVE, SCORE_DEFAULT_OTHER_SPEAK,
+  SCORE_DEFAULT_ROUND1_OBSERVE, SCORE_DEFAULT_OTHER_OBSERVE,
   SCORE_WW_DEFEND_ATTACKED_ACCUSE, SCORE_WW_DEFEND_ATTACKED_SUSPECT,
   SCORE_WW_CAMOUFLAGE_BASE, SCORE_WW_CAMOUFLAGE_BONUS,
   SCORE_WW_TEAMMATE_EXPOSED_GOUGE, SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
   SCORE_WW_BREAK_SILENCE, SCORE_WW_DEFAULT_ROUND1_TARGET, SCORE_WW_DEFAULT_ROUND1, SCORE_WW_DEFAULT_OTHER,
 } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 import type { BeliefSystem } from '../belief-system';
 import type { Strategy, } from './engine';
 import type { Player } from '@/types';
@@ -28,7 +29,7 @@ function generateBreakSilenceCandidate(
     consecutiveSilence >= aliveCount - SILENCE_NEAR_FULL_THRESHOLD
   ) {
     return {
-      action: 'speak',
+      action: ACTION.SILENCE,
       target: null,
       score,
       confidence: 0.7,
@@ -51,15 +52,11 @@ function generateDefaultCandidates(
   strategyName: string,
   scores: {
     round1Observe: number;
-    round1Speak: number;
     otherObserve: number;
-    otherSpeak: number;
   },
   reasons: {
     round1Observe: string;
-    round1Speak: string;
     otherObserve: string;
-    otherSpeak: string;
   },
 ): import('@/types').DecisionCandidate[] {
   const result: import('@/types').DecisionCandidate[] = [];
@@ -71,15 +68,15 @@ function generateDefaultCandidates(
   const isRound1 =
     (publicActions?.filter(
       (a) =>
-        a.type === 'speak' ||
-        a.type === 'suspect' ||
-        a.type === 'accuse' ||
-        a.type === 'defend',
+        a.type === ACTION.SILENCE ||
+        a.type === ACTION.SUSPECT ||
+        a.type === ACTION.ACCUSE ||
+        a.type === ACTION.DEFEND,
     ).length ?? 0) < 3;
 
   if (randomTarget) {
     result.push({
-      action: 'observe',
+      action: ACTION.OBSERVE,
       target: randomTarget.id,
       score: isRound1 ? scores.round1Observe : scores.otherObserve,
       stageWeight: 0,
@@ -96,20 +93,6 @@ function generateDefaultCandidates(
     });
   }
 
-  result.push({
-    action: 'speak',
-    target: null,
-    score: isRound1 ? scores.round1Speak : scores.otherSpeak,
-    stageWeight: 0,
-    confidence: 0.3,
-    reason: isRound1 ? reasons.round1Speak : reasons.otherSpeak,
-    strategy: strategyName,
-    rule: isRound1 ? 'default_round1_speak' : 'default_other_speak',
-    trigger: isRound1
-      ? '无更高优先级规则命中，且为第一轮'
-      : '无更高优先级规则命中',
-  });
-
   return result;
 }
 
@@ -124,13 +107,13 @@ function getSuspicionReason(
   const target = allPlayers.find(p => p.id === targetId);
 
   // 1. 被多人攻击
-  const attacks = publicActions.filter(a => a.targetId === targetId && (a.type === 'suspect' || a.type === 'accuse' || a.type === 'join_suspect'));
+  const attacks = publicActions.filter(a => a.targetId === targetId && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE || a.type === ACTION.JOIN_SUSPECT));
   if (attacks.length >= 2) {
     reasons.push(`已经被${attacks.length}人攻击`);
   }
 
   // 2. 攻击过明显好人（泼脏水）
-  const theirAttacks = publicActions.filter(a => a.actorId === targetId && (a.type === 'suspect' || a.type === 'accuse'));
+  const theirAttacks = publicActions.filter(a => a.actorId === targetId && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
   const attacksOnGood = theirAttacks.filter(a => {
     if (!a.targetId) return false;
     const targetProb = belief.getWerewolfProbability(a.targetId);
@@ -142,17 +125,17 @@ function getSuspicionReason(
   }
 
   // 3. 连续沉默
-  const silenceCount = publicActions.filter(a => a.actorId === targetId && a.type === 'silence').length;
+  const silenceCount = publicActions.filter(a => a.actorId === targetId && a.type === ACTION.SILENCE).length;
   if (silenceCount >= 2) {
     reasons.push(`连续${silenceCount}次沉默，似乎在隐藏`);
   }
 
   // 4. 阻止投票保护被多人怀疑的人
-  const blocks = publicActions.filter(a => a.actorId === targetId && a.type === 'block_vote');
+  const blocks = publicActions.filter(a => a.actorId === targetId && a.type === ACTION.BLOCK_VOTE);
   if (blocks.length > 0) {
     const blockedTarget = blocks[0].targetId;
     if (blockedTarget) {
-      const blockedSuspicion = publicActions.filter(a => a.targetId === blockedTarget && (a.type === 'suspect' || a.type === 'accuse')).length;
+      const blockedSuspicion = publicActions.filter(a => a.targetId === blockedTarget && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE)).length;
       if (blockedSuspicion >= 2) {
         const blockedPlayer = allPlayers.find(p => p.id === blockedTarget);
         reasons.push(`阻止投票保护被怀疑的${blockedPlayer?.name || ''}，像在保狼`);
@@ -161,7 +144,7 @@ function getSuspicionReason(
   }
 
   // 5. 无依据号召投票
-  const calls = publicActions.filter(a => a.actorId === targetId && a.type === 'call_vote');
+  const calls = publicActions.filter(a => a.actorId === targetId && a.type === ACTION.CALL_VOTE);
   if (calls.length > 0) {
     const callTarget = calls[0].targetId;
     if (callTarget) {
@@ -181,7 +164,7 @@ function getSuspicionReason(
   // 7. 信任度低
   const trust = belief.l1Inferences.trustScore[targetId] ?? 0;
   if (trust < -3) {
-    reasons.push(`之前的发言可信度低`);
+    reasons.push(`之前的表达可信度低`);
   }
 
   return reasons.length > 0 ? reasons.join('；') : '行为有些可疑';
@@ -197,7 +180,7 @@ function getWerewolfAttackReason(
   const reasons: string[] = [];
   const attacker = allPlayers.find(p => p.id === attackerId);
 
-  const attacks = publicActions.filter(a => a.actorId === attackerId && (a.type === 'suspect' || a.type === 'accuse'));
+  const attacks = publicActions.filter(a => a.actorId === attackerId && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
   const goodAttacks = attacks.filter(a => {
     if (!a.targetId) return false;
     return belief.getWerewolfProbability(a.targetId) < 0.4;
@@ -208,16 +191,16 @@ function getWerewolfAttackReason(
     reasons.push(`攻击了明显好人${victim?.name || ''}`);
   }
 
-  const silenceCount = publicActions.filter(a => a.actorId === attackerId && a.type === 'silence').length;
+  const silenceCount = publicActions.filter(a => a.actorId === attackerId && a.type === ACTION.SILENCE).length;
   if (silenceCount >= 2) {
     reasons.push(`连续沉默${silenceCount}次`);
   }
 
-  const blocks = publicActions.filter(a => a.actorId === attackerId && a.type === 'block_vote');
+  const blocks = publicActions.filter(a => a.actorId === attackerId && a.type === ACTION.BLOCK_VOTE);
   if (blocks.length > 0) {
     const blockedTarget = blocks[0].targetId;
     if (blockedTarget) {
-      const suspicion = publicActions.filter(a => a.targetId === blockedTarget && (a.type === 'suspect' || a.type === 'accuse')).length;
+      const suspicion = publicActions.filter(a => a.targetId === blockedTarget && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE)).length;
       if (suspicion >= 2) {
         const blocked = allPlayers.find(p => p.id === blockedTarget);
         reasons.push(`保护被怀疑的${blocked?.name || ''}`);
@@ -246,9 +229,9 @@ export const VillagerDayStrategy: Strategy = {
     if (self.team === 'werewolf') return result;
 
     // 局势分析
-    const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === 'suspect' || a.type === 'accuse'));
+    const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
     const myAttackers = [...new Set(attacksOnMe.map(a => a.actorId))].map(id => allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
-    const trustedCallers = actions.filter(a => a.type === 'call_vote' && a.actorId !== self.id && (belief.l1Inferences.trustScore[a.actorId] ?? 0) > 3);
+    const trustedCallers = actions.filter(a => a.type === ACTION.CALL_VOTE && a.actorId !== self.id && (belief.l1Inferences.trustScore[a.actorId] ?? 0) > 3);
     const suspectRanking = belief.getSuspectRanking(allPlayers);
     const topSuspect = suspectRanking[0];
 
@@ -260,7 +243,7 @@ export const VillagerDayStrategy: Strategy = {
           const target = allPlayers.find(p => p.id === targetId);
           if (target?.alive) {
             result.push({
-              action: 'claim_identity',
+              action: ACTION.CLAIM_IDENTITY,
               target: targetId,
               score: SCORE_PROPHET_CLAIM,
               confidence: 1.0,
@@ -271,7 +254,7 @@ export const VillagerDayStrategy: Strategy = {
               trigger: 'role=prophet 且 l0Facts.checks 中存在 werewolf 结果',
             });
             result.push({
-              action: 'call_vote',
+              action: ACTION.CALL_VOTE,
               target: targetId,
               score: SCORE_PROPHET_CALL_VOTE,
               confidence: 1.0,
@@ -292,7 +275,7 @@ export const VillagerDayStrategy: Strategy = {
       const attackerWolfProb = belief.getWerewolfProbability(attacker.id);
 
       result.push({
-        action: 'accuse',
+        action: ACTION.ACCUSE,
         target: attacker.id,
         score: SCORE_DEFEND_ATTACKED + (attackerWolfProb > 0.5 ? SCORE_DEFEND_ATTACKED_BONUS : 0),
         confidence: 0.7,
@@ -302,7 +285,7 @@ export const VillagerDayStrategy: Strategy = {
         trigger: `被攻击次数=${attacksOnMe.length} > 0`,
       });
       result.push({
-        action: 'guarantee',
+        action: ACTION.GUARANTEE,
         target: self.id,
         score: SCORE_SELF_GUARANTEE,
         confidence: 0.5,
@@ -321,7 +304,7 @@ export const VillagerDayStrategy: Strategy = {
 
         if (topSuspect.werewolfProb > 0.7) {
           result.push({
-            action: 'accuse',
+            action: ACTION.ACCUSE,
             target: topSuspect.id,
             score: SCORE_HIGH_SUSPECT_ACCUSE,
             confidence: topSuspect.werewolfProb,
@@ -332,7 +315,7 @@ export const VillagerDayStrategy: Strategy = {
           });
         } else {
           result.push({
-            action: 'suspect',
+            action: ACTION.SUSPECT,
             target: topSuspect.id,
             score: SCORE_HIGH_SUSPECT_SUSPECT,
             confidence: topSuspect.werewolfProb,
@@ -345,7 +328,7 @@ export const VillagerDayStrategy: Strategy = {
 
         if (topSuspect.werewolfProb > 0.6) {
           result.push({
-            action: 'call_vote',
+            action: ACTION.CALL_VOTE,
             target: topSuspect.id,
             score: SCORE_HIGH_SUSPECT_CALL_VOTE,
             confidence: topSuspect.werewolfProb,
@@ -361,17 +344,17 @@ export const VillagerDayStrategy: Strategy = {
     // 4. 观察异常行为（压力高/沉默多）
     const suspiciousByBehavior = allPlayers.filter(p => p.id !== self.id && p.alive && (
       (p.stress > 5) ||
-      (actions.filter(a => a.actorId === p.id && a.type === 'silence').length >= 2)
+      (actions.filter(a => a.actorId === p.id && a.type === ACTION.SILENCE).length >= 2)
     ));
     if (suspiciousByBehavior.length > 0) {
       const observeTarget = suspiciousByBehavior[0];
       const behaviorReasons: string[] = [];
       if (observeTarget.stress > 5) behaviorReasons.push(`压力很大（${observeTarget.stress}）`);
-      const targetSilence = actions.filter(a => a.actorId === observeTarget.id && a.type === 'silence').length;
+      const targetSilence = actions.filter(a => a.actorId === observeTarget.id && a.type === ACTION.SILENCE).length;
       if (targetSilence >= 2) behaviorReasons.push(`连续${targetSilence}次沉默`);
 
       result.push({
-        action: 'observe',
+        action: ACTION.OBSERVE,
         target: observeTarget.id,
         score: SCORE_BEHAVIOR_OBSERVE,
         confidence: 0.5,
@@ -389,7 +372,7 @@ export const VillagerDayStrategy: Strategy = {
         if (target?.alive) {
           const callerName = allPlayers.find(p => p.id === caller.actorId)?.name || '有人';
           result.push({
-            action: 'call_vote',
+            action: ACTION.CALL_VOTE,
             target: caller.targetId,
             score: SCORE_FOLLOW_TRUSTED,
             confidence: 0.6,
@@ -413,12 +396,12 @@ export const VillagerDayStrategy: Strategy = {
     if (breakSilence) result.push(breakSilence);
 
     // NEW: Behavioral suspicion fallback - suspect high-stress players
-    if (result.length === 0 || (result.length === 1 && result[0].action === 'observe')) {
+    if (result.length === 0 || (result.length === 1 && result[0].action === ACTION.OBSERVE)) {
       const stressedPlayers = allPlayers.filter(p => p.id !== self.id && p.alive && p.stress > 2);
       if (stressedPlayers.length > 0) {
         const target = stressedPlayers[0];
         result.push({
-          action: 'suspect',
+          action: ACTION.SUSPECT,
           target: target.id,
           score: 65,
           confidence: 0.4,
@@ -440,15 +423,11 @@ export const VillagerDayStrategy: Strategy = {
           'VillagerDayStrategy',
           {
             round1Observe: SCORE_DEFAULT_ROUND1_OBSERVE,
-            round1Speak: SCORE_DEFAULT_ROUND1_SPEAK,
             otherObserve: SCORE_DEFAULT_OTHER_OBSERVE,
-            otherSpeak: SCORE_DEFAULT_OTHER_SPEAK,
           },
           {
             round1Observe: '第一天信息不足，我打算观察{name}获取更多情报。',
-            round1Speak: '第一天信息不足，我先听听大家的发言。',
             otherObserve: '目前没什么明确线索，我打算观察{name}获取更多情报。',
-            otherSpeak: '目前没什么明确线索，先看看大家的发言。',
           },
         ),
       );
@@ -475,12 +454,12 @@ export const WerewolfCamouflageStrategy: Strategy = {
     const potentialTargets = allPlayers.filter(p => p.id !== self.id && p.alive && p.team !== self.team);
 
     // 1. 被攻击 -> 反咬/反驳（所有角色通用）
-    const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === 'suspect' || a.type === 'accuse'));
+    const attacksOnMe = actions.filter(a => a.targetId === self.id && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
     if (attacksOnMe.length > 0) {
       const attacker = allPlayers.find(p => p.id === attacksOnMe[0].actorId);
       if (attacker) {
         result.push({
-          action: 'accuse',
+          action: ACTION.ACCUSE,
           target: attacker.id,
           score: SCORE_WW_DEFEND_ATTACKED_ACCUSE,
           confidence: 0.8,
@@ -490,7 +469,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           trigger: `被攻击次数=${attacksOnMe.length} > 0`,
         });
         result.push({
-          action: 'suspect',
+          action: ACTION.SUSPECT,
           target: attacker.id,
           score: SCORE_WW_DEFEND_ATTACKED_SUSPECT,
           confidence: 0.7,
@@ -505,8 +484,8 @@ export const WerewolfCamouflageStrategy: Strategy = {
     // 2. 怀疑策略：狼人伪装怀疑"像好人"的目标，村民真正怀疑"像狼人"的目标
     potentialTargets.forEach(target => {
       const wolfProb = belief.getWerewolfProbability(target.id);
-      const targetSuspicion = actions.filter(a => a.targetId === target.id && (a.type === 'suspect' || a.type === 'accuse')).length;
-      const targetSilence = actions.filter(a => a.actorId === target.id && a.type === 'silence').length;
+      const targetSuspicion = actions.filter(a => a.targetId === target.id && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE)).length;
+      const targetSilence = actions.filter(a => a.actorId === target.id && a.type === ACTION.SILENCE).length;
 
       if (self.team === 'werewolf') {
         // 狼人伪装：怀疑 wolfProb < 0.5 的目标（看起来像好人）
@@ -516,7 +495,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
             : `连续${targetSilence}次沉默，行为很可疑`;
 
           result.push({
-            action: 'suspect',
+            action: ACTION.SUSPECT,
             target: target.id,
             score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
             confidence: 0.6,
@@ -534,7 +513,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
             : `连续${targetSilence}次沉默，不像好人`;
 
           result.push({
-            action: 'suspect',
+            action: ACTION.SUSPECT,
             target: target.id,
             score: SCORE_WW_CAMOUFLAGE_BASE + targetSuspicion * SCORE_WW_CAMOUFLAGE_BONUS,
             confidence: 0.6,
@@ -555,7 +534,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
         if (exposure > 0.8 && belief.getExposure() < 0.5) {
           // 倒钩：反咬队友
           result.push({
-            action: 'suspect',
+            action: ACTION.SUSPECT,
             target: teammate.id,
             score: SCORE_WW_TEAMMATE_EXPOSED_GOUGE,
             confidence: 0.7,
@@ -566,7 +545,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           });
         }
         result.push({
-          action: 'defend',
+          action: ACTION.DEFEND,
           target: teammate.id,
           score: SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
           confidence: 0.5,
@@ -590,12 +569,12 @@ export const WerewolfCamouflageStrategy: Strategy = {
 
     // 5. 默认
     if (result.length === 0) {
-      const isRound1 = (publicActions?.filter(a => a.type === 'speak' || a.type === 'suspect' || a.type === 'accuse' || a.type === 'defend').length ?? 0) < 3;
+      const isRound1 = (publicActions?.filter(a => a.type === ACTION.SILENCE || a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE || a.type === ACTION.DEFEND).length ?? 0) < 3;
       if (isRound1) {
         const random = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
         if (random) {
           result.push({
-            action: 'observe',
+            action: ACTION.OBSERVE,
             target: random.id,
             score: SCORE_WW_DEFAULT_ROUND1_TARGET,
             stageWeight: 0,
@@ -608,26 +587,26 @@ export const WerewolfCamouflageStrategy: Strategy = {
           });
         }
         result.push({
-          action: 'speak',
+          action: ACTION.SILENCE,
           target: null,
           score: SCORE_WW_DEFAULT_ROUND1,
           stageWeight: 0,
           confidence: 0.5,
           reason: `第一天信息不多，我先看看局势。`,
           strategy: 'WerewolfCamouflageStrategy',
-          rule: 'default_round1_speak',
+          rule: 'default_round1_silence',
           trigger: '无更高优先级规则命中，且为第一轮',
         });
       } else {
         result.push({
-          action: 'speak',
+          action: ACTION.SILENCE,
           target: null,
           score: SCORE_WW_DEFAULT_OTHER,
           stageWeight: 0,
           confidence: 0.5,
           reason: `我也没什么头绪，先看看大家怎么说。`,
           strategy: 'WerewolfCamouflageStrategy',
-          rule: 'default_other_speak',
+          rule: 'default_other_silence',
           trigger: '无更高优先级规则命中',
         });
       }
@@ -651,7 +630,7 @@ export const ProphetClaimStrategy: Strategy = {
         const target = allPlayers.find((p) => p.id === targetId);
         if (target?.alive) {
           result.push({
-            action: 'claim_identity',
+            action: ACTION.CLAIM_IDENTITY,
             target: targetId,
             score: SCORE_MAX_INFO_VOTE,
             confidence: 1.0,
@@ -690,7 +669,7 @@ export const BerserkerSuicideStrategy: Strategy = {
         const claims = belief.l0Facts.publicClaims.filter((c) => c.playerId === target.id);
         if (claims.length > 0) {
           result.push({
-            action: 'berserker_kill',
+            action: ACTION.BERSERKER_KILL,
             target: target.id,
             score: SCORE_BERSERKER_SUICIDE,
             confidence: 0.8,

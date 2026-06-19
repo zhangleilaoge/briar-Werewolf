@@ -373,7 +373,7 @@ export class GameSimulator {
     if (actor && actor.state === 'idle') {
       actor.state = 'thinking';
       const player = this.players.find((p) => p.id === playerId);
-      // 白天发言: 个性化思考时间（1-3秒基础，受角色属性影响）
+      // 白天行动: 个性化思考时间（1-3秒基础，受角色属性影响）
       // 其他事件: 个性化思考时间（反应/投票/夜间行动）
       actor.thinkCountdown = player ? calculateThinkTime(player) : 1000;
       actor.pendingEvent = event;

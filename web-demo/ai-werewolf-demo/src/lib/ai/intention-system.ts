@@ -347,14 +347,14 @@ export class PlanLibrary {
   private static _concealPlan(self: Player): PlanStep[] {
     if (self.team === 'werewolf') {
       return [
-        { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
+        { phase: 'day', action: ACTION.SILENCE, targetRequired: false },
         { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
         { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
       ];
     }
     return [
       { phase: 'day', action: ACTION.OBSERVE, targetRequired: true },
-      { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
+      { phase: 'day', action: ACTION.SILENCE, targetRequired: false },
     ];
   }
 
@@ -400,11 +400,11 @@ export class PlanLibrary {
       .sort((a, b) => (self.relations[b.id]?.trust ?? 0) - (self.relations[a.id]?.trust ?? 0))[0];
     if (highTrust) {
       return [
-        { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
+        { phase: 'day', action: ACTION.SILENCE, targetRequired: false },
         { phase: 'day', action: ACTION.DEFEND, targetRequired: true },
       ];
     }
-    return [{ phase: 'day', action: ACTION.SPEAK, targetRequired: false }];
+    return [{ phase: 'day', action: ACTION.SILENCE, targetRequired: false }];
   }
 
   private static _cutLossPlan(targetId: string | null, _self: Player): PlanStep[] {

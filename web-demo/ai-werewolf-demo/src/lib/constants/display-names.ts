@@ -22,7 +22,7 @@ export const PLAN_PHASE_NAMES: Record<string, string> = {
 
 // 行动名称
 export const ACTION_NAMES: Record<string, string> = {
-  silence: '沉默', speak: '发言', claim_identity: '公布身份', reveal_info: '公开信息',
+  silence: '沉默', claim_identity: '公布身份', reveal_info: '公开信息',
   observe: '暗中观察', suspect: '怀疑', defend: '袒护',
   call_vote: '号召投票', block_vote: '阻止投票', guarantee: '担保', accuse: '强烈指认',
   exclude_all: '全员排除', berserker_kill: '狂狼同归于尽', kill: '袭击', check: '查验',

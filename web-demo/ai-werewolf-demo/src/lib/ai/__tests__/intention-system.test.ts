@@ -205,7 +205,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     // 获取决策，检查是否被意图驱动
     const decision = engine.decide(
       belief, wolf1, 'day',
-      [{ type: 'suspect' }, { type: 'speak' }, { type: 'observe' }],
+      [{ type: 'suspect' }, { type: 'silence' }, { type: 'observe' }],
       allPlayers, [], [], 0, 5, 1, undefined, undefined, manager
     );
 
@@ -303,7 +303,7 @@ describe('PlanLibrary', () => {
     const plan = PlanLibrary.getPlan(IntentionType.CONCEAL, null, allPlayers[0], allPlayers);
     expect(plan.length).toBeGreaterThan(0);
     const actions = plan.map((p) => p.action);
-    expect(actions).toContain('speak');
+    expect(actions).toContain('silence');
     expect(actions).toContain('suspect');
   });
 });
@@ -331,7 +331,7 @@ describe('Hard Constraints', () => {
 
     const decision = engine.decide(
       belief, wolf1, 'day',
-      [{ type: 'call_vote' }, { type: 'accuse' }, { type: 'suspect' }, { type: 'speak' }],
+      [{ type: 'call_vote' }, { type: 'accuse' }, { type: 'suspect' }, { type: 'silence' }],
       allPlayers, [], [], 0, 5
     );
 
@@ -395,7 +395,6 @@ describe('AIAgent - Intention System Integration', () => {
     const decision = agent.dayAction(allPlayers, [], 0, 5);
     expect(decision).not.toBeNull();
     expect(decision!.process?.shortlist).toContain('【意图栈】');
-    expect(decision!.process?.shortlist).toContain('当前意图');
   });
 
   it('预言家决策包含REVEAL意图驱动', () => {

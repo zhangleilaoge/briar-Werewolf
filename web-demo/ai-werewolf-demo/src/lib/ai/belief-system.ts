@@ -371,9 +371,9 @@ export class BeliefSystem {
         this.l2TheoryOfMind.othersBeliefs[observer.id] = {};
       }
 
-      const observerVotes = publicActions.filter((a) => a.actorId === observer.id && a.type === 'vote');
-      const observerSuspects = publicActions.filter((a) => a.actorId === observer.id && (a.type === 'suspect' || a.type === 'accuse'));
-      const observerDefends = publicActions.filter((a) => a.actorId === observer.id && (a.type === 'defend' || a.type === 'guarantee'));
+      const observerVotes = publicActions.filter((a) => a.actorId === observer.id && a.type === ACTION.VOTE);
+      const observerSuspects = publicActions.filter((a) => a.actorId === observer.id && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
+      const observerDefends = publicActions.filter((a) => a.actorId === observer.id && (a.type === ACTION.DEFEND || a.type === ACTION.GUARANTEE));
 
       allPlayers.forEach((target) => {
         if (target.id === observer.id) return;

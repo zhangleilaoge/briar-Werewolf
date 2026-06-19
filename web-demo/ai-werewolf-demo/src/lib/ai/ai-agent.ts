@@ -221,7 +221,7 @@ export class AIAgent {
     const currentStep = topIntention.plan[topIntention.currentStepIndex];
     if (!currentStep) return;
 
-    if (currentStep.phase === phase && (currentStep.action === decision.action || (currentStep.action === ACTION.SPEAK && decision.action === ACTION.SPEAK))) {
+    if (currentStep.phase === phase && currentStep.action === decision.action) {
       this.intentionManager.advanceStep(topIntention.id, phase, decision.action);
     }
   }

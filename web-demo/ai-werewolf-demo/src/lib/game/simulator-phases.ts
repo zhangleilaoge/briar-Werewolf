@@ -115,7 +115,7 @@ export class DayPhaseController extends TickPhase {
     this.executeActors(sim);
     this.flushEventBus(sim);
 
-    // 所有玩家 idle（没有 pending 的思考或行动）→ 可以通知下一个发言者
+    // 所有玩家 idle（没有 pending 的思考或行动）→ 可以通知下一个行动者
     const allIdle = sim.areAllActorsIdle();
     if (allIdle) {
       this._notifyNextSpeaker(sim);

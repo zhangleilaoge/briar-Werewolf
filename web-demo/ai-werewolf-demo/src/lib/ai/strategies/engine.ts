@@ -340,9 +340,6 @@ export class DecisionEngine {
     if (intentionManager) {
       intentionLines.push('');
       intentionLines.push('【意图栈】');
-      if (intentionInfo) {
-        intentionLines.push(`  ${intentionInfo}`);
-      }
       intentionLines.push(intentionManager.getSummary(allPlayers));
     }
 

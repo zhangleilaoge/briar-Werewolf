@@ -79,6 +79,31 @@ export interface Player {
   traits: string[]; stress: number; relations: Record<string, Relation>;
 }
 
+// ---------- Fake Identity System (伪装身份系统) ----------
+export interface FakeIdentity {
+  /** 伪装者ID */
+  impersonatorId: string;
+  /** 伪装目标角色 */
+  claimedRole: Role;
+  /** 伪装回合 */
+  claimRound: number;
+  /** 伪造的查验结果 */
+  claimedChecks: Map<string, 'werewolf' | 'villager'>;
+  /** 行为一致性分数 (0-1) */
+  consistencyScore: number;
+  /** 是否已被揭穿 */
+  exposed: boolean;
+}
+
+export interface FakeIdentityState {
+  /** 全局伪装记录：被伪装者ID → 伪装信息 */
+  claims: Map<string, FakeIdentity>;
+  /** 真预言家是否已跳身份 */
+  realProphetRevealed: boolean;
+  /** 已跳预言家的玩家列表 */
+  claimedProphets: string[];
+}
+
 // ---------- Game Log ----------
 export interface GameLogItem {
   round: number; phase: Phase; message: string;

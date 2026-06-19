@@ -5,15 +5,20 @@ import {
 } from '../behavior-modifiers';
 import type { Alignment } from '@/types';
 import {
-  ALIGNMENT_MOD_GOOD_DEFEND, ALIGNMENT_MOD_EVIL_DEFEND,
-  ALIGNMENT_MOD_LAWFUL_ACCUSE, ALIGNMENT_MOD_CHAOTIC_ACCUSE, ALIGNMENT_MOD_EVIL_ACCUSE,
-  ALIGNMENT_MOD_LAWFUL_OBSERVE, ALIGNMENT_MOD_CHAOTIC_OBSERVE,
-  ALIGNMENT_MOD_CHAOTIC_SPEAK,
-  ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME,
-  ALIGNMENT_MOD_NON_EXTREME,
-  ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE,
-  ALIGNMENT_MOD_EVIL_JOIN_SUSPECT,
-  ALIGNMENT_MOD_GOOD_JOIN_DEFEND,
+  // 阵营行动取向常量（仅导入测试中使用的）
+  ALIGNMENT_TENDENCY_GOOD_DEFEND, ALIGNMENT_TENDENCY_EVIL_DEFEND,
+  ALIGNMENT_TENDENCY_LAWFUL_SUSPECT, ALIGNMENT_TENDENCY_CHAOTIC_SUSPECT, ALIGNMENT_TENDENCY_EVIL_SUSPECT,
+  ALIGNMENT_TENDENCY_LAWFUL_CALL_VOTE, ALIGNMENT_TENDENCY_CHAOTIC_CALL_VOTE,
+  ALIGNMENT_TENDENCY_LAWFUL_BLOCK_VOTE, ALIGNMENT_TENDENCY_CHAOTIC_BLOCK_VOTE,
+  ALIGNMENT_TENDENCY_CHAOTIC_ACCUSE, ALIGNMENT_TENDENCY_LAWFUL_ACCUSE,
+  ALIGNMENT_TENDENCY_CHAOTIC_EXTREME, ALIGNMENT_TENDENCY_LAWFUL_EXTREME, ALIGNMENT_TENDENCY_EVIL_EXTREME,
+  ALIGNMENT_TENDENCY_LAWFUL_CLAIM_PROPHET,
+  ALIGNMENT_TENDENCY_LAWFUL_REBUT,
+  ALIGNMENT_TENDENCY_EVIL_JOIN_SUSPECT, ALIGNMENT_TENDENCY_GOOD_JOIN_SUSPECT,
+  ALIGNMENT_TENDENCY_GOOD_JOIN_DEFEND, ALIGNMENT_TENDENCY_EVIL_JOIN_DEFEND,
+  ALIGNMENT_TENDENCY_LAWFUL_SILENCE,
+  ALIGNMENT_TENDENCY_LAWFUL_OBSERVE, ALIGNMENT_TENDENCY_CHAOTIC_OBSERVE,
+  ALIGNMENT_TENDENCY_LAWFUL_KILL,
   STRESS_EXTREMELY_CALM, STRESS_CALM,
   STRESS_MILDLY_TENSE_MIN,
   STRESS_ANXIOUS_MIN,
@@ -21,72 +26,68 @@ import {
   STRESS_MIN, STRESS_MAX,
 } from '@/types';
 
-// ---------- 阵营修正 ----------
+// ---------- 阵营行动取向 ----------
 describe('getAlignmentBehaviorModifier', () => {
-  describe('阵营修正计算', () => {
+  describe('阵营行动取向计算', () => {
     it('善良阵营对 defend 行动有加成', () => {
       const alignment: Alignment = { law: 'neutral_law', good: 'good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'defend')).toBe(ALIGNMENT_MOD_GOOD_DEFEND);
+      expect(getAlignmentBehaviorModifier(alignment, 'defend')).toBe(ALIGNMENT_TENDENCY_GOOD_DEFEND);
     });
 
     it('邪恶阵营对 defend 行动有惩罚', () => {
       const alignment: Alignment = { law: 'neutral_law', good: 'evil' };
-      expect(getAlignmentBehaviorModifier(alignment, 'defend')).toBe(ALIGNMENT_MOD_EVIL_DEFEND);
+      expect(getAlignmentBehaviorModifier(alignment, 'defend')).toBe(ALIGNMENT_TENDENCY_EVIL_DEFEND);
     });
 
-    it('守序阵营对 accuse 行动有加成', () => {
+    it('守序阵营对 accuse 行动有惩罚（谨慎）', () => {
       const alignment: Alignment = { law: 'lawful', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'accuse')).toBe(ALIGNMENT_MOD_LAWFUL_ACCUSE);
+      expect(getAlignmentBehaviorModifier(alignment, 'accuse')).toBe(ALIGNMENT_TENDENCY_LAWFUL_ACCUSE);
     });
 
-    it('混乱阵营对 accuse 行动有更高加成', () => {
+    it('混乱阵营对 accuse 行动有高加成（激进）', () => {
       const alignment: Alignment = { law: 'chaotic', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'accuse')).toBe(ALIGNMENT_MOD_CHAOTIC_ACCUSE);
+      expect(getAlignmentBehaviorModifier(alignment, 'accuse')).toBe(ALIGNMENT_TENDENCY_CHAOTIC_ACCUSE);
     });
 
-    it('邪恶阵营对 accuse 行动有加成', () => {
+    it('邪恶阵营对 suspect 行动有加成', () => {
       const alignment: Alignment = { law: 'neutral_law', good: 'evil' };
-      expect(getAlignmentBehaviorModifier(alignment, 'accuse')).toBe(ALIGNMENT_MOD_EVIL_ACCUSE);
+      expect(getAlignmentBehaviorModifier(alignment, 'suspect')).toBe(ALIGNMENT_TENDENCY_EVIL_SUSPECT);
     });
 
-    it('守序阵营对 observe 行动有加成', () => {
+    it('守序阵营对 observe 行动有加成（耐心观察）', () => {
       const alignment: Alignment = { law: 'lawful', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'observe')).toBe(ALIGNMENT_MOD_LAWFUL_OBSERVE);
+      expect(getAlignmentBehaviorModifier(alignment, 'observe')).toBe(ALIGNMENT_TENDENCY_LAWFUL_OBSERVE);
     });
 
-    it('混乱阵营对 observe 行动有惩罚', () => {
+    it('混乱阵营对 observe 行动有惩罚（不耐烦）', () => {
       const alignment: Alignment = { law: 'chaotic', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'observe')).toBe(ALIGNMENT_MOD_CHAOTIC_OBSERVE);
+      expect(getAlignmentBehaviorModifier(alignment, 'observe')).toBe(ALIGNMENT_TENDENCY_CHAOTIC_OBSERVE);
     });
 
-    it('混乱阵营对 speak 行动有加成', () => {
-      const alignment: Alignment = { law: 'chaotic', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'speak')).toBe(ALIGNMENT_MOD_CHAOTIC_SPEAK);
-    });
-
-    it('混乱邪恶对 exclude_all 行动有最大加成', () => {
+    it('混乱邪恶对 exclude_all 行动有最高加成（混乱+邪恶叠加）', () => {
       const alignment: Alignment = { law: 'chaotic', good: 'evil' };
-      expect(getAlignmentBehaviorModifier(alignment, 'exclude_all')).toBe(ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME);
+      // 混乱倾向(25) + 邪恶倾向(10) = 35
+      expect(getAlignmentBehaviorModifier(alignment, 'exclude_all')).toBe(ALIGNMENT_TENDENCY_CHAOTIC_EXTREME + ALIGNMENT_TENDENCY_EVIL_EXTREME);
     });
 
-    it('非极端阵营对极端行动有惩罚', () => {
-      const alignment: Alignment = { law: 'neutral_law', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'exclude_all')).toBe(ALIGNMENT_MOD_NON_EXTREME);
+    it('守序阵营对 exclude_all 行动有惩罚（避免极端）', () => {
+      const alignment: Alignment = { law: 'lawful', good: 'neutral_good' };
+      expect(getAlignmentBehaviorModifier(alignment, 'exclude_all')).toBe(ALIGNMENT_TENDENCY_LAWFUL_EXTREME);
     });
 
     it('守序阵营对 block_vote 行动有加成', () => {
       const alignment: Alignment = { law: 'lawful', good: 'neutral_good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'block_vote')).toBe(ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE);
+      expect(getAlignmentBehaviorModifier(alignment, 'block_vote')).toBe(ALIGNMENT_TENDENCY_LAWFUL_BLOCK_VOTE);
     });
 
     it('邪恶阵营对 join_suspect 有加成', () => {
       const alignment: Alignment = { law: 'neutral_law', good: 'evil' };
-      expect(getAlignmentBehaviorModifier(alignment, 'join_suspect')).toBe(ALIGNMENT_MOD_EVIL_JOIN_SUSPECT);
+      expect(getAlignmentBehaviorModifier(alignment, 'join_suspect')).toBe(ALIGNMENT_TENDENCY_EVIL_JOIN_SUSPECT);
     });
 
     it('善良阵营对 join_defend 有加成', () => {
       const alignment: Alignment = { law: 'neutral_law', good: 'good' };
-      expect(getAlignmentBehaviorModifier(alignment, 'join_defend')).toBe(ALIGNMENT_MOD_GOOD_JOIN_DEFEND);
+      expect(getAlignmentBehaviorModifier(alignment, 'join_defend')).toBe(ALIGNMENT_TENDENCY_GOOD_JOIN_DEFEND);
     });
 
     it('未知行动返回 0', () => {
@@ -158,7 +159,7 @@ describe('getStressBehaviorModifier', () => {
     });
 
     it('压力边界 -5 (极度冷静阈值)', () => {
-      const mod = getStressBehaviorModifier(-5, 'speak');
+      const mod = getStressBehaviorModifier(-5, 'silence');
       expect(mod).toBe(-2); // 极度冷静
     });
 

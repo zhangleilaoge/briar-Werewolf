@@ -122,7 +122,7 @@ export default function GameApp() {
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
             {game.logs.map((log, idx) => {
               const detail = log.details as ActionLogDetail | undefined;
-              const hasExtra = !!(detail && ((detail.checks && detail.checks.length > 0) || (detail as Record<string, unknown>).process));
+              const hasExtra = !!(detail && ((detail.checks && detail.checks.length > 0) || (detail as Record<string, unknown>).process || detail.decisionReason));
               const expanded = isLogExpanded(idx);
               // 从 details 中提取需要高亮的玩家ID，避免遍历所有玩家做字符串硬匹配
               const _mentions = (detail as any)?.mentions as string[] | undefined;
@@ -176,6 +176,10 @@ export default function GameApp() {
                       </div>
                       {expanded && hasExtra && (
                         <div className="mt-1 ml-4 text-xs text-gray-400 space-y-1 border-l-2 border-gray-700 pl-3">
+                          {/* 反应行动显示理由 */}
+                          {detail?.decisionReason && ['join_suspect', 'join_defend', 'rebut'].includes(detail.action) && (
+                            <div className="text-yellow-400">💡 {detail.decisionReason}</div>
+                          )}
                           {!!(detail as Record<string, unknown>).process && (
                             <div className="space-y-0.5 text-xs text-gray-500 whitespace-pre-wrap font-mono">
                               {((detail as Record<string, unknown>).process as DecisionProcess).shortlist.split('\n').map((line, i) => {
@@ -184,14 +188,14 @@ export default function GameApp() {
                                   const isSelected = line.startsWith('✓');
                                   return <div key={i} className={isSelected ? 'text-green-400 font-bold' : ''}>{line}</div>;
                                 }
-                                if (line.startsWith('  [')) return <div key={i} className="text-cyan-400 pl-2">{line}</div>;
-                                if (line.startsWith('  触发：')) return <div key={i} className="text-yellow-400 pl-2">{line}</div>;
-                                if (line.startsWith('  分数：') || line.startsWith('  修正：')) return <div key={i} className="text-gray-400 pl-2">{line}</div>;
-                                if (line.startsWith('  总分：')) return <div key={i} className="text-white font-bold pl-2">{line}</div>;
+                                if (line.startsWith('  [')) return <div key={i} className="text-cyan-400 pl-4">{line}</div>;
+                                if (line.startsWith('  触发：')) return <div key={i} className="text-yellow-400 pl-4">{line}</div>;
+                                if (line.startsWith('  分数：') || line.startsWith('  修正：')) return <div key={i} className="text-gray-400 pl-4">{line}</div>;
+                                if (line.startsWith('  总分：')) return <div key={i} className="text-white font-bold pl-4">{line}</div>;
                                 if (line.startsWith('【最终选择】')) return <div key={i} className="text-green-400 font-bold mt-1">{line}</div>;
-                                if (line.startsWith('  命中规则：')) return <div key={i} className="text-cyan-400 pl-2">{line}</div>;
-                                if (line.startsWith('  阶段：')) return <div key={i} className="text-gray-400 pl-2">{line}</div>;
-                                if (line.startsWith('  总分：') && line.includes('个候选')) return <div key={i} className="text-green-300 pl-2">{line}</div>;
+                                if (line.startsWith('  命中规则：')) return <div key={i} className="text-cyan-400 pl-4">{line}</div>;
+                                if (line.startsWith('  阶段：')) return <div key={i} className="text-gray-400 pl-4">{line}</div>;
+                                if (line.startsWith('  总分：') && line.includes('个候选')) return <div key={i} className="text-green-300 pl-4">{line}</div>;
                                 if (line.startsWith('【可选行动】')) return <div key={i} className="text-gray-400 font-bold">{line}</div>;
                                 return <div key={i}>{line}</div>;
                               })}
