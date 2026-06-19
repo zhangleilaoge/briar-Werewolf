@@ -1,6 +1,6 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '@/types';
-import { hasItem, damageItem, addItem } from '@/types';
+import { hasItem } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { log, getPublicPlayerStates } from './simulator-utils';
 
@@ -36,29 +36,19 @@ export function runNightAction(sim: GameSimulator, player: Player) {
     });
     
     if (result.success) {
-      // Apply state changes
+      // Apply state changes via bus
       result.stateChanges.forEach((change) => {
         switch (change.type) {
           case 'item_damage': {
-            const targetPlayer = sim.players.find(p => p.id === change.targetId);
-            if (targetPlayer) {
-              damageItem(targetPlayer, change.payload.itemId as string);
-            }
+            sim.playerStateBus.damageItem(change.targetId, change.payload.itemId as string, 'night_plugin');
             break;
           }
           case 'item_add': {
-            const targetPlayer = sim.players.find(p => p.id === change.targetId);
-            if (targetPlayer) {
-              addItem(targetPlayer, change.payload.itemId as string);
-            }
+            sim.playerStateBus.addItem(change.targetId, change.payload.itemId as string, 'night_plugin');
             break;
           }
           case 'item_remove': {
-            const targetPlayer = sim.players.find(p => p.id === change.targetId);
-            if (targetPlayer) {
-              const idx = targetPlayer.items.findIndex(i => i.definitionId === change.payload.itemId);
-              if (idx >= 0) targetPlayer.items.splice(idx, 1);
-            }
+            sim.playerStateBus.removeItem(change.targetId, change.payload.itemId as string, 'night_plugin');
             break;
           }
         }
@@ -175,36 +165,25 @@ export function resolveNightActions(sim: GameSimulator) {
 
   // Check for amulet protection
   if (hasItem(target, 'amulet')) {
-    damageItem(target, 'amulet');
+    sim.playerStateBus.damageItem(target.id, 'amulet', 'amulet_block');
     log(sim, 'item', `${target.name} 的护身符抵挡了致命一击！护身符损坏。`);
     return;
   }
 
   // Human with claws can retaliate: mutual kill
   if (hasItem(target, 'claws') && target.team !== 'werewolf') {
-    target.alive = false;
     sim.nightDeaths.push(target.id);
     log(sim, 'death', `${target.name} 持有尖牙利爪，与 ${killer.name} 同归于尽！`, { playerId: target.id });
-    killer.alive = false;
     sim.nightDeaths.push(killer.id);
     log(sim, 'death', `${killer.name} 被 ${target.name} 反击致死！`, { playerId: killer.id });
-    damageItem(target, 'claws');
-    sim.players.forEach((p) => {
-      const agent = sim._aiAgents[p.id];
-      if (agent) {
-        agent.onEvent({ type: 'death', playerId: target.id });
-        agent.onEvent({ type: 'death', playerId: killer.id });
-      }
-    });
+    sim.playerStateBus.killPlayer(target.id, 'claws_retaliate');
+    sim.playerStateBus.killPlayer(killer.id, 'claws_retaliate');
+    sim.playerStateBus.damageItem(target.id, 'claws', 'claws_retaliate');
     return;
   }
 
   // Normal kill
-  target.alive = false;
   sim.nightDeaths.push(target.id);
   log(sim, 'death', `${killer.name} 刀了 ${target.name}，${target.name} 死亡！`, { playerId: target.id });
-  sim.players.forEach((p) => {
-    const agent = sim._aiAgents[p.id];
-    if (agent) agent.onEvent({ type: 'death', playerId: target.id });
-  });
+  sim.playerStateBus.killPlayer(target.id, 'werewolf_kill');
 }

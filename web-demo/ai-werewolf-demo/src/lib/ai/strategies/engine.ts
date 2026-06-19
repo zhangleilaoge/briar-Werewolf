@@ -2,11 +2,11 @@ import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate, DecisionResult, DecisionProcess, } from '@/types';
 import { ROLE_INFO } from '@/types';
 import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
-import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager, PlanLibrary } from '../intention-system';
+import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager } from '../intention-system';
 
 import { buildScoreExpr } from '@/lib/utils/expr';
 import {
-  INTENTION_TYPE_NAMES, ACTION_NAMES, STAGE_NAMES, INTENTION_SOURCE_NAMES,
+  ACTION_NAMES, STAGE_NAMES,
 } from '@/lib/constants/display-names';
 
 export interface StrategyContext {
@@ -88,10 +88,6 @@ export class DecisionEngine {
 
     const candidates: DecisionCandidate[] = [];
 
-    // 展示用中文映射（意图类型、行动名称）
-    const _typeNames = INTENTION_TYPE_NAMES;
-    const _actionNames = ACTION_NAMES;
-
     // Add plugin candidates with 'plugin' stage
     pluginCandidates.forEach((c) => {
       candidates.push({ ...c, stageWeight: this._getStageWeight('plugin'), stage: 'plugin' });
@@ -117,45 +113,13 @@ export class DecisionEngine {
       }
     }
 
-    // === 意图驱动补充候选 ===
-    // 遍历所有激活意图，如果其计划步骤没有匹配候选，生成补充候选展示给玩家
-    // 只有最高意图的计划步骤会获得额外加分（见意图驱动评分阶段）
+    // === 意图驱动候选 ===
+    // 由 IntentionManager 统一生成，策略候选与意图候选在同一评分体系中竞争
     if (intentionManager) {
-      const activeIntentions = intentionManager.getActiveIntentions().filter((i) => i.plan.some((s) => s.phase === phase));
-      for (const intention of activeIntentions) {
-        const step = PlanLibrary.getStepForPhase(intention.plan, phase);
-        if (step && step.action) {
-          const hasMatching = candidates.some((c) => c.action === step.action);
-          if (!hasMatching) {
-            // 生成补充候选：对齐意图计划步骤
-            let targetId: string | null = null;
-            if (step.targetRequired) {
-              if (intention.targetId) {
-                targetId = intention.targetId;
-              } else {
-                // 无目标意图但需要目标：随机选个合法目标
-                const others = allPlayers.filter((p) => p.id !== self.id && p.alive);
-                if (others.length > 0) {
-                  targetId = others[Math.floor(Math.random() * others.length)].id;
-                }
-              }
-            }
-            candidates.push({
-              action: step.action,
-              target: targetId,
-              score: 50, // 基础意图驱动分数（低，让策略候选优先，但提供意图对齐回退）
-              confidence: 0.5,
-              reason: `[意图补充] ${intention === intentionManager.getTopIntention(phase) ? '最高意图' : '次级意图'}${_typeNames[intention.type] || intention.type}计划要求${_actionNames[step.action] || step.action}${targetId ? `→${allPlayers.find((p) => p.id === targetId)?.name || targetId}` : ''}`,
-              stage: 'intention', // 新阶段：意图驱动
-              strategy: 'IntentionDrivenFallback',
-              rule: 'intention_step_fallback',
-              trigger: `意图=${_typeNames[intention.type] || intention.type}（优先级${intention.priority}），计划步骤=${_actionNames[step.action] || step.action}，无策略候选匹配`,
-              // @ts-expect-error: intentionDriven flag for debugging
-              intentionDriven: true,
-            });
-          }
-        }
-      }
+      const intentionCandidates = intentionManager.generateCandidates(phase, allPlayers, self);
+      intentionCandidates.forEach((c) => {
+        candidates.push({ ...c, stageWeight: this._getStageWeight('social'), stage: 'intention' });
+      });
     }
 
     if (candidates.length === 0) {
@@ -172,37 +136,6 @@ export class DecisionEngine {
     const intentionExplanation = explainIntention(desire, blocked, allPlayers);
 
     const effectiveCandidates = allowed.length > 0 ? allowed : candidates; // 如果全部拦截，回退到原始候选（兜底）
-
-    // === 意图驱动评分调整 ===
-    // 只有最高意图匹配的候选获得额外分数加成，实现意图一致性
-    let intentionInfo = '';
-    if (intentionManager) {
-      const topIntention = intentionManager.getTopIntention(phase);
-      if (topIntention) {
-        const typeNames = INTENTION_TYPE_NAMES;
-        const sourceNames = INTENTION_SOURCE_NAMES;
-        const targetName = topIntention.targetId ? (allPlayers.find((p) => p.id === topIntention.targetId)?.name || topIntention.targetId) : '无';
-        intentionInfo = `当前意图: ${typeNames[topIntention.type] || topIntention.type}${targetName !== '无' ? '→' + targetName : ''} (优先级${topIntention.priority}, 来源${sourceNames[topIntention.source] || topIntention.source})`;
-        const currentStep = topIntention.plan[topIntention.currentStepIndex];
-        if (currentStep) {
-          for (const c of effectiveCandidates) {
-            let bonus = 0;
-            // 如果候选行为匹配意图当前步骤的行为：+200分
-            if (c.action === currentStep.action) {
-              bonus += 200;
-              c.reason = `[意图驱动] ${typeNames[topIntention.type] || topIntention.type}计划(${currentStep.phase}:${currentStep.action}) → ${c.reason}`;
-            }
-            // 如果候选目标匹配意图目标：+100分
-            if (c.target === topIntention.targetId && topIntention.targetId) {
-              bonus += 100;
-            }
-            if (bonus > 0) {
-              c.intentionDrivenBonus = bonus;
-            }
-          }
-        }
-      }
-    }
 
     const scored = effectiveCandidates
       .map((c) => {
@@ -224,7 +157,7 @@ export class DecisionEngine {
     const topCandidates = unique.slice(0, 3);
     const selected = topCandidates.length > 0 ? this._weightedRandom(topCandidates) : scored[0];
 
-    return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation, intentionManager, intentionInfo);
+    return this._finalizeDecision(selected, belief, self, selected.stage || 'default', candidates, allPlayers, blocked, intentionExplanation, intentionManager);
   }
 
   private _getStageWeight(stage: string): number {
@@ -262,7 +195,7 @@ export class DecisionEngine {
     };
   }
 
-  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager, intentionInfo?: string): DecisionProcess {
+  private _buildProcess(candidates: DecisionCandidate[], winner: DecisionCandidate, self: Player, allPlayers: Player[], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager): DecisionProcess {
     const all = candidates.map((c) => {
       const modifiers = this._buildModifiers(self, c);
       return {
@@ -377,8 +310,8 @@ export class DecisionEngine {
     return candidates[candidates.length - 1];
   }
 
-  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = [], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager, intentionInfo?: string): DecisionResult {
-    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers, blocked, intentionExplanation, intentionManager, intentionInfo) : undefined;
+  private _finalizeDecision(candidate: DecisionCandidate, belief: BeliefSystem, self: Player, stage: string, candidates: DecisionCandidate[] = [], allPlayers: Player[] = [], blocked?: { candidate: DecisionCandidate; reason: string }[], intentionExplanation?: string, intentionManager?: IntentionManager): DecisionResult {
+    const process = candidates.length > 0 ? this._buildProcess(candidates, candidate, self, allPlayers, blocked, intentionExplanation, intentionManager) : undefined;
     return {
       action: candidate.action,
       target: candidate.target,

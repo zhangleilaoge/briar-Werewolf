@@ -173,7 +173,7 @@ export class PluginRegistry {
    * @throws Error if no provider found for the action
    */
   executeAction(actionType: string, params: ActionExecutionParams): ActionResult {
-    const provider = this.findProviderForAction(actionType, params.actor);
+    const provider = this.findProviderForAction(actionType, params.actor, params.context);
     
     if (!provider) {
       throw new Error(`[PluginRegistry] No provider found for action: ${actionType}`);
@@ -339,14 +339,13 @@ export class PluginRegistry {
   /**
    * Find the provider that can handle a specific action type
    */
-  private findProviderForAction(actionType: string, player: Player): ActionProvider | undefined {
+  private findProviderForAction(actionType: string, player: Player, context?: GameContext): ActionProvider | undefined {
+    // Use provided context or default to a basic one
+    const lookupContext = context || { round: 0, phase: 'day', players: [] };
+    
     // Check item providers
     for (const provider of this.providers.values()) {
-      const actions = provider.getAvailableActions(player, {
-        round: 0,
-        phase: 'night',
-        players: [],
-      });
+      const actions = provider.getAvailableActions(player, lookupContext);
       
       if (actions.some(a => a.type === actionType)) {
         return provider;
@@ -356,11 +355,7 @@ export class PluginRegistry {
     // Check trait providers
     for (const traitProvider of this.traitProviders.values()) {
       if (traitProvider.hasTrait(player) && traitProvider.getTraitActions) {
-        const actions = traitProvider.getTraitActions(player, {
-          round: 0,
-          phase: 'night',
-          players: [],
-        });
+        const actions = traitProvider.getTraitActions(player, lookupContext);
         
         if (actions.some(a => a.type === actionType)) {
           // Return a wrapper that delegates to the trait provider

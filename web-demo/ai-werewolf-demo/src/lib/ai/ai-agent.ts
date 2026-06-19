@@ -149,9 +149,6 @@ export class AIAgent {
       case 'death':
         if (event.playerId) {
           this.belief.recordDeath(event.playerId);
-          if (event.playerId === this.id) {
-            if (this.player) this.player.alive = false;
-          }
           this._log('event', `玩家 ${event.playerId} 死亡`);
         }
         break;

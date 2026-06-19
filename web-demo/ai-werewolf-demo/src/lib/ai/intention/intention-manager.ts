@@ -7,7 +7,7 @@ import {
   INTENTION_TYPE_NAMES, INTENTION_SOURCE_NAMES, PLAN_PHASE_NAMES, ACTION_NAMES,
   COMMITMENT_NAMES,
 } from '@/lib/constants/display-names';
-import type { Player } from '@/types';
+import type { Player, DecisionCandidate } from '@/types';
 import {
   INTENTION_LIFETIME_ROLE_DUTY,
   INTENTION_LIFETIME_DEFAULT,
@@ -62,6 +62,52 @@ export class IntentionManager {
     return (
       this.intentions.find((i) => i.active && !i.abandoned && this._isRelevantToPhase(i, phase)) || null
     );
+  }
+
+  /** 为指定阶段生成意图驱动的决策候选 */
+  generateCandidates(phase: string, allPlayers: Player[], self: Player): DecisionCandidate[] {
+    const candidates: DecisionCandidate[] = [];
+    const typeNames = INTENTION_TYPE_NAMES;
+    const actionNames = ACTION_NAMES;
+
+    const activeIntentions = this.getActiveIntentions().filter(
+      (i) => i.plan.some((s) => s.phase === phase)
+    );
+
+    for (const intention of activeIntentions) {
+      const step = PlanLibrary.getStepForPhase(intention.plan, phase);
+      if (!step || !step.action) continue;
+
+      let targetId: string | null = null;
+      if (step.targetRequired) {
+        if (intention.targetId) {
+          targetId = intention.targetId;
+        } else {
+          const others = allPlayers.filter((p) => p.id !== self.id && p.alive);
+          if (others.length > 0) {
+            targetId = others[Math.floor(Math.random() * others.length)].id;
+          }
+        }
+      }
+
+      const isTop = intention === this.getTopIntention(phase);
+      const targetName = targetId ? (allPlayers.find((p) => p.id === targetId)?.name || targetId) : '无';
+
+      candidates.push({
+        action: step.action,
+        target: targetId,
+        score: intention.priority,
+        confidence: 0.6,
+        reason: `[意图${isTop ? '驱动' : '补充'}] ${typeNames[intention.type] || intention.type}${targetId ? '→' + targetName : ''}，计划步骤=${actionNames[step.action] || step.action}`,
+        stage: 'intention',
+        strategy: 'IntentionManager',
+        rule: isTop ? 'top_intention_step' : 'secondary_intention_step',
+        trigger: `意图=${typeNames[intention.type] || intention.type}（优先级${intention.priority}，来源${intention.source}），计划=${step.phase}:${step.action}`,
+        intentionDrivenBonus: isTop ? 200 : 50,
+      });
+    }
+
+    return candidates;
   }
 
   /** 获取所有激活的意图 */

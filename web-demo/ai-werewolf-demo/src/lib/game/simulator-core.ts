@@ -10,6 +10,7 @@ import {
   type PhaseController, DayPhaseController, NightPhaseController, VotePhaseController, MorningPhaseController, CheckWinPhaseController, LOG_PRIORITY
 } from './simulator-phases';
 import { PluginRegistry, registerDefaultPlugins } from '../plugins';
+import { PlayerStateBus } from './player-state-bus';
 
 const DEBUG = false;
 function debugLog(...args: unknown[]) {
@@ -125,6 +126,9 @@ export class GameSimulator {
   // ---- Plugin System ----
   pluginRegistry: PluginRegistry;
 
+  // ---- State Bus ----
+  playerStateBus: PlayerStateBus;
+
   // ---- Tick Engine ----
   actors: Map<string, PlayerActor> = new Map();
   eventBus: EventBus = new EventBus();
@@ -191,7 +195,15 @@ export class GameSimulator {
     this.pluginRegistry = new PluginRegistry();
     registerDefaultPlugins(this.pluginRegistry);
 
+    // Initialize state bus
+    this.playerStateBus = new PlayerStateBus();
+    this.playerStateBus.setPluginRegistry(this.pluginRegistry);
+
     this._createPlayers(playerConfigs);
+
+    // Wire bus to players and agents
+    this.playerStateBus.setPlayers(this.players);
+    this.playerStateBus.setAgents(this._aiAgents);
 
     // Initialize appendix reaction subscription (FIXED: was 'appendix_trigger')
     this.eventBus.subscribe('appendix_reaction', (event) => {
@@ -261,6 +273,9 @@ export class GameSimulator {
     this.players.forEach((p) => {
       this._aiAgents[p.id] = new AIAgent(p, this.players, this.pluginRegistry);
     });
+
+    // Update bus with agents
+    this.playerStateBus.setAgents(this._aiAgents);
   }
 
   // ==================== TICK API ====================

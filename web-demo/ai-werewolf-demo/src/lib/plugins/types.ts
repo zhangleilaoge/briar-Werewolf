@@ -6,7 +6,7 @@
  * that provides actions, effects, and AI strategies.
  */
 
-import type { Player, GameLogItem, Phase } from '@/types';
+import type { Player, GameLogItem, Phase, CheckLog, DecisionProcess } from '@/types';
 import type { DecisionCandidate } from '@/types';
 import type { BeliefSystem } from '../ai/belief-system';
 
@@ -124,6 +124,12 @@ export interface ActionResult {
   /** Logs to be added to game log */
   logs: GameLogItem[];
   
+  /** Check logs for dice rolls and modifiers */
+  checks?: CheckLog[];
+  
+  /** Decision process for AI transparency */
+  decisionProcess?: DecisionProcess;
+  
   /** State changes to be applied */
   stateChanges: StateChange[];
   
@@ -145,8 +151,8 @@ export interface ActionProvider {
   /** Unique identifier for this provider */
   id: string;
   
-  /** Type of provider */
-  type: 'item' | 'trait';
+  /** Type of provider: 'item' for equipment, 'action' for behaviors, 'trait' for traits */
+  type: 'item' | 'action' | 'trait';
   
   /**
    * Get available actions for a player

@@ -14,20 +14,30 @@
 - **前端**: Astro + React + Tailwind CSS
 - **语言**: TypeScript
 - **构建**: Vite
-- **测试**: Vitest (90 个测试)
+- **测试**: Vitest (145 个测试)
 - **Lint**: Biome (noMagicNumbers + noUnusedImports)
 
 ### 目录结构
 
 ```
 src/
-├── types.ts              # 类型定义 + 常量（唯一导入源 @/types）
+├── types/                # 类型定义（按域拆分）
+│   ├── index.ts         # Barrel export
+│   ├── core.ts          # Player, GamePhase, Relation 等核心类型
+│   ├── role.ts          # ROLE_INFO, TRAITS
+│   ├── item.ts          # ITEM_DEFINITIONS
+│   ├── constants.ts      # 游戏常量（回合数、难度等）
+│   └── display.ts        # ACTION_NAMES, ATTRIBUTE_NAMES
 ├── utils/                # 通用工具函数
 │   ├── dice.ts          # 骰子和检定系统
 │   └── math.ts          # 数学工具
 ├── components/           # React UI 组件
 ├── lib/
-│   ├── ai/              # AI 系统（信念、意图、策略）
+│   ├── ai/              # AI 系统
+│   │   ├── intention/    # 意图系统（按子域拆分）
+│   │   ├── strategies/   # 策略引擎
+│   │   └── belief-system.ts
+│   ├── constants/        # 策略阈值等常量
 │   ├── game/            # 游戏逻辑（模拟器、修正、道具）
 │   └── plugins/         # 插件系统（道具 + 特质）
 └── pages/
@@ -97,9 +107,11 @@ src/
 ### 代码规范
 
 **禁止魔法数字和字符串：**
-- 所有数字常量必须定义在 `src/types.ts` 中
+- 所有数字常量必须定义在 `src/types.ts` 或 `src/lib/constants/` 中
+- 策略相关阈值（如 `0.5`、`0.7`）必须放在 `src/lib/constants/strategy-thresholds.ts`
 - 使用 TypeScript 联合类型约束字符串（如 `type Phase = 'night' | 'day'`）
 - Biome 会自动检查 `noMagicNumbers`，构建时会报错
+- 添加新阈值时，先在 `strategy-thresholds.ts` 定义，再在代码中引用，禁止硬编码后直接补常量
 
 **导入规范：**
 ```typescript
@@ -116,16 +128,50 @@ if (phase === 'night') { ... }  // 可以，因为 Phase 类型已约束
 ### 构建与测试
 
 ```bash
-bun run build    # 构建验证（含 lint 检查）
-bun run test     # 运行测试（90 个）
+bun run build    # 构建验证（含 lint + 类型检查）
+bun run test     # 运行测试（145 个）
 bun run lint     # 代码检查
 bun run lint:fix # 自动修复
 ```
 
-### 新增功能流程
+### 架构纪律
+
+**文件体积约束**
+- 单文件不超过 300 行（意图系统、策略文件等易膨胀模块优先）
+- 超过 200 行时必须评估拆分：按类型 / 按职责 / 按子域拆分子目录
+- `index.ts` 只做 barrel export，不承载逻辑
+
+**接口一致性**
+- 修改 `interface` 后必须 `grep` 所有引用点，确保调用签名匹配
+- 禁止用 `as any` 绕过类型错误。临时方案用 `unknown + 类型守卫`，长期方案修正类型定义
+- 关联字段（如 `trust`/`friendly` 和 `favor`）必须定义在同一个文件中，修改时同步更新
+
+**继承规范**
+- 覆盖父类方法时必须调用 `super.xxx()`，除非有明确的架构理由
+- 子类需要"插入额外逻辑"时用钩子（`beforeXxx` / `afterXxx`），不要复制整个父方法
+
+**状态写入路径**
+- 同一类状态只允许一条写入路径（如 `tickLogBuffer → logs`）
+- 禁止绕过主缓冲直接写最终状态（如 `_addThinkingLogs` 必须写 `tickLogBuffer`）
+- 阶段检查逻辑（如 `_checkWinCondition`）只在统一入口调用，禁止散落在各分支中
+
+**模块职责**
+- 一个文件只承载一个独立概念（`DesireEngine` / `PlanLibrary` / `IntentionManager` 各自独立）
+- 公共字段不超过 10 个，内部状态用 `private` / `protected`，下划线前缀不意味着 public
+
+**React Hook 安全**
+- 递归 `setTimeout` 回调必须用 `useRef` 存储最新引用，避免闭包陷阱
+- `useCallback` 的依赖数组必须完整，禁止用空数组 `[]` 规避依赖问题
+- 高频状态更新（如每 tick 的 `setPlayers`）添加浅比较，避免无意义重渲染
+
+**死代码管理**
+- 未使用的导出、方法、变量立即删除，不要标记为 "@deprecated" 长期保留
+- 重构前用 `grep` 确认调用点，确认无调用再删除
+
+**新增功能流程**
 
 1. 修改 `../doc/` 中的设计文档
-2. 更新 `src/types.ts` 中的类型和常量
+2. 更新 `src/types/` 中的类型和常量
 3. 实现代码逻辑
 4. 运行 `bun run build && bun run test`
 
@@ -139,4 +185,3 @@ bun run lint:fix # 自动修复
 | 数值设计 | `../doc/core/numeric.md` | 属性、检定、修正规则 |
 | 道具设计 | `../doc/content/items.md` | 道具能力和设计原则 |
 | AI 架构 | `../doc/ai/ARCHITECTURE.md` | 信念系统和决策引擎 |
-| 插件架构 | `PLUGIN-REFACTOR-COMPLETE.md` | 插件化重构详解 |

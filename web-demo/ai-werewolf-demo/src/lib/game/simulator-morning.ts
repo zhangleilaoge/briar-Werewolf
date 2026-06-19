@@ -1,5 +1,4 @@
 import type { GameSimulator } from './simulator-core';
-import { clampStress, clampRelation } from '@/types';
 import { STRESS_RECOVERY_BASE, STRESS_RECOVERY_BONUS, RELATION_NATURAL_RECOVERY } from '@/types';
 import { log, getName } from './simulator-utils';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -41,16 +40,21 @@ export function resolveMorningEvents(sim: GameSimulator) {
   sim.players.forEach((p) => {
     if (p.alive) {
       if (p.stress > 0) {
-        p.stress = clampStress(p.stress - (STRESS_RECOVERY_BASE + (Math.random() > 0.5 ? STRESS_RECOVERY_BONUS : 0)));
+        const recovery = -(STRESS_RECOVERY_BASE + (Math.random() > 0.5 ? STRESS_RECOVERY_BONUS : 0));
+        sim.playerStateBus.changeStress(p.id, recovery, 'morning_recovery');
       } else if (p.stress < 0) {
-        p.stress = clampStress(p.stress + (STRESS_RECOVERY_BASE + (Math.random() > 0.5 ? STRESS_RECOVERY_BONUS : 0)));
+        const recovery = STRESS_RECOVERY_BASE + (Math.random() > 0.5 ? STRESS_RECOVERY_BONUS : 0);
+        sim.playerStateBus.changeStress(p.id, recovery, 'morning_recovery');
       }
       // 关系自然恢复：所有关系值向 0 回归
       Object.keys(p.relations).forEach((otherId) => {
         const rel = p.relations[otherId];
         if (rel) {
-          if (rel.favor > 0) rel.favor = clampRelation(rel.favor - RELATION_NATURAL_RECOVERY);
-          else if (rel.favor < 0) rel.favor = clampRelation(rel.favor + RELATION_NATURAL_RECOVERY);
+          if (rel.favor > 0) {
+            sim.playerStateBus.changeRelation(p.id, otherId, { favorDelta: -RELATION_NATURAL_RECOVERY }, 'morning_recovery');
+          } else if (rel.favor < 0) {
+            sim.playerStateBus.changeRelation(p.id, otherId, { favorDelta: RELATION_NATURAL_RECOVERY }, 'morning_recovery');
+          }
         }
       });
     }

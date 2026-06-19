@@ -145,3 +145,26 @@ export const PLAN_PHASE = {
 } as const;
 
 export type PlanPhase = typeof PLAN_PHASE[keyof typeof PLAN_PHASE];
+
+// 职业常量
+export const ROLE = {
+  WEREWOLF: 'werewolf',
+  LONE_WOLF: 'lone_wolf',
+  BERSERKER: 'berserker',
+  VILLAGER: 'villager',
+  PROPHET: 'prophet',
+  THIEF: 'thief',
+  CORONER: 'coroner',
+} as const;
+
+export type RoleType = typeof ROLE[keyof typeof ROLE];
+
+// 日志行动类型（用于日志记录，非游戏行动）
+export const LOG_ACTION = {
+  CLAIM_CHECK_RESULT: 'claim_check_result',
+  CLAIM_IDENTITY_END: 'claim_identity_end',
+  OBSERVE_DETECTED: 'observe_detected',
+  OBSERVE_MISSED: 'observe_missed',
+} as const;
+
+export type LogActionType = typeof LOG_ACTION[keyof typeof LOG_ACTION];
