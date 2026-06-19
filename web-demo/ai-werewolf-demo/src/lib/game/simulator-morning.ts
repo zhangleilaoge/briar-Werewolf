@@ -56,5 +56,5 @@ export function resolveMorningEvents(sim: GameSimulator) {
     }
   });
 
-  log(sim, 'info', ' overnight 状态自然恢复完成。');
+  log(sim, 'info', '夜间状态自然恢复完成。');
 }

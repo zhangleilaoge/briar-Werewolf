@@ -32,6 +32,10 @@ export interface BehaviorModifier {
   reason: string;
 }
 
+// 关系修正权重常量
+const RELATION_WEIGHT_HIGH = 2;    // 高权重（保护、指控）
+const RELATION_WEIGHT_LOW = 4;     // 低权重（杀戮）
+
 // ---------- Alignment Action Tendency ----------
 // 阵营影响行动取向：守序稳健 vs 混乱激进，善良保护 vs 邪恶攻击
 
@@ -178,10 +182,6 @@ export function getRelationTargetModifier(
   if (!relation) return 0;
 
   const { trust, friendly } = relation;
-
-  // 关系修正系数
-  const RELATION_WEIGHT_HIGH = 2;    // 高权重（保护、指控）
-  const RELATION_WEIGHT_LOW = 4;     // 低权重（杀戮）
 
   switch (action) {
     case ACTION.DEFEND:

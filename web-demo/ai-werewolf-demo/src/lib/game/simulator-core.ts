@@ -323,7 +323,7 @@ export class GameSimulator {
     this.actors.forEach((actor, id) => {
       if (actor.state === 'thinking' && !this.thinkingLogPlayerIds.has(id)) {
         const player = this.players.find(p => p.id === id);
-        this.logs.push({
+        this.tickLogBuffer.push({
           round: this.round,
           phase: this.phase,
           message: `[${time}] ⏳ ${player?.name || id} 正在思考...`,
