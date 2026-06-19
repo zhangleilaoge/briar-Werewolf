@@ -369,8 +369,11 @@ export class PluginRegistry {
             type: 'trait',
             getAvailableActions: (player, context) => traitProvider.getTraitActions!(player, context),
             execute: (params) => {
-              // Trait providers don't have execute, this is a placeholder
-              return { success: false, logs: [], stateChanges: [], events: [] };
+              const tp = traitProvider as unknown as { execute?: (params: ActionExecutionParams) => ActionResult };
+              if (tp.execute) {
+                return tp.execute(params);
+              }
+              throw new Error(`Trait provider ${traitProvider.id} does not implement execute for action ${actionType}`);
             },
           };
         }
@@ -381,9 +384,21 @@ export class PluginRegistry {
   }
   
   /**
-   * Clear all registered providers
+   * Reset all providers that have a reset method (e.g. SingleUseItemPlugin)
+   */
+  reset(): void {
+    for (const provider of this.providers.values()) {
+      if ('reset' in provider && typeof (provider as { reset(): void }).reset === 'function') {
+        (provider as { reset(): void }).reset();
+      }
+    }
+  }
+
+  /**
+   * Clear all registered providers (calls reset first, then clears)
    */
   clear(): void {
+    this.reset();
     this.providers.clear();
     this.traitProviders.clear();
   }

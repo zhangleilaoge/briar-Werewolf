@@ -104,10 +104,30 @@ export function useGameRunner() {
   const syncFromSimulator = useCallback(() => {
     const sim = simulatorRef.current;
     if (!sim) return;
-    setPlayers(sim.getPlayers());
-    setLogs([...sim.getLogs()]);
+    const newPlayers = sim.getPlayers();
+    const newLogs = sim.getLogs();
+
+    setPlayers((prev) => {
+      // 避免不必要的重渲染：只在关键字段变化时更新
+      if (
+        prev.length === newPlayers.length &&
+        prev.every(
+          (p, i) =>
+            p.alive === newPlayers[i].alive &&
+            p.stress === newPlayers[i].stress &&
+            p.id === newPlayers[i].id
+        )
+      ) {
+        return prev;
+      }
+      return newPlayers;
+    });
+
+    setLogs([...newLogs]);
     setRound(sim.round);
   }, []);
+
+  const runNextStepRef = useRef<(() => void) | undefined>(undefined);
 
   const runNextStep = useCallback(() => {
     if (pausedRef.current) {
@@ -134,9 +154,13 @@ export function useGameRunner() {
     if (!pausedRef.current && phaseRef.current !== 'ended') {
       const tickRate = (sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE);
       const delay = tickRate / speedRef.current;
-      timerRef.current = setTimeout(runNextStep, delay);
+      timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
     }
   }, [syncFromSimulator]);
+
+  useEffect(() => {
+    runNextStepRef.current = runNextStep;
+  }, [runNextStep]);
 
   const startGame = useCallback(
     (config: GameConfig) => {
@@ -152,7 +176,7 @@ export function useGameRunner() {
       setPhase('running');
       sim.generateRoundSteps();
       // 立即开始，不等待
-      timerRef.current = setTimeout(runNextStep, 0);
+      timerRef.current = setTimeout(() => runNextStepRef.current?.(), 0);
     },
     [runNextStep]
   );
@@ -175,7 +199,7 @@ export function useGameRunner() {
     const tickRate = sim?.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
     const delay = tickRate / speedRef.current;
     console.log(`[resumeGame] delay=${delay}ms tickRate=${tickRate}`);
-    timerRef.current = setTimeout(runNextStep, delay);
+    timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
   }, [runNextStep]);
 
   const nextStep = useCallback(() => {

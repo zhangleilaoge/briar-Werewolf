@@ -8,6 +8,7 @@
 
 import type { Player, GameLogItem, Phase } from '@/types';
 import type { DecisionCandidate } from '@/types';
+import type { BeliefSystem } from '../ai/belief-system';
 
 // ==================== Context Types ====================
 
@@ -32,7 +33,7 @@ export interface ActionContext extends GameContext {
  * Decision context for AI evaluation
  */
 export interface DecisionContext extends GameContext {
-  belief: any; // BeliefSystem - avoid circular import
+  belief: BeliefSystem;
   self: Player;
   allPlayers: Player[];
   nightDecisions?: { playerId: string; action: string; targetId: string | null; reason: string }[];

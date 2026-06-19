@@ -212,6 +212,9 @@ export class GameSimulator {
     alignment?: Alignment;
     traits?: string[];
   }[]) {
+    // Reset all plugin state before creating new players
+    this.pluginRegistry.reset();
+
     configs.forEach((cfg) => {
       const roleInfo = ROLE_INFO[cfg.role];
       const items: ItemInstance[] = cfg.items ?? roleInfo.defaultItems.map((id) => ({
@@ -478,7 +481,7 @@ export class GameSimulator {
       const exposure = count > 0 ? totalSuspicion / count : 0;
 
       // 暴露度变更日志（从agent的exposureLog获取）
-      const exposureLog = (agent as any)?.exposureLog ?? [];
+      const exposureLog = agent?.exposureLog ?? [];
 
       return { ...p, exposure, suspicionByOthers, exposureLog };
     });
