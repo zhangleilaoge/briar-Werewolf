@@ -126,7 +126,7 @@ export class BeliefSystem {
   initializeRelations(allPlayers: Player[]) {
     allPlayers.forEach((p) => {
       if (p.id !== this.playerId) {
-        this.l3Social.relations[p.id] = { favor: 0 };
+        this.l3Social.relations[p.id] = { favor: 0, trust: 0, friendly: 0 };
         this.l1Inferences.roleBeliefs[p.id] = { werewolf: BELIEF_DEFAULT_PROBABILITY, villager: BELIEF_DEFAULT_PROBABILITY };
         this.l1Inferences.trustScore[p.id] = 0;
       }
@@ -399,12 +399,23 @@ export class BeliefSystem {
     });
   }
 
-  updateRelation(targetId: string, favorDelta: number) {
+  updateRelation(targetId: string, favorDelta: number, trustDelta?: number, friendlyDelta?: number) {
     if (!this.l3Social.relations[targetId]) {
-      this.l3Social.relations[targetId] = { favor: 0 };
+      this.l3Social.relations[targetId] = { favor: 0, trust: 0, friendly: 0 };
     }
     const rel = this.l3Social.relations[targetId];
-    rel.favor = Math.max(-10, Math.min(10, rel.favor + favorDelta));
+    if (favorDelta !== undefined) {
+      rel.favor = Math.max(-10, Math.min(10, rel.favor + favorDelta));
+    }
+    if (trustDelta !== undefined) {
+      rel.trust = Math.max(-10, Math.min(10, (rel.trust || 0) + trustDelta));
+    }
+    if (friendlyDelta !== undefined) {
+      rel.friendly = Math.max(-10, Math.min(10, (rel.friendly || 0) + friendlyDelta));
+    }
+    if (trustDelta !== undefined || friendlyDelta !== undefined) {
+      rel.favor = Math.max(-10, Math.min(10, ((rel.trust || 0) + (rel.friendly || 0)) / 2));
+    }
   }
 
   updatePressure(delta: number) {
@@ -444,7 +455,7 @@ export class BeliefSystem {
   }
 
   getRelation(targetId: string): Relation {
-    return this.l3Social.relations[targetId] ?? { favor: 0 };
+    return this.l3Social.relations[targetId] ?? { favor: 0, trust: 0, friendly: 0 };
   }
 
   getSummary() {

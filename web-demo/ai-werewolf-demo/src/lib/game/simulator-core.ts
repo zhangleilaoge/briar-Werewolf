@@ -248,7 +248,7 @@ export class GameSimulator {
     this.players.forEach((p) => {
       this.players.forEach((other) => {
         if (p.id !== other.id) {
-          p.relations[other.id] = { favor: 0 };
+          p.relations[other.id] = { favor: 0, trust: 0, friendly: 0 };
         }
       });
     });

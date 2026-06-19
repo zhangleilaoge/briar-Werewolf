@@ -9,6 +9,7 @@ import {
   DEFAULT_ATTRIBUTE_FALLBACK, DEFAULT_STRESS_FALLBACK, DEFAULT_ALIGNMENT_FALLBACK,
   CHECK_DIFFICULTY_DEFEND, CHECK_DIFFICULTY_JOIN_SUSPECT, CHECK_DIFFICULTY_JOIN_DEFEND,
   CHECK_DIFFICULTY_CALL_VOTE, CHECK_DIFFICULTY_BLOCK_VOTE, CHECK_DIFFICULTY_GUARANTEE, CHECK_DIFFICULTY_EXCLUDE_ALL,
+  ROLE_INFO,
 } from '@/types';
 import { log, getPublicPlayerStates, updateRelation, logAction, buildCheckLog } from './simulator-utils';
 import { skipToVote } from './simulator-vote';
@@ -78,7 +79,7 @@ export function runDayAction(sim: GameSimulator, playerId: string) {
     }
   }
 
-  if ([ACTION.SUSPECT, ACTION.DEFEND].includes(decision.action)) {
+  if (ACTION.SUSPECT === decision.action || ACTION.DEFEND === decision.action) {
     openAppendixWindow(sim, actionRecord);
   }
 }
@@ -104,7 +105,7 @@ export function resolveDayAction(
       const claimedRoleKey = details.claimedRole as string || 'villager';
       const claimedRoleName = ROLE_INFO[claimedRoleKey as keyof typeof ROLE_INFO]?.label || claimedRoleKey;
       logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRoleName}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole: claimedRoleKey , process });
-      if (actor.role === 'prophet' && claimedRole === 'prophet') {
+      if (actor.role === 'prophet' && claimedRoleKey === 'prophet') {
         sim.prophetClaims[actor.id] = true;
         const agent = sim._aiAgents[actor.id];
         if (agent) {
@@ -117,7 +118,7 @@ export function resolveDayAction(
           });
         }
       }
-      if (actor.role === 'prophet' && claimedRole !== 'prophet' && sim.prophetClaims[actor.id]) {
+      if (actor.role === 'prophet' && claimedRoleKey !== 'prophet' && sim.prophetClaims[actor.id]) {
         sim.prophetClaims[actor.id] = false;
         logAction(sim, 'action', `${actor.name} 终止了预言家身份的公布义务。`, decisionReason, [], { actorId: actor.id, action: 'claim_identity_end' , process });
       }
@@ -219,7 +220,7 @@ export function resolveDayAction(
       logAction(sim, 'action', `${actor.name} 怀疑 ${targetName}：「我觉得 ${targetName} 可能是狼人」（${successLevel}）`, decisionReason, [suspectCheck], { actorId: actor.id, action: ACTION.SUSPECT, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
-        updateRelation(sim, target, actor, { favorDelta: REL_CHANGE_MINOR_NEG });
+        updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
 
         // 记录暴露度变更：被怀疑者暴露度增加
         const targetAgent = sim._aiAgents[target.id];
@@ -477,9 +478,9 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
           // 旁观者信任反驳者
           sim.players.forEach((p) => {
             if (p.id !== player.id && p.id !== triggerActor.id && p.alive) {
-              updateRelation(sim, p, player, { favorDelta: REL_CHANGE_MINOR_POS });
+              updateRelation(sim, p, player, { trustDelta: REL_CHANGE_MINOR_POS, friendlyDelta: REL_CHANGE_MINOR_POS });
               // 反驳成功：怀疑者失旁观者信任
-              updateRelation(sim, p, triggerActor, { favorDelta: REL_CHANGE_MINOR_NEG });
+              updateRelation(sim, p, triggerActor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
             }
           });
         } else {
@@ -487,7 +488,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
           // 反驳失败：旁观者更信任怀疑者
           sim.players.forEach((p) => {
             if (p.id !== player.id && p.id !== triggerActor.id && p.alive) {
-              updateRelation(sim, p, triggerActor, { favorDelta: REL_CHANGE_MINOR_POS });
+              updateRelation(sim, p, triggerActor, { trustDelta: REL_CHANGE_MINOR_POS, friendlyDelta: REL_CHANGE_MINOR_POS });
             }
           });
         }
