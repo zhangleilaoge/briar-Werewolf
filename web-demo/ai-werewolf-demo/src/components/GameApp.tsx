@@ -6,12 +6,14 @@ import GameHeader from './game/GameHeader';
 import PlayerList from './game/PlayerList';
 import LogPanel from './game/LogPanel';
 import PlayerDrawer from './game/PlayerDrawer';
+import RulesModal from './game/RulesModal';
 
 export default function GameApp() {
   const game = useGameRunner();
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerState | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const toggleLog = useCallback((idx: number) => {
     setExpandedLogs((prev) => {
@@ -54,7 +56,10 @@ export default function GameApp() {
         resumeGame={game.resumeGame}
         resetGame={game.resetGame}
         exportLog={game.exportLog}
+        onOpenRules={() => setRulesOpen(true)}
       />
+
+      <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
 
       <div className="flex-1 flex overflow-hidden">
         <PlayerList

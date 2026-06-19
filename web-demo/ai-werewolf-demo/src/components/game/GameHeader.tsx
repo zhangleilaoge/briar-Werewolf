@@ -13,6 +13,7 @@ interface GameHeaderProps {
   resumeGame: () => void;
   resetGame: () => void;
   exportLog: () => void;
+  onOpenRules: () => void;
 }
 
 export default function GameHeader({
@@ -28,6 +29,7 @@ export default function GameHeader({
   resumeGame,
   resetGame,
   exportLog,
+  onOpenRules,
 }: GameHeaderProps) {
   return (
     <div className="bg-card border-b border-border p-4 flex items-center justify-between shrink-0">
@@ -43,6 +45,12 @@ export default function GameHeader({
         )}
       </div>
       <div className="flex items-center gap-2">
+        <button
+          className="px-4 py-2 bg-[#1a1b2e] text-gray-300 border border-gray-600 rounded-lg text-sm font-bold hover:bg-[#252640] hover:text-white transition-colors"
+          onClick={onOpenRules}
+        >
+          📖 规则
+        </button>
         <button
           className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors"
           onClick={() => setSpeed(speed === GAME_SPEED_SLOW ? GAME_SPEED_NORMAL : speed === GAME_SPEED_NORMAL ? GAME_SPEED_FAST : GAME_SPEED_SLOW)}
