@@ -54,7 +54,6 @@ function resolveVotesRound(
     if (target?.alive) {
       target.alive = false;
       log(sim, 'death', `${target.name} ${roundLabel}被投票放逐！得票 ${maxVotes} 票。身份：${target.role === 'werewolf' || target.role === 'lone_wolf' || target.role === 'berserker' ? '狼人' : '村民'}。`, { playerId: target.id, role: target.role });
-      sim._checkWinCondition();
       // 结算被放逐者与投票者之间的关系
       const voters = sim.votes[targetId] || [];
       voters.forEach((voterId) => {
@@ -81,12 +80,6 @@ export function resolveVotesRound1(sim: GameSimulator) {
 
 export function resolveVotesRound2(sim: GameSimulator, _candidates: string[]) {
   resolveVotesRound(sim, 2, false, '第二轮');
-}
-
-export function generateVoteRound2(sim: GameSimulator, _candidates: string[]) {
-  // New model: VotePhaseController handles round 2 internally
-  sim.voteRound = 2;
-  sim.votes = {};
 }
 
 export function runVoteRound2(sim: GameSimulator, player: Player, candidates: string[]) {

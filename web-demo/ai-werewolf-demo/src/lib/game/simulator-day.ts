@@ -354,7 +354,6 @@ export function resolveDayAction(
             agent.onEvent({ type: 'death', playerId: target.id });
           }
         });
-        sim._checkWinCondition();
         skipToVote(sim);
       }
       break;
