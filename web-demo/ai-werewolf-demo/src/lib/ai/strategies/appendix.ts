@@ -8,6 +8,7 @@ import {
   RELATION_FRIENDLY_JOIN_DEFEND,
 } from '@/types';
 import type { Strategy } from './engine';
+import type { JoinAction, RebutAction } from '@/lib/plugins/types';
 
 // ---------- Join Suspect (appendix) ----------
 export const JoinSuspectStrategy: Strategy = {
@@ -21,7 +22,7 @@ export const JoinSuspectStrategy: Strategy = {
     const joinAction = availableActions.find((a) => a.type === 'join_suspect');
     if (!joinAction) return result;
 
-    const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
+    const originalTargetId = (joinAction as JoinAction).originalTargetId;
     const target = allPlayers.find((p) => p.id === originalTargetId);
     if (!target?.alive) return result;
 
@@ -56,7 +57,7 @@ export const JoinDefendStrategy: Strategy = {
     const joinAction = availableActions.find((a) => a.type === 'join_defend');
     if (!joinAction) return result;
 
-    const originalTargetId = (joinAction as Record<string, unknown>).originalTargetId as string;
+    const originalTargetId = (joinAction as JoinAction).originalTargetId;
     const target = allPlayers.find((p) => p.id === originalTargetId);
     if (!target?.alive) return result;
 
@@ -91,7 +92,7 @@ export const RebutStrategy: Strategy = {
     const rebutAction = availableActions.find((a) => a.type === 'rebut');
     if (!rebutAction) return result;
 
-    const originalActorId = (rebutAction as Record<string, unknown>).originalActorId as string;
+    const originalActorId = (rebutAction as RebutAction).originalActorId;
     const actor = allPlayers.find((p) => p.id === originalActorId);
     if (!actor) return result;
 

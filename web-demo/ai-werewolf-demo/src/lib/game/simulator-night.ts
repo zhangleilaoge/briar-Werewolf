@@ -1,6 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '@/types';
 import { hasItem, damageItem, addItem } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 import { log, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
@@ -38,16 +39,26 @@ export function runNightAction(sim: GameSimulator, player: Player) {
       // Apply state changes
       result.stateChanges.forEach((change) => {
         switch (change.type) {
-          case 'item_damage':
-            damageItem(sim.players.find(p => p.id === change.targetId)!, change.payload.itemId as string);
+          case 'item_damage': {
+            const targetPlayer = sim.players.find(p => p.id === change.targetId);
+            if (targetPlayer) {
+              damageItem(targetPlayer, change.payload.itemId as string);
+            }
             break;
-          case 'item_add':
-            addItem(sim.players.find(p => p.id === change.targetId)!, change.payload.itemId as string);
+          }
+          case 'item_add': {
+            const targetPlayer = sim.players.find(p => p.id === change.targetId);
+            if (targetPlayer) {
+              addItem(targetPlayer, change.payload.itemId as string);
+            }
             break;
+          }
           case 'item_remove': {
-            const player = sim.players.find(p => p.id === change.targetId)!;
-            const idx = player.items.findIndex(i => i.definitionId === change.payload.itemId);
-            if (idx >= 0) player.items.splice(idx, 1);
+            const targetPlayer = sim.players.find(p => p.id === change.targetId);
+            if (targetPlayer) {
+              const idx = targetPlayer.items.findIndex(i => i.definitionId === change.payload.itemId);
+              if (idx >= 0) targetPlayer.items.splice(idx, 1);
+            }
             break;
           }
         }
@@ -87,10 +98,10 @@ export function resolveNightActions(sim: GameSimulator) {
 
   // Separate werewolf and lone wolf kills
   const werewolfKills = sim.nightDecisions.filter(
-    (d) => d.action === 'kill' && sim.players.find((p) => p.id === d.playerId)?.role !== 'lone_wolf'
+    (d) => d.action === ACTION.KILL && sim.players.find((p) => p.id === d.playerId)?.role !== 'lone_wolf'
   );
   const loneWolfKills = sim.nightDecisions.filter(
-    (d) => d.action === 'kill' && sim.players.find((p) => p.id === d.playerId)?.role === 'lone_wolf'
+    (d) => d.action === ACTION.KILL && sim.players.find((p) => p.id === d.playerId)?.role === 'lone_wolf'
   );
 
   // Find primary werewolf kill target

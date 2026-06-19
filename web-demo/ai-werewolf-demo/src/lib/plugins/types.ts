@@ -79,6 +79,20 @@ export interface ActionDefinition {
   maxUsesPerRound?: number;
 }
 
+/**
+ * Extended action definition for join actions (join_suspect, join_defend)
+ */
+export interface JoinAction extends ActionDefinition {
+  originalTargetId: string;
+}
+
+/**
+ * Extended action definition for rebut action
+ */
+export interface RebutAction extends ActionDefinition {
+  originalActorId: string;
+}
+
 // ==================== Action Result ====================
 
 /**

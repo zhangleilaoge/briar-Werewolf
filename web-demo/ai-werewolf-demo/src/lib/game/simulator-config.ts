@@ -3,8 +3,8 @@ import type { Role, Team, ItemInstance } from '@/types';
 
 export function generateGameConfig(
   _totalPlayers: number,
-  werewolfConfig: { role: string; count: number }[],
-  villagerConfig: { role: string; count: number }[]
+  werewolfConfig: { role: Role; count: number }[],
+  villagerConfig: { role: Role; count: number }[]
 ): {
   id: string;
   name: string;
@@ -17,7 +17,7 @@ export function generateGameConfig(
   let id = 1;
   werewolfConfig.forEach((wc) => {
     for (let i = 0; i < wc.count; i++) {
-      const role = wc.role as Role;
+      const role = wc.role;
       const roleInfo = ROLE_INFO[role];
       configs.push({
         id: `p${id++}`,
@@ -34,7 +34,7 @@ export function generateGameConfig(
 
   villagerConfig.forEach((vc) => {
     for (let i = 0; i < vc.count; i++) {
-      const role = vc.role as Role;
+      const role = vc.role;
       const roleInfo = ROLE_INFO[role];
       configs.push({
         id: `p${id++}`,

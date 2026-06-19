@@ -1,8 +1,9 @@
 import { BeliefSystem } from './belief-system';
 import { DecisionEngine, buildStrategies } from './strategies';
 import { IntentionManager } from './intention-system';
-import type { Player, DecisionResult, LogEntry, Phase, } from '@/types';
+import type { Player, DecisionResult, LogEntry, Phase, Attributes } from '@/types';
 import type { PluginRegistry } from '../plugins';
+import { ACTION } from '@/lib/constants/action-constants';
 
 export interface AgentEvent {
   type: 'death' | 'check_result' | 'public_claim' | 'relation_update' | 'observation' | 'inspection';
@@ -14,7 +15,7 @@ export interface AgentEvent {
   friendlyDelta?: number;
   trustDelta?: number;
   stress?: number;
-  attributes?: Record<string, number>;
+  attributes?: Attributes;
   items?: string[];
 }
 
@@ -120,7 +121,7 @@ export class AIAgent {
   vote(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], voteRound: number = 1): DecisionResult | null {
     if (!this.player?.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
-    const availableActions = [{ type: 'vote' }];
+    const availableActions = [{ type: ACTION.VOTE }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
     
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, voteRound, undefined, undefined, this.intentionManager);
@@ -131,7 +132,7 @@ export class AIAgent {
 
   voteRound2(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], candidates: string[]): DecisionResult | null {
     if (!this.player?.alive) return null;
-    const availableActions = [{ type: 'vote' }];
+    const availableActions = [{ type: ACTION.VOTE }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
     
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates, undefined, this.intentionManager);
@@ -189,7 +190,7 @@ export class AIAgent {
     this.belief.recordInspection(targetId, items);
   }
 
-  recordObservation(targetId: string, stress: number, attributes: Record<string, number>) {
+  recordObservation(targetId: string, stress: number, attributes: Attributes) {
     this.belief.recordObservation(targetId, stress, attributes);
   }
 
@@ -220,7 +221,7 @@ export class AIAgent {
     const currentStep = topIntention.plan[topIntention.currentStepIndex];
     if (!currentStep) return;
 
-    if (currentStep.phase === phase && (currentStep.action === decision.action || (currentStep.action === 'speak' && decision.action === 'speak'))) {
+    if (currentStep.phase === phase && (currentStep.action === decision.action || (currentStep.action === ACTION.SPEAK && decision.action === ACTION.SPEAK))) {
       this.intentionManager.advanceStep(topIntention.id, phase, decision.action);
     }
   }
@@ -256,18 +257,17 @@ export class AIAgent {
     }
 
     // Common day actions (always available)
-    actions.push({ type: 'silence' });
-    actions.push({ type: 'claim_identity' });
-    actions.push({ type: 'reveal_info' });
-    actions.push({ type: 'observe' });
-    actions.push({ type: 'suspect' });
-    actions.push({ type: 'defend' });
-    actions.push({ type: 'thank' });
-    actions.push({ type: 'call_vote' });
-    actions.push({ type: 'block_vote' });
-    actions.push({ type: 'guarantee' });
-    actions.push({ type: 'accuse' });
-    actions.push({ type: 'exclude_all' });
+    actions.push({ type: ACTION.SILENCE });
+    actions.push({ type: ACTION.CLAIM_IDENTITY });
+    actions.push({ type: ACTION.REVEAL_INFO });
+    actions.push({ type: ACTION.OBSERVE });
+    actions.push({ type: ACTION.SUSPECT });
+    actions.push({ type: ACTION.DEFEND });
+    actions.push({ type: ACTION.CALL_VOTE });
+    actions.push({ type: ACTION.BLOCK_VOTE });
+    actions.push({ type: ACTION.GUARANTEE });
+    actions.push({ type: ACTION.ACCUSE });
+    actions.push({ type: ACTION.EXCLUDE_ALL });
 
     return actions;
   }
@@ -276,21 +276,21 @@ export class AIAgent {
     if (!this.player) return [];
     const actions: { type: string; originalTargetId?: string; originalActorId?: string }[] = [];
 
-    if (triggerAction.type === 'suspect' || triggerAction.type === 'join_suspect') {
+    if (triggerAction.type === ACTION.SUSPECT || triggerAction.type === ACTION.JOIN_SUSPECT) {
       // Can join suspect if not the original target and not the trigger actor
       if (triggerAction.targetId !== this.player.id && triggerAction.actorId !== this.player.id) {
-        actions.push({ type: 'join_suspect', originalTargetId: triggerAction.targetId });
+        actions.push({ type: ACTION.JOIN_SUSPECT, originalTargetId: triggerAction.targetId });
       }
       // Can rebut if we are the target
       if (triggerAction.targetId === this.player.id && triggerAction.actorId !== this.player.id) {
-        actions.push({ type: 'rebut', originalActorId: triggerAction.actorId });
+        actions.push({ type: ACTION.REBUT, originalActorId: triggerAction.actorId });
       }
     }
 
-    if (triggerAction.type === 'defend' || triggerAction.type === 'join_defend') {
+    if (triggerAction.type === ACTION.DEFEND || triggerAction.type === ACTION.JOIN_DEFEND) {
       // Can join defend if not the original target and not the trigger actor
       if (triggerAction.targetId !== this.player.id && triggerAction.actorId !== this.player.id) {
-        actions.push({ type: 'join_defend', originalTargetId: triggerAction.targetId });
+        actions.push({ type: ACTION.JOIN_DEFEND, originalTargetId: triggerAction.targetId });
       }
     }
 

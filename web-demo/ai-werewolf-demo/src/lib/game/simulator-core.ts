@@ -131,6 +131,10 @@ export class GameSimulator {
   currentPhase: PhaseController | null = null;
   forcePhaseEnd = false;
 
+  // ---- Thinking Log Index ----
+  // Tracks playerIds with active thinking logs for O(1) lookup
+  private thinkingLogPlayerIds = new Set<string>();
+
   // ---- Tick Log Buffer ----
   // During a tick, all logs are written here; sorted and committed at tick end
   tickLogBuffer: GameLogItem[] = [];
@@ -317,20 +321,16 @@ export class GameSimulator {
   private _addThinkingLogs() {
     const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
     this.actors.forEach((actor, id) => {
-      if (actor.state === 'thinking') {
-        const exists = this.logs.some(log =>
-          log.type === 'thinking' && log.details?.playerId === id
-        );
-        if (!exists) {
-          const player = this.players.find(p => p.id === id);
-          this.logs.push({
-            round: this.round,
-            phase: this.phase,
-            message: `[${time}] ⏳ ${player?.name || id} 正在思考...`,
-            type: 'thinking',
-            details: { playerId: id, thinking: true }
-          });
-        }
+      if (actor.state === 'thinking' && !this.thinkingLogPlayerIds.has(id)) {
+        const player = this.players.find(p => p.id === id);
+        this.logs.push({
+          round: this.round,
+          phase: this.phase,
+          message: `[${time}] ⏳ ${player?.name || id} 正在思考...`,
+          type: 'thinking',
+          details: { playerId: id, thinking: true }
+        });
+        this.thinkingLogPlayerIds.add(id);
       }
     });
   }
@@ -356,13 +356,14 @@ export class GameSimulator {
 
   private _removeCompletedThinkingLogs() {
     this.actors.forEach((actor, id) => {
-      if (actor.state === 'idle') {
+      if (actor.state === 'idle' && this.thinkingLogPlayerIds.has(id)) {
         const idx = this.logs.findIndex(log =>
           log.type === 'thinking' && log.details?.playerId === id
         );
         if (idx >= 0) {
           this.logs.splice(idx, 1);
         }
+        this.thinkingLogPlayerIds.delete(id);
       }
     });
   }
@@ -389,6 +390,7 @@ export class GameSimulator {
 
   private _prepareNextRound() {
     this.round++;
+    this.thinkingLogPlayerIds.clear();
     this.logs.push({ round: this.round, phase: 'init', message: `=== 第 ${this.round} 轮 ===`, type: 'phase' });
 
     this.phaseQueue = [

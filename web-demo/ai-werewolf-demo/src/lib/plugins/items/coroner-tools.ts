@@ -6,7 +6,6 @@
  */
 
 import type {
-  ActionProvider,
   ActionDefinition,
   ActionContext,
   ActionExecutionParams,
@@ -17,18 +16,17 @@ import type {
 } from '../types';
 import type { Player } from '@/types';
 import { hasItem, ITEM_DEFINITIONS } from '@/types';
-import { createGameLog } from '../base';
+import { createGameLog, SingleUseItemPlugin } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_CORONER_INSPECT_BASE,
 } from '@/types';
 
-export class CoronerToolsPlugin implements ActionProvider {
+export class CoronerToolsPlugin extends SingleUseItemPlugin {
   id = 'coroner_tools';
   type = 'item' as const;
-  
-  // Track usage per player
-  private usedBy: Map<string, boolean> = new Map();
+  protected itemId = 'coroner_tools';
+  protected actionType = 'inspect';
   
   getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
     // Anyone with tools can inspect, but only once per game
@@ -37,7 +35,7 @@ export class CoronerToolsPlugin implements ActionProvider {
     }
     
     // Check if already used
-    if (this.usedBy.get(player.id)) {
+    if (this.checkUsed(player)) {
       return [];
     }
     
@@ -58,7 +56,7 @@ export class CoronerToolsPlugin implements ActionProvider {
     const events: PluginEvent[] = [];
     
     // Check if already used
-    if (this.usedBy.get(actor.id)) {
+    if (this.checkUsed(actor)) {
       logs.push(createGameLog(context, 'action', `${actor.name} 已使用过验尸能力`));
       return { success: false, logs, stateChanges, events };
     }
@@ -74,7 +72,7 @@ export class CoronerToolsPlugin implements ActionProvider {
     }
     
     // Mark as used
-    this.usedBy.set(actor.id, true);
+    this.markUsed(actor);
     
     // Get item names
     const items = target.items
@@ -117,7 +115,7 @@ export class CoronerToolsPlugin implements ActionProvider {
     }
     
     // Check if already used
-    if (this.usedBy.get(self.id)) {
+    if (this.checkUsed(self)) {
       return result;
     }
     
@@ -139,12 +137,5 @@ export class CoronerToolsPlugin implements ActionProvider {
     });
     
     return result.sort((a, b) => b.score - a.score);
-  }
-  
-  /**
-   * Reset usage tracking (for new game)
-   */
-  reset(): void {
-    this.usedBy.clear();
   }
 }

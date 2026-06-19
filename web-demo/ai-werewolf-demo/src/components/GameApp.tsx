@@ -59,8 +59,7 @@ export default function GameApp() {
             {game.speed}x
           </button>
           {!isEnded && (
-            <>
-              {isRunning ? (
+              isRunning ? (
                 <button className="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-bold hover:opacity-90" onClick={game.pauseGame}>
                   ⏸ 暂停
                 </button>
@@ -68,8 +67,7 @@ export default function GameApp() {
                 <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:opacity-90" onClick={game.resumeGame}>
                   ▶ 继续
                 </button>
-              )}
-            </>
+              )
           )}
           <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-bold hover:opacity-90" onClick={game.resetGame}>
             ↺ 重置

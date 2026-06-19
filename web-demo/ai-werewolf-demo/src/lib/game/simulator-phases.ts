@@ -1,5 +1,6 @@
 import type { GameSimulator, PublicActionRecord, GameEvent, PlayerActor } from './simulator-core';
 import type { Phase, Player, DecisionProcess } from '@/types';
+import { ROLE_INFO } from '@/types';
 import { log, } from './simulator-utils';
 import { runDayAction, runAppendixAction } from './simulator-day';
 import { runNightAction, resolveNightActions } from './simulator-night';
@@ -217,15 +218,11 @@ export class NightPhaseController extends TickPhase {
   readonly tickRate = 100;
 
   private completedGroups = new Set<string>();
-  private groups: { name: string; filter: (p: Player) => boolean }[] = [
-    { name: 'werewolf', filter: (p) => p.team === 'werewolf' && p.alive },
-    { name: 'prophet', filter: (p) => p.role === 'prophet' && p.alive },
-    { name: 'thief', filter: (p) => p.role === 'thief' && p.alive },
-    { name: 'coroner', filter: (p) => p.role === 'coroner' && p.alive },
-  ];
+  private groups: { name: string; filter: (p: Player) => boolean }[] = [];
   private currentGroupIndex = 0;
 
   onEnter(sim: GameSimulator) {
+    this._buildGroups();
     this.completedGroups.clear();
     this.currentGroupIndex = 0;
     sim.nightDecisions = [];
@@ -269,6 +266,18 @@ export class NightPhaseController extends TickPhase {
     }
 
     return true;
+  }
+
+  private _buildGroups(): void {
+    this.groups = [];
+    for (const [roleName, info] of Object.entries(ROLE_INFO)) {
+      if (info.nightAction) {
+        this.groups.push({
+          name: roleName,
+          filter: (p) => p.role === roleName && p.alive,
+        });
+      }
+    }
   }
 
   private _notifyCurrentGroup(sim: GameSimulator) {

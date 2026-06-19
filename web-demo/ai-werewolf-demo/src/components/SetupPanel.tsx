@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameConfig } from './useGameRunner';
+import type { Role } from '@/types';
 import { MIN_PLAYERS } from '@/types';
 
 interface SetupPanelProps {
@@ -39,10 +40,10 @@ export default function SetupPanel({ onStart }: SetupPanelProps) {
   const handleStart = () => {
     const werewolfConfig = Object.entries(werewolfCounts)
       .filter(([, count]) => count > 0)
-      .map(([role, count]) => ({ role, count }));
+      .map(([role, count]) => ({ role: role as Role, count }));
     const villagerConfig = Object.entries(villagerCounts)
       .filter(([, count]) => count > 0)
-      .map(([role, count]) => ({ role, count }));
+      .map(([role, count]) => ({ role: role as Role, count }));
 
     onStart({
       totalPlayers: total,

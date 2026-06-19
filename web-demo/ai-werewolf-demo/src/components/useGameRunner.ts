@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameSimulator, generateGameConfig } from '../lib/game/simulator';
-import type { GameLogItem, Player } from '@/types';
+import type { GameLogItem, Player, Role } from '@/types';
 import { DEFAULT_TICK_RATE } from '@/types';
 
 export interface GameConfig {
   totalPlayers: number;
-  werewolfConfig: { role: string; count: number }[];
-  villagerConfig: { role: string; count: number }[];
+  werewolfConfig: { role: Role; count: number }[];
+  villagerConfig: { role: Role; count: number }[];
 }
 
 export type PlayerState = Player;

@@ -94,6 +94,6 @@ export function average(numbers: number[]): number {
 export function standardDeviation(numbers: number[]): number {
   if (numbers.length === 0) return 0;
   const avg = average(numbers);
-  const squareDiffs = numbers.map(val => Math.pow(val - avg, 2));
+  const squareDiffs = numbers.map(val => (val - avg) ** 2);
   return Math.sqrt(average(squareDiffs));
 }

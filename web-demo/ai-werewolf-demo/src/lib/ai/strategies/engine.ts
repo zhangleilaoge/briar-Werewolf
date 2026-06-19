@@ -4,6 +4,9 @@ import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTar
 import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager, PlanLibrary } from '../intention-system';
 
 import { buildScoreExpr } from '@/lib/utils/expr';
+import {
+  INTENTION_TYPE_NAMES, ACTION_NAMES, STAGE_NAMES, INTENTION_SOURCE_NAMES,
+} from '@/lib/constants/display-names';
 
 export interface StrategyContext {
   belief: BeliefSystem;
@@ -85,14 +88,8 @@ export class DecisionEngine {
     const candidates: DecisionCandidate[] = [];
 
     // 展示用中文映射（意图类型、行动名称）
-    const _typeNames: Record<string, string> = { attack: '攻击', recruit: '招募', protect: '保护', reveal: '揭示', investigate: '调查', coordinate: '协同', survive: '生存' };
-    const _actionNames: Record<string, string> = {
-      silence: '沉默', speak: '发言', claim_identity: '公布身份', reveal_info: '公开信息',
-      observe: '暗中观察', suspect: '怀疑', defend: '袒护', thank: '感谢',
-      call_vote: '号召投票', block_vote: '阻止投票', guarantee: '担保', accuse: '强烈指认',
-      exclude_all: '全员排除', berserker_kill: '狂狼同归于尽', kill: '袭击', check: '查验',
-      steal: '偷取', inspect: '验尸', vote: '投票', join_suspect: '一同怀疑', join_defend: '一同袒护', rebut: '反驳'
-    };
+    const _typeNames = INTENTION_TYPE_NAMES;
+    const _actionNames = ACTION_NAMES;
 
     // Add plugin candidates with 'plugin' stage
     pluginCandidates.forEach((c) => {
@@ -120,19 +117,20 @@ export class DecisionEngine {
     }
 
     // === 意图驱动补充候选 ===
-    // 如果最高意图的计划步骤没有匹配候选，生成补充候选对齐意图
+    // 遍历所有激活意图，如果其计划步骤没有匹配候选，生成补充候选展示给玩家
+    // 只有最高意图的计划步骤会获得额外加分（见意图驱动评分阶段）
     if (intentionManager) {
-      const topIntention = intentionManager.getTopIntention(phase);
-      if (topIntention) {
-        const step = PlanLibrary.getStepForPhase(topIntention.plan, phase);
+      const activeIntentions = intentionManager.getActiveIntentions().filter((i) => i.plan.some((s) => s.phase === phase));
+      for (const intention of activeIntentions) {
+        const step = PlanLibrary.getStepForPhase(intention.plan, phase);
         if (step && step.action) {
           const hasMatching = candidates.some((c) => c.action === step.action);
           if (!hasMatching) {
             // 生成补充候选：对齐意图计划步骤
             let targetId: string | null = null;
             if (step.targetRequired) {
-              if (topIntention.targetId) {
-                targetId = topIntention.targetId;
+              if (intention.targetId) {
+                targetId = intention.targetId;
               } else {
                 // 无目标意图但需要目标：随机选个合法目标
                 const others = allPlayers.filter((p) => p.id !== self.id && p.alive);
@@ -146,12 +144,12 @@ export class DecisionEngine {
               target: targetId,
               score: 50, // 基础意图驱动分数（低，让策略候选优先，但提供意图对齐回退）
               confidence: 0.5,
-              reason: `[意图补充] 最高意图${_typeNames[topIntention.type] || topIntention.type}计划要求${_actionNames[step.action] || step.action}${targetId ? `→${allPlayers.find((p) => p.id === targetId)?.name || targetId}` : ''}`,
+              reason: `[意图补充] ${intention === intentionManager.getTopIntention(phase) ? '最高意图' : '次级意图'}${_typeNames[intention.type] || intention.type}计划要求${_actionNames[step.action] || step.action}${targetId ? `→${allPlayers.find((p) => p.id === targetId)?.name || targetId}` : ''}`,
               stage: 'intention', // 新阶段：意图驱动
               strategy: 'IntentionDrivenFallback',
               rule: 'intention_step_fallback',
-              trigger: `最高意图=${_typeNames[topIntention.type] || topIntention.type}，计划步骤=${_actionNames[step.action] || step.action}，无策略候选匹配`,
-              // @ts-ignore: intentionDriven flag for debugging
+              trigger: `意图=${_typeNames[intention.type] || intention.type}（优先级${intention.priority}），计划步骤=${_actionNames[step.action] || step.action}，无策略候选匹配`,
+              // @ts-expect-error: intentionDriven flag for debugging
               intentionDriven: true,
             });
           }
@@ -175,12 +173,15 @@ export class DecisionEngine {
     const effectiveCandidates = allowed.length > 0 ? allowed : candidates; // 如果全部拦截，回退到原始候选（兜底）
 
     // === 意图驱动评分调整 ===
-    // 当前最高意图匹配的候选获得额外分数加成，实现意图一致性
+    // 只有最高意图匹配的候选获得额外分数加成，实现意图一致性
     let intentionInfo = '';
     if (intentionManager) {
       const topIntention = intentionManager.getTopIntention(phase);
       if (topIntention) {
-        intentionInfo = `当前意图: ${topIntention.type}→${topIntention.targetId || '无'} (优先级${topIntention.priority}, 来源${topIntention.source})`;
+        const typeNames = INTENTION_TYPE_NAMES;
+        const sourceNames = INTENTION_SOURCE_NAMES;
+        const targetName = topIntention.targetId ? (allPlayers.find((p) => p.id === topIntention.targetId)?.name || topIntention.targetId) : '无';
+        intentionInfo = `当前意图: ${typeNames[topIntention.type] || topIntention.type}${targetName !== '无' ? '→' + targetName : ''} (优先级${topIntention.priority}, 来源${sourceNames[topIntention.source] || topIntention.source})`;
         const currentStep = topIntention.plan[topIntention.currentStepIndex];
         if (currentStep) {
           for (const c of effectiveCandidates) {
@@ -188,7 +189,7 @@ export class DecisionEngine {
             // 如果候选行为匹配意图当前步骤的行为：+200分
             if (c.action === currentStep.action) {
               bonus += 200;
-              c.reason = `[意图驱动] ${topIntention.type}计划(${currentStep.phase}:${currentStep.action}) → ${c.reason}`;
+              c.reason = `[意图驱动] ${typeNames[topIntention.type] || topIntention.type}计划(${currentStep.phase}:${currentStep.action}) → ${c.reason}`;
             }
             // 如果候选目标匹配意图目标：+100分
             if (c.target === topIntention.targetId && topIntention.targetId) {
@@ -288,40 +289,14 @@ export class DecisionEngine {
       return true;
     });
 
+    // 计算加权随机概率（与 _weightedRandom 一致）
+    const weights = unique.map((c) => Math.max(1, c.totalScore));
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
     const top3 = unique.slice(0, 3);
 
-    const stageNames: Record<string, string> = {
-      duty: '职业义务',
-      survival: '生存',
-      information: '信息',
-      social: '社交',
-      intention: '意图',
-    };
-
-    const actionNames: Record<string, string> = {
-      silence: '沉默',
-      speak: '发言',
-      claim_identity: '公布身份',
-      reveal_info: '公开信息',
-      observe: '暗中观察',
-      suspect: '怀疑',
-      defend: '袒护',
-      thank: '感谢',
-      call_vote: '号召投票',
-      block_vote: '阻止投票',
-      guarantee: '担保',
-      accuse: '强烈指认',
-      exclude_all: '全员排除',
-      berserker_kill: '狂狼同归于尽',
-      kill: '袭击',
-      check: '查验',
-      steal: '偷取',
-      inspect: '验尸',
-      vote: '投票',
-      join_suspect: '一同怀疑',
-      join_defend: '一同袒护',
-      rebut: '反驳',
-    };
+    const stageNames = STAGE_NAMES;
+    const actionNames = ACTION_NAMES;
 
     const getName = (id: string | null) => {
       if (!id) return '';
@@ -336,6 +311,7 @@ export class DecisionEngine {
       const prefix = isWinner ? '✓' : '○';
       const stageName = stageNames[c.stage] || c.stage;
       const randomMark = c.random ? ' [随机]' : '';
+      const prob = totalWeight > 0 ? ((Math.max(1, c.totalScore) / totalWeight) * 100).toFixed(1) : '0.0';
 
       const scoreLine = buildScoreExpr(
         c.totalScore, c.score, c.intentionDrivenBonus, c.stageWeight, stageName, c.modifiers
@@ -344,7 +320,7 @@ export class DecisionEngine {
       return `${prefix} ${actionName}${targetName ? `→${targetName}` : ''}${randomMark}
   [${c.strategy}.${c.rule}]
   触发：${c.trigger}
-  ${scoreLine}`;
+  ${scoreLine} (概率 ${prob}%)`;
     });
 
     // 硬约束拦截信息
@@ -367,16 +343,11 @@ export class DecisionEngine {
       if (intentionInfo) {
         intentionLines.push(`  ${intentionInfo}`);
       }
-      intentionLines.push(intentionManager.getSummary());
+      intentionLines.push(intentionManager.getSummary(allPlayers));
     }
 
     const winnerAction = actionNames[winner.action] || winner.action;
     const winnerTarget = getName(winner.target);
-    const winnerStrategy = winner.strategy || 'unknown';
-    const winnerRule = winner.rule || 'unknown';
-    const winnerStr = winner.strategy && winner.rule
-      ? `${winnerStrategy}.${winnerRule}`
-      : '默认规则';
 
     const shortlist = [
       intentionExplanation || '',
@@ -386,7 +357,6 @@ export class DecisionEngine {
       ...intentionLines,
       '',
       `【最终选择】${winnerAction}${winnerTarget ? `→${winnerTarget}` : ''}`,
-      `  命中规则：${winnerStr}`,
     ].join('\n');
 
     const winnerActionStr = `${winner.action} → ${winner.target || '无目标'}`;

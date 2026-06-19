@@ -14,6 +14,105 @@ import type { Strategy, } from './engine';
 import type { Player } from '@/types';
 import { canUseItem } from '@/types';
 
+// ---------- Shared Helper: Break silence candidate ----------
+function generateBreakSilenceCandidate(
+  consecutiveSilence: number | undefined,
+  aliveCount: number | undefined,
+  strategyName: string,
+  score: number,
+  reason: string,
+): import('@/types').DecisionCandidate | null {
+  if (
+    consecutiveSilence &&
+    aliveCount &&
+    consecutiveSilence >= aliveCount - SILENCE_NEAR_FULL_THRESHOLD
+  ) {
+    return {
+      action: 'speak',
+      target: null,
+      score,
+      confidence: 0.7,
+      reason,
+      strategy: strategyName,
+      rule: 'break_silence',
+      trigger: `consecutiveSilence=${consecutiveSilence} >= aliveCount-${SILENCE_NEAR_FULL_THRESHOLD}=${aliveCount - SILENCE_NEAR_FULL_THRESHOLD}`,
+    };
+  }
+  return null;
+}
+
+// ---------- Shared Helper: Default behavior fallback ----------
+function generateDefaultCandidates(
+  self: Player,
+  allPlayers: Player[],
+  publicActions:
+    | { actorId: string; type: string; targetId?: string }[]
+    | undefined,
+  strategyName: string,
+  scores: {
+    round1Observe: number;
+    round1Speak: number;
+    otherObserve: number;
+    otherSpeak: number;
+  },
+  reasons: {
+    round1Observe: string;
+    round1Speak: string;
+    otherObserve: string;
+    otherSpeak: string;
+  },
+): import('@/types').DecisionCandidate[] {
+  const result: import('@/types').DecisionCandidate[] = [];
+  const aliveOthers = allPlayers.filter((p) => p.id !== self.id && p.alive);
+  const randomTarget =
+    aliveOthers.length > 0
+      ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
+      : null;
+  const isRound1 =
+    (publicActions?.filter(
+      (a) =>
+        a.type === 'speak' ||
+        a.type === 'suspect' ||
+        a.type === 'accuse' ||
+        a.type === 'defend',
+    ).length ?? 0) < 3;
+
+  if (randomTarget) {
+    result.push({
+      action: 'observe',
+      target: randomTarget.id,
+      score: isRound1 ? scores.round1Observe : scores.otherObserve,
+      stageWeight: 0,
+      confidence: 0.3,
+      reason: isRound1
+        ? reasons.round1Observe.replace('{name}', randomTarget.name)
+        : reasons.otherObserve.replace('{name}', randomTarget.name),
+      strategy: strategyName,
+      rule: isRound1 ? 'default_round1_observe' : 'default_other_observe',
+      trigger: isRound1
+        ? '无更高优先级规则命中，且为第一轮'
+        : '无更高优先级规则命中',
+      random: true,
+    });
+  }
+
+  result.push({
+    action: 'speak',
+    target: null,
+    score: isRound1 ? scores.round1Speak : scores.otherSpeak,
+    stageWeight: 0,
+    confidence: 0.3,
+    reason: isRound1 ? reasons.round1Speak : reasons.otherSpeak,
+    strategy: strategyName,
+    rule: isRound1 ? 'default_round1_speak' : 'default_other_speak',
+    trigger: isRound1
+      ? '无更高优先级规则命中，且为第一轮'
+      : '无更高优先级规则命中',
+  });
+
+  return result;
+}
+
 // ---------- Helper: Generate rich suspicion reason from public actions ----------
 function getSuspicionReason(
   belief: BeliefSystem,
@@ -304,18 +403,14 @@ export const VillagerDayStrategy: Strategy = {
     });
 
     // 6. 打破沉默
-    if (consecutiveSilence && aliveCount && consecutiveSilence >= aliveCount - SILENCE_NEAR_FULL_THRESHOLD) {
-      result.push({
-        action: 'speak',
-        target: null,
-        score: SCORE_BREAK_SILENCE,
-        confidence: 0.7,
-        reason: `快全员沉默了，我必须说点什么推动讨论。`,
-        strategy: 'VillagerDayStrategy',
-        rule: 'break_silence',
-        trigger: `consecutiveSilence=${consecutiveSilence} >= aliveCount-${SILENCE_NEAR_FULL_THRESHOLD}=${aliveCount - SILENCE_NEAR_FULL_THRESHOLD}`,
-      });
-    }
+    const breakSilence = generateBreakSilenceCandidate(
+      consecutiveSilence,
+      aliveCount,
+      'VillagerDayStrategy',
+      SCORE_BREAK_SILENCE,
+      '快全员沉默了，我必须说点什么推动讨论。',
+    );
+    if (breakSilence) result.push(breakSilence);
 
     // NEW: Behavioral suspicion fallback - suspect high-stress players
     if (result.length === 0 || (result.length === 1 && result[0].action === 'observe')) {
@@ -337,64 +432,26 @@ export const VillagerDayStrategy: Strategy = {
 
     // 7. 默认：第一轮或有信息时的差异化表达
     if (result.length === 0) {
-      const aliveOthers = allPlayers.filter(p => p.id !== self.id && p.alive);
-      const randomTarget = aliveOthers.length > 0 ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)] : null;
-      const isRound1 = (publicActions?.filter(a => a.type === 'speak' || a.type === 'suspect' || a.type === 'accuse' || a.type === 'defend').length ?? 0) < 3;
-
-      if (randomTarget) {
-        if (isRound1) {
-          result.push({
-            action: 'observe',
-            target: randomTarget.id,
-            score: SCORE_DEFAULT_ROUND1_OBSERVE,
-            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
-            confidence: 0.3,
-            reason: `第一天信息不足，我打算观察${randomTarget.name}获取更多情报。`,
-            strategy: 'VillagerDayStrategy',
-            rule: 'default_round1_observe',
-            trigger: '无更高优先级规则命中，且为第一轮',
-            random: true,
-          });
-        } else {
-          result.push({
-            action: 'observe',
-            target: randomTarget.id,
-            score: SCORE_DEFAULT_OTHER_OBSERVE,
-            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
-            confidence: 0.3,
-            reason: `目前没什么明确线索，我打算观察${randomTarget.name}获取更多情报。`,
-            strategy: 'VillagerDayStrategy',
-            rule: 'default_other_observe',
-            trigger: '无更高优先级规则命中',
-            random: true,
-          });
-        }
-      }
-      if (isRound1) {
-        result.push({
-          action: 'speak',
-          target: null,
-          score: SCORE_DEFAULT_ROUND1_SPEAK,
-          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
-          confidence: 0.3,
-          reason: `第一天信息不足，我先听听大家的发言。`,
-          strategy: 'VillagerDayStrategy',
-          rule: 'default_round1_speak',
-          trigger: '无更高优先级规则命中，且为第一轮',
-        });
-      } else {
-        result.push({
-          action: 'speak',
-          target: null,
-          score: SCORE_DEFAULT_OTHER_SPEAK,
-          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
-          confidence: 0.3,
-          reason: `目前没什么明确线索，先看看大家的发言。`,
-          strategy: 'VillagerDayStrategy',
-          rule: 'default_other_speak',
-          trigger: '无更高优先级规则命中',
-        });
-      }
+      result.push(
+        ...generateDefaultCandidates(
+          self,
+          allPlayers,
+          publicActions,
+          'VillagerDayStrategy',
+          {
+            round1Observe: SCORE_DEFAULT_ROUND1_OBSERVE,
+            round1Speak: SCORE_DEFAULT_ROUND1_SPEAK,
+            otherObserve: SCORE_DEFAULT_OTHER_OBSERVE,
+            otherSpeak: SCORE_DEFAULT_OTHER_SPEAK,
+          },
+          {
+            round1Observe: '第一天信息不足，我打算观察{name}获取更多情报。',
+            round1Speak: '第一天信息不足，我先听听大家的发言。',
+            otherObserve: '目前没什么明确线索，我打算观察{name}获取更多情报。',
+            otherSpeak: '目前没什么明确线索，先看看大家的发言。',
+          },
+        ),
+      );
     }
 
     return result.sort((a, b) => b.score - a.score);
@@ -522,18 +579,14 @@ export const WerewolfCamouflageStrategy: Strategy = {
     });
 
     // 4. 打破沉默
-    if (consecutiveSilence && aliveCount && consecutiveSilence >= aliveCount - SILENCE_NEAR_FULL_THRESHOLD) {
-      result.push({
-        action: 'speak',
-        target: null,
-        score: SCORE_WW_BREAK_SILENCE,
-        confidence: 0.7,
-        reason: `快全员沉默了，我得当个好人样打破沉默。`,
-        strategy: 'WerewolfCamouflageStrategy',
-        rule: 'break_silence',
-        trigger: `consecutiveSilence=${consecutiveSilence} >= aliveCount-${SILENCE_NEAR_FULL_THRESHOLD}=${aliveCount - SILENCE_NEAR_FULL_THRESHOLD}`,
-      });
-    }
+    const breakSilence = generateBreakSilenceCandidate(
+      consecutiveSilence,
+      aliveCount,
+      'WerewolfCamouflageStrategy',
+      SCORE_WW_BREAK_SILENCE,
+      '快全员沉默了，我得当个好人样打破沉默。',
+    );
+    if (breakSilence) result.push(breakSilence);
 
     // 5. 默认
     if (result.length === 0) {
@@ -541,13 +594,11 @@ export const WerewolfCamouflageStrategy: Strategy = {
       if (isRound1) {
         const random = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
         if (random) {
-          // 意图对齐：默认行为生成与意图匹配的基础候选
-          // 如果当前意图是观察/隐藏，用 observe；否则用 speak
           result.push({
             action: 'observe',
             target: random.id,
             score: SCORE_WW_DEFAULT_ROUND1_TARGET,
-            stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
+            stageWeight: 0,
             confidence: 0.5,
             reason: `第一天信息不多，我先观察${random.name}，看看他有什么表现。`,
             strategy: 'WerewolfCamouflageStrategy',
@@ -560,7 +611,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           action: 'speak',
           target: null,
           score: SCORE_WW_DEFAULT_ROUND1,
-          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
+          stageWeight: 0,
           confidence: 0.5,
           reason: `第一天信息不多，我先看看局势。`,
           strategy: 'WerewolfCamouflageStrategy',
@@ -572,7 +623,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
           action: 'speak',
           target: null,
           score: SCORE_WW_DEFAULT_OTHER,
-          stageWeight: 0, // 默认回退行为：无信息依据，不配阶段加值
+          stageWeight: 0,
           confidence: 0.5,
           reason: `我也没什么头绪，先看看大家怎么说。`,
           strategy: 'WerewolfCamouflageStrategy',

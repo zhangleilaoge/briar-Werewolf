@@ -1,6 +1,7 @@
 import type { GameSimulator, PublicActionRecord } from './simulator-core';
 import type { Player, DayActionType, ActionType, DecisionProcess } from '@/types';
 import { clampStress, performCheck, damageItem, hasItem, calculateModifierBreakdown, performOpposedCheck, type CheckLog, } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
 import {
   STRESS_CHANGE_MINOR_POS, 
   STRESS_CHANGE_MODERATE_POS, 
@@ -77,7 +78,7 @@ export function runDayAction(sim: GameSimulator, playerId: string) {
     }
   }
 
-  if (['suspect', 'defend'].includes(decision.action)) {
+  if ([ACTION.SUSPECT, ACTION.DEFEND].includes(decision.action)) {
     openAppendixWindow(sim, actionRecord);
   }
 }
@@ -96,15 +97,15 @@ export function resolveDayAction(
   let shouldResetSilence = true;
 
   switch (action) {
-    case 'silence':
+    case ACTION.SILENCE:
       break;
-    case 'speak': {
-      logAction(sim, 'action', `${actor.name} 发言：${details.message || '没什么头绪，先看看大家怎么说。'}`, decisionReason, [], { actorId: actor.id, action: 'speak' , process });
+    case ACTION.SPEAK: {
+      logAction(sim, 'action', `${actor.name} 发言：${details.message || '没什么头绪，先看看大家怎么说。'}`, decisionReason, [], { actorId: actor.id, action: ACTION.SPEAK , process });
       break;
     }
-    case 'claim_identity': {
+    case ACTION.CLAIM_IDENTITY: {
       const claimedRole = details.claimedRole as string || '村民';
-      logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRole}」`, decisionReason, [], { actorId: actor.id, action: 'claim_identity', claimedRole , process });
+      logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRole}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole , process });
       if (actor.role === 'prophet' && claimedRole === 'prophet') {
         sim.prophetClaims[actor.id] = true;
         const agent = sim._aiAgents[actor.id];
@@ -124,14 +125,14 @@ export function resolveDayAction(
       }
       break;
     }
-    case 'reveal_info': {
+    case ACTION.REVEAL_INFO: {
       const _infoType = details.infoType as string;
       const infoTarget = details.infoTarget as string;
       const infoContent = details.infoContent as string;
-      logAction(sim, 'action', `${actor.name} 公开信息：${infoTarget || targetName} 持有 ${infoContent || '某物'}`, decisionReason, [], { actorId: actor.id, action: 'reveal_info', infoTarget, infoContent , process });
+      logAction(sim, 'action', `${actor.name} 公开信息：${infoTarget || targetName} 持有 ${infoContent || '某物'}`, decisionReason, [], { actorId: actor.id, action: ACTION.REVEAL_INFO, infoTarget, infoContent , process });
       break;
     }
-    case 'observe': {
+    case ACTION.OBSERVE: {
       // 观察：洞察 vs 目标隐蔽（对抗检定），目标洞察 vs 观察者隐蔽（是否被发现）
       const checks: CheckLog[] = [];
       const _observeMsg = `${actor.name} 暗中观察 ${targetName}...`;
@@ -157,7 +158,7 @@ export function resolveDayAction(
       ));
 
       // 始终先输出 a观察了b
-      logAction(sim, 'action', `${actor.name} 观察了 ${targetName}`, decisionReason, checks, { actorId: actor.id, action: 'observe', targetId, process });
+      logAction(sim, 'action', `${actor.name} 观察了 ${targetName}`, decisionReason, checks, { actorId: actor.id, action: ACTION.OBSERVE, targetId, process });
 
       if (discoveredResult.success && target) {
         // 目标b察觉到了
@@ -185,13 +186,13 @@ export function resolveDayAction(
       });
       const agent = sim._aiAgents[actor.id];
       if (agent && target) {
-        agent.recordObservation(target.id, target.stress, target.attributes as unknown as Record<string, number>);
+        agent.recordObservation(target.id, target.stress, target.attributes);
       }
       // 观察视同沉默，不重置计数
       shouldResetSilence = false;
       break;
     }
-    case 'suspect': {
+    case ACTION.SUSPECT: {
       // 怀疑检定：洞察/逻辑 vs 目标隐蔽（对抗检定）
       const suspectActorAttr = actor.attributes.insight >= actor.attributes.logic ? 'insight' : 'logic';
       const suspectMod = calculateModifierBreakdown(
@@ -210,14 +211,14 @@ export function resolveDayAction(
         undefined, target || undefined, 'stealth', targetHideMod,
         { roll: suspectResult.targetRoll, total: suspectResult.targetTotal }
       );
-      logAction(sim, 'action', `${actor.name} 怀疑 ${targetName}：「我觉得 ${targetName} 可能是狼人」（${successLevel}）`, decisionReason, [suspectCheck], { actorId: actor.id, action: 'suspect', targetId , process });
+      logAction(sim, 'action', `${actor.name} 怀疑 ${targetName}：「我觉得 ${targetName} 可能是狼人」（${successLevel}）`, decisionReason, [suspectCheck], { actorId: actor.id, action: ACTION.SUSPECT, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
       }
       break;
     }
-    case 'defend': {
+    case ACTION.DEFEND: {
       // 袒护检定：亲和 + 阵营修正
       const defendMod = calculateModifierBreakdown(actor.attributes.affinity, actor.alignment, actor.stress, 'affinity', true);
       const defendCheckResult = performCheck(defendMod.total, CHECK_DIFFICULTY_DEFEND);
@@ -225,22 +226,14 @@ export function resolveDayAction(
       const defendCheck = buildCheckLog(
         actor, 'affinity', defendMod, defendCheckResult, CHECK_DIFFICULTY_DEFEND
       );
-      logAction(sim, 'action', `${actor.name} 袒护 ${targetName}：「我相信 ${targetName} 是好人」（${successLevel}）`, decisionReason, [defendCheck], { actorId: actor.id, action: 'defend', targetId , process });
+      logAction(sim, 'action', `${actor.name} 袒护 ${targetName}：「我相信 ${targetName} 是好人」（${successLevel}）`, decisionReason, [defendCheck], { actorId: actor.id, action: ACTION.DEFEND, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress - STRESS_CHANGE_MINOR_POS);
         updateRelation(sim, target, actor, { trustDelta: 0, friendlyDelta: REL_CHANGE_MODERATE_POS });
       }
       break;
     }
-    case 'thank': {
-      logAction(sim, 'action', `${actor.name} 感谢 ${targetName}`, decisionReason, [], { actorId: actor.id, action: 'thank', targetId , process });
-      if (target) {
-        target.stress = clampStress(target.stress - (Math.random() > 0.5 ? STRESS_CHANGE_MINOR_POS : 0));
-        updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_POS, friendlyDelta: REL_CHANGE_MINOR_POS });
-      }
-      break;
-    }
-    case 'call_vote': {
+    case ACTION.CALL_VOTE: {
       // 号召投票检定：领导/逻辑
       const callActorAttr = actor.attributes.leadership >= actor.attributes.logic ? 'leadership' : 'logic';
       const callMod = calculateModifierBreakdown(
@@ -249,14 +242,14 @@ export function resolveDayAction(
       const callCheckResult = performCheck(callMod.total, CHECK_DIFFICULTY_CALL_VOTE);
       const successLevel = callCheckResult.success ? (callCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const callCheck = buildCheckLog(actor, callActorAttr, callMod, callCheckResult, CHECK_DIFFICULTY_CALL_VOTE);
-      logAction(sim, 'action', `${actor.name} 号召投票给 ${targetName}：「大家今天投 ${targetName}！」（${successLevel}）`, decisionReason, [callCheck], { actorId: actor.id, action: 'call_vote', targetId , process });
+      logAction(sim, 'action', `${actor.name} 号召投票给 ${targetName}：「大家今天投 ${targetName}！」（${successLevel}）`, decisionReason, [callCheck], { actorId: actor.id, action: ACTION.CALL_VOTE, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
       }
       break;
     }
-    case 'block_vote': {
+    case ACTION.BLOCK_VOTE: {
       // 阻止投票检定：领导/亲和
       const blockActorAttr = actor.attributes.leadership >= actor.attributes.affinity ? 'leadership' : 'affinity';
       const blockMod = calculateModifierBreakdown(
@@ -265,14 +258,14 @@ export function resolveDayAction(
       const blockCheckResult = performCheck(blockMod.total, CHECK_DIFFICULTY_BLOCK_VOTE);
       const successLevel = blockCheckResult.success ? (blockCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const blockCheck = buildCheckLog(actor, blockActorAttr, blockMod, blockCheckResult, CHECK_DIFFICULTY_BLOCK_VOTE);
-      logAction(sim, 'action', `${actor.name} 阻止投票给 ${targetName}：「今天不要投 ${targetName}」（${successLevel}）`, decisionReason, [blockCheck], { actorId: actor.id, action: 'block_vote', targetId , process });
+      logAction(sim, 'action', `${actor.name} 阻止投票给 ${targetName}：「今天不要投 ${targetName}」（${successLevel}）`, decisionReason, [blockCheck], { actorId: actor.id, action: ACTION.BLOCK_VOTE, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress - (STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS)));
         updateRelation(sim, target, actor, { trustDelta: 0, friendlyDelta: REL_CHANGE_MINOR_POS });
       }
       break;
     }
-    case 'guarantee': {
+    case ACTION.GUARANTEE: {
       // 担保清白检定：亲和/洞察
       const guaranteeActorAttr = actor.attributes.affinity >= actor.attributes.insight ? 'affinity' : 'insight';
       const guaranteeMod = calculateModifierBreakdown(
@@ -281,14 +274,14 @@ export function resolveDayAction(
       const guaranteeCheckResult = performCheck(guaranteeMod.total, CHECK_DIFFICULTY_GUARANTEE);
       const successLevel = guaranteeCheckResult.success ? (guaranteeCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const guaranteeCheck = buildCheckLog(actor, guaranteeActorAttr, guaranteeMod, guaranteeCheckResult, CHECK_DIFFICULTY_GUARANTEE);
-      logAction(sim, 'action', `${actor.name} 担保 ${targetName} 是好人！（${successLevel}）`, decisionReason, [guaranteeCheck], { actorId: actor.id, action: 'guarantee', targetId , process });
+      logAction(sim, 'action', `${actor.name} 担保 ${targetName} 是好人！（${successLevel}）`, decisionReason, [guaranteeCheck], { actorId: actor.id, action: ACTION.GUARANTEE, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress - (STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS)));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MODERATE_POS, friendlyDelta: REL_CHANGE_MAJOR_POS });
       }
       break;
     }
-    case 'accuse': {
+    case ACTION.ACCUSE: {
       // 强烈指认检定：洞察/逻辑 vs 目标隐蔽（对抗检定）
       const accuseActorAttr = actor.attributes.insight >= actor.attributes.logic ? 'insight' : 'logic';
       const accuseMod = calculateModifierBreakdown(
@@ -307,14 +300,14 @@ export function resolveDayAction(
         undefined, target || undefined, 'stealth', targetHideMod,
         { roll: accuseResult.targetRoll, total: accuseResult.targetTotal }
       );
-      logAction(sim, 'action', `${actor.name} 强烈指认 ${targetName} 是狼人！（${successLevel}）`, decisionReason, [accuseCheck], { actorId: actor.id, action: 'accuse', targetId , process });
+      logAction(sim, 'action', `${actor.name} 强烈指认 ${targetName} 是狼人！（${successLevel}）`, decisionReason, [accuseCheck], { actorId: actor.id, action: ACTION.ACCUSE, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress + STRESS_CHANGE_MODERATE_POS + Math.floor(Math.random() * STRESS_CHANGE_MODERATE_POS));
         updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MAJOR_NEG, friendlyDelta: REL_CHANGE_MAJOR_NEG });
       }
       break;
     }
-    case 'exclude_all': {
+    case ACTION.EXCLUDE_ALL: {
       // 全员排除检定：逻辑/领导
       const excludeActorAttr = actor.attributes.logic >= actor.attributes.leadership ? 'logic' : 'leadership';
       const excludeMod = calculateModifierBreakdown(
@@ -323,12 +316,12 @@ export function resolveDayAction(
       const excludeCheckResult = performCheck(excludeMod.total, CHECK_DIFFICULTY_EXCLUDE_ALL);
       const successLevel = excludeCheckResult.success ? (excludeCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const excludeCheck = buildCheckLog(actor, excludeActorAttr, excludeMod, excludeCheckResult, CHECK_DIFFICULTY_EXCLUDE_ALL);
-      logAction(sim, 'action', `${actor.name} 提议全员排除：「这些自称${details.identity || '某身份'}的人全部放逐！」（${successLevel}）`, decisionReason, [excludeCheck], { actorId: actor.id, action: 'exclude_all', targetId , process });
+      logAction(sim, 'action', `${actor.name} 提议全员排除：「这些自称${details.identity || '某身份'}的人全部放逐！」（${successLevel}）`, decisionReason, [excludeCheck], { actorId: actor.id, action: ACTION.EXCLUDE_ALL, targetId , process });
       break;
     }
-    case 'berserker_kill': {
+    case ACTION.BERSERKER_KILL: {
       if (actor.role === 'berserker' && hasItem(actor, 'double_sword') && target?.alive) {
-        logAction(sim, 'death', `${actor.name} 发动狂狼同归于尽！${target.name} 与 ${actor.name} 双双死亡！`, decisionReason, [], { actorId: actor.id, action: 'berserker_kill', targetId: target.id });
+        logAction(sim, 'death', `${actor.name} 发动狂狼同归于尽！${target.name} 与 ${actor.name} 双双死亡！`, decisionReason, [], { actorId: actor.id, action: ACTION.BERSERKER_KILL, targetId: target.id });
         actor.alive = false;
         target.alive = false;
         sim.nightDeaths.push(target.id);
@@ -390,7 +383,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
   const originalTarget = sim.players.find((p) => p.id === triggerAction.targetId);
 
   switch (decision.action) {
-    case 'join_suspect': {
+    case ACTION.JOIN_SUSPECT: {
       // 一同怀疑检定：洞察/逻辑
       const joinSuspectAttr = player.attributes.insight >= player.attributes.logic ? 'insight' : 'logic';
       const joinSuspectMod = calculateModifierBreakdown(
@@ -399,28 +392,28 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
       const joinSuspectCheckResult = performCheck(joinSuspectMod.total, CHECK_DIFFICULTY_JOIN_SUSPECT);
       const successLevel = joinSuspectCheckResult.success ? (joinSuspectCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const joinSuspectCheck = buildCheckLog(player, joinSuspectAttr, joinSuspectMod, joinSuspectCheckResult, CHECK_DIFFICULTY_JOIN_SUSPECT);
-      logAction(sim, 'action', `${player.name} 一同怀疑 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinSuspectCheck], { actorId: player.id, action: 'join_suspect', targetId: originalTarget?.id , process });
+      logAction(sim, 'action', `${player.name} 一同怀疑 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinSuspectCheck], { actorId: player.id, action: ACTION.JOIN_SUSPECT, targetId: originalTarget?.id , process });
       if (originalTarget) {
         originalTarget.stress = clampStress(originalTarget.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
         updateRelation(sim, originalTarget, player, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
       }
       break;
     }
-    case 'join_defend': {
+    case ACTION.JOIN_DEFEND: {
       // 一同袒护检定：亲和
       const joinDefendMod = calculateModifierBreakdown(player.attributes.affinity, player.alignment, player.stress, 'affinity', true);
       const joinDefendCheckResult = performCheck(joinDefendMod.total, CHECK_DIFFICULTY_JOIN_DEFEND);
       const successLevel = joinDefendCheckResult.success ? (joinDefendCheckResult.criticalSuccess ? '大成功' : '成功') : '失败';
       const joinDefendCheck = buildCheckLog(player, 'affinity', joinDefendMod, joinDefendCheckResult, CHECK_DIFFICULTY_JOIN_DEFEND);
-      logAction(sim, 'action', `${player.name} 一同袒护 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinDefendCheck], { actorId: player.id, action: 'join_defend', targetId: originalTarget?.id , process });
+      logAction(sim, 'action', `${player.name} 一同袒护 ${originalTarget?.name || '目标'}（${successLevel}）`, decision.reason || '', [joinDefendCheck], { actorId: player.id, action: ACTION.JOIN_DEFEND, targetId: originalTarget?.id , process });
       if (originalTarget) {
         originalTarget.stress = clampStress(originalTarget.stress - STRESS_CHANGE_MINOR_POS);
         updateRelation(sim, originalTarget, player, { trustDelta: 0, friendlyDelta: REL_CHANGE_MODERATE_POS });
       }
       break;
     }
-    case 'rebut': {
-      logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」`, decision.reason || '', [], { actorId: player.id, action: 'rebut' , process });
+    case ACTION.REBUT: {
+      logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」`, decision.reason || '', [], { actorId: player.id, action: ACTION.REBUT , process });
       if (triggerActor) {
         // 反驳检定：反驳者逻辑 + 阵营/压力修正 vs 怀疑者洞察 + 阵营/压力修正
         const rebutLogicBreakdown = calculateModifierBreakdown(player.attributes.logic, player.alignment, player.stress, 'other');
@@ -433,7 +426,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
           { roll: rebutResult.targetRoll, total: rebutResult.targetTotal }
         );
         if (rebutResult.success) {
-          logAction(sim, 'check', `${player.name} 的反驳成功！(优势 ${rebutResult.margin})`, decision.reason || '', [rebutCheck], { actorId: player.id, action: 'rebut', targetId: triggerActor.id });
+          logAction(sim, 'check', `${player.name} 的反驳成功！(优势 ${rebutResult.margin})`, decision.reason || '', [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
           player.stress = clampStress(player.stress - STRESS_CHANGE_MINOR_POS);
           // 旁观者信任反驳者
           sim.players.forEach((p) => {
@@ -444,7 +437,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
             }
           });
         } else {
-          logAction(sim, 'check', `${player.name} 的反驳失败...`, decision.reason || '', [rebutCheck], { actorId: player.id, action: 'rebut', targetId: triggerActor.id });
+          logAction(sim, 'check', `${player.name} 的反驳失败...`, decision.reason || '', [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
           player.stress = clampStress(player.stress + STRESS_CHANGE_MINOR_POS);
           // 反驳失败：旁观者更信任怀疑者
           sim.players.forEach((p) => {

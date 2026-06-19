@@ -3,7 +3,8 @@
 // 阵营、压力和关系影响 AI 的行为选择
 // ============================
 
-import type { Alignment, Player, Relation } from '@/types';
+import { ACTION } from '@/lib/constants/action-constants';
+import type { Alignment, Player, Relation, ActionType } from '@/types';
 import {
   STRESS_EXTREMELY_CALM, STRESS_CALM, STRESS_MILDLY_TENSE_MIN, STRESS_MILDLY_TENSE_MAX,
   STRESS_ANXIOUS_MIN, STRESS_ANXIOUS_MAX, STRESS_NEAR_OVERLOAD,
@@ -29,79 +30,79 @@ export interface BehaviorModifier {
 
 export function getAlignmentBehaviorModifier(
   alignment: Alignment,
-  action: 'suspect' | 'accuse' | 'defend' | 'guarantee' | 'observe' | 'speak' | 'call_vote' | 'block_vote' | 'exclude_all' | 'berserker_kill' | 'kill' | 'check' | 'steal' | 'inspect' | 'vote' | 'rebut' | 'join_suspect' | 'join_defend' | 'claim_identity' | 'thank' | 'reveal_info' | string
+  action: ActionType | string
 ): number {
   const { law, good } = alignment;
 
   switch (action) {
-    case 'defend':
-    case 'guarantee':
+    case ACTION.DEFEND:
+    case ACTION.GUARANTEE:
       // 善良：保护行动加成；邪恶：仅在有利时保护
       if (good === 'good') return ALIGNMENT_MOD_GOOD_DEFEND;
       if (good === 'evil') return ALIGNMENT_MOD_EVIL_DEFEND;
       return 0;
 
-    case 'suspect':
-    case 'accuse':
-    case 'call_vote':
+    case ACTION.SUSPECT:
+    case ACTION.ACCUSE:
+    case ACTION.CALL_VOTE:
       // 守序：系统性指控；混乱：激进指控
       if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_ACCUSE;
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_ACCUSE;
       if (good === 'evil') return ALIGNMENT_MOD_EVIL_ACCUSE;
       return 0;
 
-    case 'observe':
+    case ACTION.OBSERVE:
       // 守序：仔细观察；混乱：不耐烦，减少观察
       if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_OBSERVE;
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_OBSERVE;
       return 0;
 
-    case 'speak':
+    case ACTION.SPEAK:
       // 混乱：冲动发言；守序：谨慎发言
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_SPEAK;
       return 0;
 
-    case 'exclude_all':
-    case 'berserker_kill':
+    case ACTION.EXCLUDE_ALL:
+    case ACTION.BERSERKER_KILL:
       // 混乱邪恶：极端行动大幅加成
       if (law === 'chaotic' && good === 'evil') return ALIGNMENT_MOD_CHAOTIC_EVIL_EXTREME;
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_EXTREME;
       if (good === 'evil') return ALIGNMENT_MOD_EVIL_EXTREME;
       return ALIGNMENT_MOD_NON_EXTREME;
 
-    case 'block_vote':
+    case ACTION.BLOCK_VOTE:
       // 守序：控制流程加成
       if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_BLOCK_VOTE;
       return 0;
 
-    case 'rebut':
+    case ACTION.REBUT:
       // 混乱：情绪化反驳；守序：逻辑反驳（相同分数，不同风格）
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_REBUT;
       return 0;
 
-    case 'join_suspect':
+    case ACTION.JOIN_SUSPECT:
       // 邪恶：跟风怀疑；善良：不太可能落井下石
       if (good === 'evil') return ALIGNMENT_MOD_EVIL_JOIN_SUSPECT;
       if (good === 'good') return ALIGNMENT_MOD_GOOD_JOIN_SUSPECT;
       return 0;
 
-    case 'join_defend':
+    case ACTION.JOIN_DEFEND:
       // 善良：团结一致；邪恶：仅在有用时辩护
       if (good === 'good') return ALIGNMENT_MOD_GOOD_JOIN_DEFEND;
       if (good === 'evil') return ALIGNMENT_MOD_EVIL_JOIN_DEFEND;
       return 0;
 
-    case 'kill':
+    case ACTION.KILL:
       // 混乱：冲动杀戮；守序：计算杀戮
       if (law === 'chaotic') return ALIGNMENT_MOD_CHAOTIC_KILL;
       return 0;
 
-    case 'check':
+    case ACTION.CHECK:
       // 守序：系统性调查
       if (law === 'lawful') return ALIGNMENT_MOD_LAWFUL_CHECK;
       return 0;
 
-    case 'vote':
+    case ACTION.VOTE:
       // 投票更多受关系影响，而非阵营
       return 0;
 
@@ -114,7 +115,7 @@ export function getAlignmentBehaviorModifier(
 
 export function getStressBehaviorModifier(
   stress: number,
-  action: 'suspect' | 'accuse' | 'defend' | 'guarantee' | 'observe' | 'speak' | 'call_vote' | 'block_vote' | 'exclude_all' | 'berserker_kill' | 'kill' | 'check' | 'steal' | 'inspect' | 'vote' | 'rebut' | 'join_suspect' | 'join_defend' | 'claim_identity' | 'thank' | 'reveal_info' | string
+  action: ActionType | string
 ): number {
   // 压力范围：-10（极度冷静）到 +10（过载）
 
@@ -158,7 +159,7 @@ export function getStressBehaviorModifier(
 
 export function getRelationTargetModifier(
   relation: Relation | undefined,
-  action: 'suspect' | 'accuse' | 'defend' | 'guarantee' | 'call_vote' | 'block_vote' | 'vote' | 'kill' | 'check' | 'steal' | string
+  action: ActionType | string
 ): number {
   if (!relation) return 0;
 
@@ -169,28 +170,28 @@ export function getRelationTargetModifier(
   const RELATION_WEIGHT_LOW = 4;     // 低权重（杀戮）
 
   switch (action) {
-    case 'defend':
-    case 'guarantee':
-    case 'block_vote':
+    case ACTION.DEFEND:
+    case ACTION.GUARANTEE:
+    case ACTION.BLOCK_VOTE:
       // 正面关系 = 更可能保护/担保
       return (friendly + trust) / RELATION_WEIGHT_HIGH;
 
-    case 'suspect':
-    case 'accuse':
-    case 'call_vote':
-    case 'vote':
+    case ACTION.SUSPECT:
+    case ACTION.ACCUSE:
+    case ACTION.CALL_VOTE:
+    case ACTION.VOTE:
       // 负面关系 = 更可能怀疑/指控/投票反对
       return -(friendly + trust) / RELATION_WEIGHT_HIGH;
 
-    case 'kill':
+    case ACTION.KILL:
       // 负面关系 = 稍微更可能杀戮（狼人）
       return -(friendly + trust) / RELATION_WEIGHT_LOW;
 
-    case 'check':
+    case ACTION.CHECK:
       // 低信任 = 更可能查验（预言家）
       return -trust / RELATION_WEIGHT_HIGH;
 
-    case 'steal':
+    case ACTION.STEAL:
       // 低信任 = 更可能偷窃（窃贼）
       return -trust / RELATION_WEIGHT_HIGH;
 

@@ -32,7 +32,6 @@ const ACTION_LOG_COLORS: Record<string, string> = {
   // 绿色：日常行动、侦查、特殊能力
   observe: 'text-green-300',
   speak: 'text-green-300',
-  thank: 'text-green-300',
   defend: 'text-green-300',
   guarantee: 'text-green-300',
   check: 'text-green-300',

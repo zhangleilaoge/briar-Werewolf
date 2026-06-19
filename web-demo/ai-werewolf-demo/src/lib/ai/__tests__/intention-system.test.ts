@@ -211,7 +211,7 @@ describe('IntentionManager - Core Lifecycle', () => {
 
     // 决策日志应包含意图栈信息
     expect(decision.process?.shortlist).toContain('【意图栈】');
-    expect(decision.process?.shortlist).toContain('当前意图');
+    expect(decision.process?.shortlist).toContain('意图状态');
   });
 });
 

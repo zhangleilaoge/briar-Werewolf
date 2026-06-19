@@ -20,6 +20,14 @@ import type {
 import type { Player } from '@/types';
 import type { DecisionCandidate } from '@/types';
 
+function isFullActionProvider(provider: ActionProvider): provider is FullActionProvider {
+  return 'evaluate' in provider && typeof provider.evaluate === 'function';
+}
+
+function isFullTraitProvider(provider: TraitProvider): provider is FullTraitProvider {
+  return 'evaluate' in provider && typeof provider.evaluate === 'function';
+}
+
 export class PluginRegistry {
   private providers: Map<string, ActionProvider> = new Map();
   private traitProviders: Map<string, TraitProvider> = new Map();
@@ -33,10 +41,11 @@ export class PluginRegistry {
       console.warn(`[PluginRegistry] Provider ${provider.id} already registered, overwriting`);
     }
     this.providers.set(provider.id, provider);
-    
+
     // Call lifecycle hook if available
-    const fullProvider = provider as FullActionProvider;
-    fullProvider.onRegister?.();
+    if (isFullActionProvider(provider)) {
+      provider.onRegister?.();
+    }
   }
   
   /**
@@ -47,10 +56,11 @@ export class PluginRegistry {
       console.warn(`[PluginRegistry] Trait ${provider.id} already registered, overwriting`);
     }
     this.traitProviders.set(provider.id, provider);
-    
+
     // Call lifecycle hook if available
-    const fullProvider = provider as FullTraitProvider;
-    fullProvider.onRegister?.();
+    if (isFullTraitProvider(provider)) {
+      provider.onRegister?.();
+    }
   }
   
   /**
@@ -283,12 +293,14 @@ export class PluginRegistry {
    */
   notifyRoundStart(round: number): void {
     for (const provider of this.providers.values()) {
-      const fullProvider = provider as FullActionProvider;
-      fullProvider.onRoundStart?.(round);
+      if (isFullActionProvider(provider)) {
+        provider.onRoundStart?.(round);
+      }
     }
     for (const traitProvider of this.traitProviders.values()) {
-      const fullProvider = traitProvider as FullTraitProvider;
-      fullProvider.onRoundStart?.(round);
+      if (isFullTraitProvider(traitProvider)) {
+        traitProvider.onRoundStart?.(round);
+      }
     }
   }
   
@@ -297,12 +309,14 @@ export class PluginRegistry {
    */
   notifyRoundEnd(round: number): void {
     for (const provider of this.providers.values()) {
-      const fullProvider = provider as FullActionProvider;
-      fullProvider.onRoundEnd?.(round);
+      if (isFullActionProvider(provider)) {
+        provider.onRoundEnd?.(round);
+      }
     }
     for (const traitProvider of this.traitProviders.values()) {
-      const fullProvider = traitProvider as FullTraitProvider;
-      fullProvider.onRoundEnd?.(round);
+      if (isFullTraitProvider(traitProvider)) {
+        traitProvider.onRoundEnd?.(round);
+      }
     }
   }
   
@@ -311,12 +325,14 @@ export class PluginRegistry {
    */
   notifyPlayerDeath(playerId: string): void {
     for (const provider of this.providers.values()) {
-      const fullProvider = provider as FullActionProvider;
-      fullProvider.onPlayerDeath?.(playerId);
+      if (isFullActionProvider(provider)) {
+        provider.onPlayerDeath?.(playerId);
+      }
     }
     for (const traitProvider of this.traitProviders.values()) {
-      const fullProvider = traitProvider as FullTraitProvider;
-      fullProvider.onPlayerDeath?.(playerId);
+      if (isFullTraitProvider(traitProvider)) {
+        traitProvider.onPlayerDeath?.(playerId);
+      }
     }
   }
   

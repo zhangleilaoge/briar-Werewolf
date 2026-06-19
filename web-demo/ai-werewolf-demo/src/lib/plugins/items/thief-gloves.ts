@@ -6,7 +6,6 @@
  */
 
 import type {
-  ActionProvider,
   ActionDefinition,
   ActionContext,
   ActionExecutionParams,
@@ -17,18 +16,17 @@ import type {
 } from '../types';
 import type { Player } from '@/types';
 import { hasItem, addItem, ITEM_DEFINITIONS } from '@/types';
-import { createGameLog } from '../base';
+import { createGameLog, SingleUseItemPlugin } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import {
   SCORE_THIEF_STEAL_BASE,
 } from '@/types';
 
-export class ThiefGlovesPlugin implements ActionProvider {
+export class ThiefGlovesPlugin extends SingleUseItemPlugin {
   id = 'thief_gloves';
   type = 'item' as const;
-  
-  // Track usage per player
-  private usedBy: Map<string, boolean> = new Map();
+  protected itemId = 'thief_gloves';
+  protected actionType = 'steal';
   
   getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
     // Anyone with gloves can steal, but only once per game
@@ -37,7 +35,7 @@ export class ThiefGlovesPlugin implements ActionProvider {
     }
     
     // Check if already used
-    if (this.usedBy.get(player.id)) {
+    if (this.checkUsed(player)) {
       return [];
     }
     
@@ -58,7 +56,7 @@ export class ThiefGlovesPlugin implements ActionProvider {
     const events: PluginEvent[] = [];
     
     // Check if already used
-    if (this.usedBy.get(actor.id)) {
+    if (this.checkUsed(actor)) {
       logs.push(createGameLog(context, 'action', `${actor.name} 已使用过偷窃能力`));
       return { success: false, logs, stateChanges, events };
     }
@@ -74,7 +72,7 @@ export class ThiefGlovesPlugin implements ActionProvider {
     }
     
     // Mark as used
-    this.usedBy.set(actor.id, true);
+    this.markUsed(actor);
     
     if (target.items.length > 0) {
       // Randomly select an item to steal
@@ -133,7 +131,7 @@ export class ThiefGlovesPlugin implements ActionProvider {
     }
     
     // Check if already used
-    if (this.usedBy.get(self.id)) {
+    if (this.checkUsed(self)) {
       return result;
     }
     
@@ -155,12 +153,5 @@ export class ThiefGlovesPlugin implements ActionProvider {
     });
     
     return result.sort((a, b) => b.score - a.score);
-  }
-  
-  /**
-   * Reset usage tracking (for new game)
-   */
-  reset(): void {
-    this.usedBy.clear();
   }
 }

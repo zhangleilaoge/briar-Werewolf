@@ -17,8 +17,25 @@
 // 新系统: 意图栈驱动行为 → 计划按步骤执行 → 行为前后一致
 // ============================================================
 
+import { ACTION, INTENTION_SOURCE } from '@/lib/constants/action-constants';
+import type { GameMode } from '@/lib/constants/action-constants';
+import {
+  INTENTION_TYPE_NAMES, INTENTION_SOURCE_NAMES, PLAN_PHASE_NAMES, ACTION_NAMES,
+  COMMITMENT_NAMES, MODE_NAMES, TEAM_OBJECTIVE_NAMES, PERSONAL_OBJECTIVE_NAMES,
+} from '@/lib/constants/display-names';
+
 import type { BeliefSystem } from './belief-system';
 import type { Player } from '@/types';
+import {
+  INTENTION_LIFETIME_ROLE_DUTY,
+  INTENTION_LIFETIME_DEFAULT,
+  INTENTION_MODE_ATTACK_DESPERATE,
+  INTENTION_MODE_ATTACK_DOMINANT,
+  INTENTION_MODE_ATTACK_NORMAL,
+  INTENTION_MODE_CONCEAL_DESPERATE,
+  INTENTION_MODE_CONCEAL_NORMAL,
+  INTENTION_MODE_CONCEAL_OTHER,
+} from '@/types';
 
 // =====================================================================
 // SECTION 1: Core Types
@@ -106,7 +123,7 @@ export interface Desire {
 // =====================================================================
 
 export class DesireEngine {
-  generateDesires(self: Player, belief: BeliefSystem, allPlayers: Player[], round: number): Desire[] {
+  generateDesires(self: Player, belief: BeliefSystem, allPlayers: Player[], round: number, mode: 'normal' | 'bus' | 'desperate' | 'dominant' = 'normal'): Desire[] {
     const desires: Desire[] = [];
     const aliveWolves = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
     const aliveVillagers = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;
@@ -134,15 +151,19 @@ export class DesireEngine {
 
     // === TEAM_DUTY: 团队义务 ===
     if (self.team === 'werewolf') {
-      // 狼人团队义务：淘汰村民阵营
+      // 狼人团队义务：淘汰村民阵营。强度受模式影响：normal=潜伏，dominant=积极，desperate=全力
+      const modeAttackBase = mode === 'desperate'
+        ? INTENTION_MODE_ATTACK_DESPERATE
+        : mode === 'dominant'
+          ? INTENTION_MODE_ATTACK_DOMINANT
+          : INTENTION_MODE_ATTACK_NORMAL;
       const villagerTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
       for (const target of villagerTargets) {
         const suspicion = belief.getWerewolfProbability(target.id);
-        // 狼人知道谁是村民，所以目标是村民
         desires.push({
           type: IntentionType.ATTACK,
           targetId: target.id,
-          strength: 600 + Math.round(suspicion * 100),
+          strength: modeAttackBase + Math.round(suspicion * 100),
           source: IntentionSource.TEAM_DUTY,
           reason: `狼人团队义务：淘汰村民${target.name}`,
           conditions: ['team=werewolf', 'target=villager'],
@@ -195,12 +216,17 @@ export class DesireEngine {
       });
     }
 
-    // 狼人隐藏身份
+    // 狼人隐藏身份。强度受模式影响：normal=优先躲藏，dominant=可以暴露
     if (self.team === 'werewolf' && myExposure < 0.4) {
+      const modeConcealStrength = mode === 'normal'
+        ? INTENTION_MODE_CONCEAL_NORMAL
+        : mode === 'desperate'
+          ? INTENTION_MODE_CONCEAL_DESPERATE
+          : INTENTION_MODE_CONCEAL_OTHER;
       desires.push({
         type: IntentionType.CONCEAL,
         targetId: null,
-        strength: 500,
+        strength: modeConcealStrength,
         source: IntentionSource.PERSONAL_GOAL,
         reason: '狼人需隐藏身份，伪装好人',
         conditions: ['team=werewolf', 'self_exposure<0.4'],
@@ -294,16 +320,16 @@ export class PlanLibrary {
     if (self.team === 'werewolf') {
       // 狼人攻击：伪装怀疑 → 号召投票 → 投票
       steps.push(
-        { phase: 'day', action: 'suspect', targetRequired: true },
-        { phase: 'day', action: 'call_vote', targetRequired: true },
-        { phase: 'vote', action: 'vote', targetRequired: true }
+        { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
+        { phase: 'day', action: ACTION.CALL_VOTE, targetRequired: true },
+        { phase: 'vote', action: ACTION.VOTE, targetRequired: true }
       );
     } else {
       // 村民攻击：指认 → 号召投票 → 投票
       steps.push(
-        { phase: 'day', action: 'accuse', targetRequired: true },
-        { phase: 'day', action: 'call_vote', targetRequired: true },
-        { phase: 'vote', action: 'vote', targetRequired: true }
+        { phase: 'day', action: ACTION.ACCUSE, targetRequired: true },
+        { phase: 'day', action: ACTION.CALL_VOTE, targetRequired: true },
+        { phase: 'vote', action: ACTION.VOTE, targetRequired: true }
       );
     }
     return steps;
@@ -312,40 +338,40 @@ export class PlanLibrary {
   private static _defendPlan(targetId: string | null, _self: Player): PlanStep[] {
     if (!targetId) return [];
     return [
-      { phase: 'day', action: 'defend', targetRequired: true },
-      { phase: 'day', action: 'guarantee', targetRequired: true },
-      { phase: 'appendix', action: 'join_defend', targetRequired: true },
+      { phase: 'day', action: ACTION.DEFEND, targetRequired: true },
+      { phase: 'day', action: ACTION.GUARANTEE, targetRequired: true },
+      { phase: 'appendix', action: ACTION.JOIN_DEFEND, targetRequired: true },
     ];
   }
 
   private static _concealPlan(self: Player): PlanStep[] {
     if (self.team === 'werewolf') {
       return [
-        { phase: 'day', action: 'speak', targetRequired: false },
-        { phase: 'day', action: 'suspect', targetRequired: true },
-        { phase: 'vote', action: 'vote', targetRequired: true },
+        { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
+        { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
+        { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
       ];
     }
     return [
-      { phase: 'day', action: 'observe', targetRequired: true },
-      { phase: 'day', action: 'speak', targetRequired: false },
+      { phase: 'day', action: ACTION.OBSERVE, targetRequired: true },
+      { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
     ];
   }
 
   private static _revealPlan(targetId: string | null, self: Player): PlanStep[] {
     if (self.role === 'prophet' && targetId) {
       return [
-        { phase: 'day', action: 'claim_identity', targetRequired: true },
-        { phase: 'day', action: 'call_vote', targetRequired: true },
-        { phase: 'vote', action: 'vote', targetRequired: true },
+        { phase: 'day', action: ACTION.CLAIM_IDENTITY, targetRequired: true },
+        { phase: 'day', action: ACTION.CALL_VOTE, targetRequired: true },
+        { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
       ];
     }
-    return [{ phase: 'day', action: 'reveal_info', targetRequired: false }];
+    return [{ phase: 'day', action: ACTION.REVEAL_INFO, targetRequired: false }];
   }
 
   private static _investigatePlan(targetId: string | null): PlanStep[] {
     if (!targetId) return [];
-    return [{ phase: 'night', action: 'check', targetRequired: true }];
+    return [{ phase: 'night', action: ACTION.CHECK, targetRequired: true }];
   }
 
   private static _survivePlan(self: Player, allPlayers: Player[]): PlanStep[] {
@@ -356,15 +382,15 @@ export class PlanLibrary {
         .sort((a, b) => a.stress - b.stress)[0];
       if (lowSuspect) {
         return [
-          { phase: 'day', action: 'suspect', targetRequired: true },
-          { phase: 'vote', action: 'vote', targetRequired: true },
+          { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
+          { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
         ];
       }
     }
     return [
-      { phase: 'day', action: 'guarantee', targetRequired: true },
-      { phase: 'day', action: 'defend', targetRequired: true },
-      { phase: 'appendix', action: 'rebut', targetRequired: true },
+      { phase: 'day', action: ACTION.GUARANTEE, targetRequired: true },
+      { phase: 'day', action: ACTION.DEFEND, targetRequired: true },
+      { phase: 'appendix', action: ACTION.REBUT, targetRequired: true },
     ];
   }
 
@@ -374,34 +400,34 @@ export class PlanLibrary {
       .sort((a, b) => (self.relations[b.id]?.trust ?? 0) - (self.relations[a.id]?.trust ?? 0))[0];
     if (highTrust) {
       return [
-        { phase: 'day', action: 'speak', targetRequired: false },
-        { phase: 'day', action: 'defend', targetRequired: true },
+        { phase: 'day', action: ACTION.SPEAK, targetRequired: false },
+        { phase: 'day', action: ACTION.DEFEND, targetRequired: true },
       ];
     }
-    return [{ phase: 'day', action: 'speak', targetRequired: false }];
+    return [{ phase: 'day', action: ACTION.SPEAK, targetRequired: false }];
   }
 
   private static _cutLossPlan(targetId: string | null, _self: Player): PlanStep[] {
     if (!targetId) return [];
     return [
-      { phase: 'day', action: 'suspect', targetRequired: true },
-      { phase: 'day', action: 'call_vote', targetRequired: true },
-      { phase: 'vote', action: 'vote', targetRequired: true },
+      { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
+      { phase: 'day', action: ACTION.CALL_VOTE, targetRequired: true },
+      { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
     ];
   }
 
   private static _followPlan(targetId: string | null): PlanStep[] {
     if (!targetId) return [];
     return [
-      { phase: 'day', action: 'join_suspect', targetRequired: true },
-      { phase: 'vote', action: 'vote', targetRequired: true },
+      { phase: 'day', action: ACTION.JOIN_SUSPECT, targetRequired: true },
+      { phase: 'vote', action: ACTION.VOTE, targetRequired: true },
     ];
   }
 
   private static _silencePlan(): PlanStep[] {
     return [
-      { phase: 'day', action: 'silence', targetRequired: false },
-      { phase: 'day', action: 'observe', targetRequired: true },
+      { phase: 'day', action: ACTION.SILENCE, targetRequired: false },
+      { phase: 'day', action: ACTION.OBSERVE, targetRequired: true },
     ];
   }
 
@@ -431,8 +457,9 @@ export class IntentionManager {
     // 1. 清理过期/完成的意图
     this._cleanupIntentions();
 
-    // 2. 从愿望生成新意图候选
-    const desires = this._desireEngine.generateDesires(self, belief, allPlayers, round);
+    // 2. 从愿望生成新意图候选（模式影响欲望强度）
+    const desireProfile = generateDesireProfile(self, belief, allPlayers);
+    const desires = this._desireEngine.generateDesires(self, belief, allPlayers, round, desireProfile.mode);
     const newIntentions = this._desiresToIntentions(desires, round, self, allPlayers);
 
     // 3. 合并意图栈，处理冲突
@@ -515,23 +542,23 @@ export class IntentionManager {
   }
 
   /** 获取意图栈摘要（用于调试展示） */
-  getSummary(): string {
-    const typeNames: Record<string, string> = { attack: '攻击', recruit: '招募', protect: '保护', reveal: '揭示', investigate: '调查', coordinate: '协同', survive: '生存' };
-    const sourceNames: Record<string, string> = { team_duty: '阵营职责', personal_goal: '个人目标', crisis: '危机', strategic: '战略', external: '外部压力', role_duty: '职业职责', bus: '背锅' };
-    const phaseNames: Record<string, string> = { day: '白天', night: '夜间', vote: '投票', morning: '早晨', init: '初始', event: '事件', ended: '结束' };
-    const actionNames: Record<string, string> = {
-      silence: '沉默', speak: '发言', claim_identity: '公布身份', reveal_info: '公开信息',
-      observe: '暗中观察', suspect: '怀疑', defend: '袒护', thank: '感谢',
-      call_vote: '号召投票', block_vote: '阻止投票', guarantee: '担保', accuse: '强烈指认',
-      exclude_all: '全员排除', berserker_kill: '狂狼同归于尽', kill: '袭击', check: '查验',
-      steal: '偷取', inspect: '验尸', vote: '投票', join_suspect: '一同怀疑', join_defend: '一同袒护', rebut: '反驳'
+  getSummary(allPlayers?: Player[]): string {
+    const getName = (id: string | null | undefined) => {
+      if (!id) return '无';
+      const p = allPlayers?.find((x) => x.id === id);
+      return p ? p.name : id;
     };
+    const typeNames = INTENTION_TYPE_NAMES;
+    const sourceNames = INTENTION_SOURCE_NAMES;
+    const phaseNames = PLAN_PHASE_NAMES;
+    const actionNames = ACTION_NAMES;
+    const commitmentNames = COMMITMENT_NAMES;
     const lines = this.intentions.map((i) => {
       const status = i.abandoned ? '[已放弃]' : i.active ? '[激活]' : '[完成]';
       const stepInfo = i.plan[i.currentStepIndex]
         ? `${phaseNames[i.plan[i.currentStepIndex].phase] || i.plan[i.currentStepIndex].phase}:${actionNames[i.plan[i.currentStepIndex].action] || i.plan[i.currentStepIndex].action}`
         : '无';
-      return `  ${status} ${typeNames[i.type] || i.type}→${i.targetId || '无'} (优先级${i.priority}, 承诺${i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
+      return `  ${status} ${typeNames[i.type] || i.type}${i.targetId ? '→' + getName(i.targetId) : ''} (优先级${i.priority}, 意愿强度${commitmentNames[i.commitment] || i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
     });
     return lines.join('\n');
   }
@@ -550,7 +577,9 @@ export class IntentionManager {
     return desires.map((d, idx) => {
       const plan = PlanLibrary.getPlan(d.type, d.targetId, self, allPlayers);
       const commitment = this._sourceToCommitment(d.source);
-      const lifetime = d.source === IntentionSource.ROLE_DUTY || d.source === IntentionSource.TEAM_DUTY ? -1 : 3;
+      const lifetime = d.source === IntentionSource.ROLE_DUTY || d.source === IntentionSource.TEAM_DUTY
+        ? INTENTION_LIFETIME_ROLE_DUTY
+        : INTENTION_LIFETIME_DEFAULT;
       return {
         id: `${d.type}_${d.targetId || 'none'}_${round}_${idx}`,
         type: d.type,
@@ -683,7 +712,7 @@ export class IntentionManager {
     allPlayers: Player[]
   ) {
     // 被号召投票时，生成 FOLLOW 意图
-    const callsOnMe = publicActions.filter((a) => a.type === 'call_vote' && a.targetId === self.id);
+    const callsOnMe = publicActions.filter((a) => a.type === ACTION.CALL_VOTE && a.targetId === self.id);
     for (const call of callsOnMe) {
       const caller = allPlayers.find((p) => p.id === call.actorId);
       if (caller?.alive) {
@@ -714,8 +743,9 @@ export class IntentionManager {
 
   private _sortIntentions() {
     this.intentions.sort((a, b) => {
-      const aScore = this._sourcePriority(a.source) * 1000 + a.priority + (a.commitment === CommitmentLevel.STRONG ? 100 : 0);
-      const bScore = this._sourcePriority(b.source) * 1000 + b.priority + (b.commitment === CommitmentLevel.STRONG ? 100 : 0);
+      // sourcePriority 权重降低为100，让 priority（desire strength）主导排序
+      const aScore = this._sourcePriority(a.source) * 100 + a.priority + (a.commitment === CommitmentLevel.STRONG ? 100 : 0);
+      const bScore = this._sourcePriority(b.source) * 100 + b.priority + (b.commitment === CommitmentLevel.STRONG ? 100 : 0);
       return bScore - aScore;
     });
   }
@@ -758,10 +788,10 @@ export const WolfNoAttackTeammateConstraint: HardConstraint = {
     if (!candidate.target) return false;
     const target = context.allPlayers.find((p) => p.id === candidate.target);
     if (!target || target.team !== 'werewolf') return false;
-    const attackActions = ['call_vote', 'accuse', 'suspect', 'vote'];
+    const attackActions = [ACTION.CALL_VOTE, ACTION.ACCUSE, ACTION.SUSPECT, ACTION.VOTE];
     return attackActions.includes(candidate.action);
   },
-  source: 'team_duty',
+  source: INTENTION_SOURCE.TEAM_DUTY,
 };
 
 export function filterByHardConstraints(
@@ -780,7 +810,8 @@ export function filterByHardConstraints(
       if (!constraint.active(context)) continue;
       if (constraint.violated(candidate, context)) {
         violated = true;
-        violationReason = `违反硬约束[${constraint.id}]: ${constraint.description} (来源: ${constraint.source})`;
+        const sourceNames: Record<string, string> = { team_duty: '阵营职责', role_duty: '职业职责', survival: '生存', bus: '背锅' };
+        violationReason = `违反硬约束[${constraint.id}]: ${constraint.description} (来源: ${sourceNames[constraint.source] || constraint.source})`;
         break;
       }
     }
@@ -802,13 +833,13 @@ export function filterByHardConstraints(
 export function generateDesireProfile(self: Player, belief: BeliefSystem, allPlayers: Player[]): {
   teamObjective: string;
   personalObjective: string;
-  mode: 'normal' | 'bus' | 'desperate' | 'dominant';
+  mode: GameMode;
 } {
   const aliveWolves = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
   const aliveVillagers = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;
   const myExposure = belief.getExposure();
 
-  let mode: 'normal' | 'bus' | 'desperate' | 'dominant' = 'normal';
+  let mode: GameMode = 'normal';
   if (self.team === 'werewolf') {
     if (aliveWolves < aliveVillagers && myExposure > 0.6) {
       mode = 'desperate';
@@ -837,11 +868,11 @@ export function explainIntention(
   blocked: { candidate: { action: string; target: string | null }; reason: string }[],
   allPlayers: Player[]
 ): string {
-  const modeNames: Record<string, string> = { normal: '常规', bus: '推车', desperate: '绝境', dominant: '优势' };
-  const teamNames: Record<string, string> = { eliminate_opposition: '消灭对手', find_wolves: '找出狼人' };
-  const personalNames: Record<string, string> = { maintain_cover: '隐藏身份', survive: '生存', gain_trust: '获得信任', reveal_truth: '揭示真相' };
+  const modeNames = MODE_NAMES;
+  const teamNames = TEAM_OBJECTIVE_NAMES;
+  const personalNames = PERSONAL_OBJECTIVE_NAMES;
   const lines: string[] = [];
-  lines.push(`[意图状态] 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 个人目标=${personalNames[desire.personalObjective] || desire.personalObjective}`);
+  lines.push(`【意图状态】 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 个人目标=${personalNames[desire.personalObjective] || desire.personalObjective}`);
 
   if (blocked.length > 0) {
     lines.push(`[被硬约束拦截的候选]`);
