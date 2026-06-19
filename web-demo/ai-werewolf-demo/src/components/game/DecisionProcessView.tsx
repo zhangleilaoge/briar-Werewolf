@@ -93,12 +93,13 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
                         const claimedRole = (c as Record<string, unknown>).details ? ((c as Record<string, unknown>).details as Record<string, unknown>)?.claimedRole : null;
                         const roleLabel = claimedRole ? ROLE_INFO[claimedRole as keyof typeof ROLE_INFO]?.label || claimedRole : null;
                         const isSelected = c.action === winnerActionStr;
+                        const isNegative = (c.totalScore || 0) < 0;
                         return (
-                          <div key={ci} className={`text-xs mb-1 ${isSelected ? 'text-green-400' : 'text-gray-400'}`}>
+                          <div key={ci} className={`text-xs mb-1 ${isSelected ? 'text-green-400' : isNegative ? 'text-red-400 opacity-60' : 'text-gray-400'}`}>
                             <div className="flex items-center gap-2">
                               <span>{isSelected ? '✓' : '○'}</span>
                               <span className="font-medium">{actionName}{roleLabel ? `(${roleLabel})` : ''}{c.target ? `→${getName(c.target)}` : ''}</span>
-                              <span className="text-yellow-400 ml-auto">{c.totalScore}</span>
+                              <span className={`ml-auto ${isNegative ? 'text-red-400' : 'text-yellow-400'}`}>{c.totalScore}</span>
                             </div>
                             <div className="text-[10px] text-gray-500 ml-4">
                               {c.score}(基础) {c.intentionDrivenBonus ? `+${c.intentionDrivenBonus}(意图驱动)` : ''} {c.stageWeight ? `+${c.stageWeight}(${c.stage || ''})` : ''}

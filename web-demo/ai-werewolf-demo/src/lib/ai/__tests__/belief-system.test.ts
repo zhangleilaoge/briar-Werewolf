@@ -114,10 +114,9 @@ describe('BeliefSystem', () => {
   describe('relations and pressure', () => {
     it('updateRelation clamps values', () => {
       const belief = makeBelief();
-      belief.updateRelation('p2', 15, -15);
+      belief.updateRelation('p2', 15);
       const rel = belief.getRelation('p2');
-      expect(rel.friendly).toBe(10);
-      expect(rel.trust).toBe(-10);
+      expect(rel.favor).toBe(10);
     });
 
     it('updatePressure updates emotional state', () => {

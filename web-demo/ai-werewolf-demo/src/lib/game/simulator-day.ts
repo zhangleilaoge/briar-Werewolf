@@ -219,7 +219,21 @@ export function resolveDayAction(
       logAction(sim, 'action', `${actor.name} 怀疑 ${targetName}：「我觉得 ${targetName} 可能是狼人」（${successLevel}）`, decisionReason, [suspectCheck], { actorId: actor.id, action: ACTION.SUSPECT, targetId , process });
       if (target) {
         target.stress = clampStress(target.stress + STRESS_CHANGE_MINOR_POS + Math.floor(Math.random() * STRESS_CHANGE_MINOR_POS));
-        updateRelation(sim, target, actor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: REL_CHANGE_MINOR_NEG });
+        updateRelation(sim, target, actor, { favorDelta: REL_CHANGE_MINOR_NEG });
+
+        // 记录暴露度变更：被怀疑者暴露度增加
+        const targetAgent = sim._aiAgents[target.id];
+        if (targetAgent) {
+          const before = targetAgent.belief.getExposure();
+          // 怀疑行动会增加被怀疑者的l2暴露度
+          const delta = suspectResult.success ? 0.15 : 0.05;
+          targetAgent.recordExposureChange(
+            `${actor.name} 怀疑 ${target.name}（${successLevel}）`,
+            delta,
+            before,
+            Math.min(1, before + delta)
+          );
+        }
       }
       break;
     }
@@ -432,14 +446,40 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
         );
         const successText = rebutResult.success ? `（成功，优势 ${rebutResult.margin}）` : '（失败）';
         logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」${successText}`, rebutReason, [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
+
+        // 记录反驳者的暴露度变更
+        const playerAgent = sim._aiAgents[player.id];
+        if (playerAgent) {
+          const before = playerAgent.belief.getExposure();
+          if (rebutResult.success) {
+            // 反驳成功：暴露度降低
+            const delta = -0.1;
+            playerAgent.recordExposureChange(
+              `反驳成功：${player.name} 成功反驳 ${triggerActor.name}`,
+              delta,
+              before,
+              Math.max(0, before + delta)
+            );
+          } else {
+            // 反驳失败：暴露度增加
+            const delta = 0.1;
+            playerAgent.recordExposureChange(
+              `反驳失败：${player.name} 反驳 ${triggerActor.name} 失败`,
+              delta,
+              before,
+              Math.min(1, before + delta)
+            );
+          }
+        }
+
         if (rebutResult.success) {
           player.stress = clampStress(player.stress - STRESS_CHANGE_MINOR_POS);
           // 旁观者信任反驳者
           sim.players.forEach((p) => {
             if (p.id !== player.id && p.id !== triggerActor.id && p.alive) {
-              updateRelation(sim, p, player, { trustDelta: REL_CHANGE_MINOR_POS, friendlyDelta: 0 });
+              updateRelation(sim, p, player, { favorDelta: REL_CHANGE_MINOR_POS });
               // 反驳成功：怀疑者失旁观者信任
-              updateRelation(sim, p, triggerActor, { trustDelta: REL_CHANGE_MINOR_NEG, friendlyDelta: 0 });
+              updateRelation(sim, p, triggerActor, { favorDelta: REL_CHANGE_MINOR_NEG });
             }
           });
         } else {
@@ -447,7 +487,7 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
           // 反驳失败：旁观者更信任怀疑者
           sim.players.forEach((p) => {
             if (p.id !== player.id && p.id !== triggerActor.id && p.alive) {
-              updateRelation(sim, p, triggerActor, { trustDelta: REL_CHANGE_MINOR_POS, friendlyDelta: 0 });
+              updateRelation(sim, p, triggerActor, { favorDelta: REL_CHANGE_MINOR_POS });
             }
           });
         }

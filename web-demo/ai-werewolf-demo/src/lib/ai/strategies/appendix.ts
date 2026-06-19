@@ -67,9 +67,9 @@ export const JoinDefendStrategy: Strategy = {
     if (!target?.alive) return result;
 
     const relation = belief.getRelation(target.id);
-    if (relation.friendly > RELATION_FRIENDLY_JOIN_DEFEND || (self.team === 'werewolf' && target.team === 'werewolf')) {
+    if (relation.favor > RELATION_FRIENDLY_JOIN_DEFEND || (self.team === 'werewolf' && target.team === 'werewolf')) {
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_DEFEND, originalTargetId);
-      const baseScore = Math.floor(relation.friendly * SCORE_JOIN_DEFEND_BASE);
+      const baseScore = Math.floor(relation.favor * SCORE_JOIN_DEFEND_BASE);
       const wolfBonus = self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0;
       const notJoinPenalty = -10; // 不做会降低与被保护者的关系
 
@@ -78,10 +78,10 @@ export const JoinDefendStrategy: Strategy = {
         target: originalTargetId,
         score: baseScore + wolfBonus + scoreDelta,
         confidence: CONFIDENCE_JOIN_DEFEND,
-        reason: `做: +${baseScore}(友好度${relation.friendly.toFixed(1)}×基础)${wolfBonus > 0 ? ` +${wolfBonus}(狼队友)` : ''}${scoreDelta > 0 ? ` +${scoreDelta}(修正)` : ''} vs 不做: ${notJoinPenalty}(关系下降)`,
+        reason: `做: +${baseScore}(好感度${relation.favor.toFixed(1)}×基础)${wolfBonus > 0 ? ` +${wolfBonus}(狼队友)` : ''}${scoreDelta > 0 ? ` +${scoreDelta}(修正)` : ''} vs 不做: ${notJoinPenalty}(关系下降)`,
         strategy: 'JoinDefendStrategy',
         rule: 'join_defend',
-        trigger: `friendly=${relation.friendly.toFixed(1)} > ${RELATION_FRIENDLY_JOIN_DEFEND} 或 (self.team=werewolf 且 target.team=werewolf)`,
+        trigger: `favor=${relation.favor.toFixed(1)} > ${RELATION_FRIENDLY_JOIN_DEFEND} 或 (self.team=werewolf 且 target.team=werewolf)`,
       });
     }
 

@@ -114,13 +114,12 @@ export function buildCheckLog(
 
 export function updateRelation(sim: GameSimulator, fromPlayer: Player, toPlayer: Player, delta: RelationDelta) {
   if (!fromPlayer.relations[toPlayer.id]) {
-    fromPlayer.relations[toPlayer.id] = { trust: 0, friendly: 0 };
+    fromPlayer.relations[toPlayer.id] = { favor: 0 };
   }
   const rel = fromPlayer.relations[toPlayer.id];
-  rel.trust = clampRelation(rel.trust + delta.trustDelta);
-  rel.friendly = clampRelation(rel.friendly + delta.friendlyDelta);
+  rel.favor = clampRelation(rel.favor + delta.favorDelta);
 
-  if (Math.abs(delta.trustDelta) >= 2 || Math.abs(delta.friendlyDelta) >= 2) {
-    log(sim, 'relation', `${fromPlayer.name} 对 ${toPlayer.name} 的关系变化：信任 ${delta.trustDelta > 0 ? '+' : ''}${delta.trustDelta}，友好 ${delta.friendlyDelta > 0 ? '+' : ''}${delta.friendlyDelta}`);
+  if (Math.abs(delta.favorDelta) >= 2) {
+    log(sim, 'relation', `${fromPlayer.name} 对 ${toPlayer.name} 的好感度变化：${delta.favorDelta > 0 ? '+' : ''}${delta.favorDelta}`);
   }
 }

@@ -68,6 +68,30 @@ export default function PlayerDrawer({
                     {selectedPlayer.stress > 0 ? '+' : ''}{selectedPlayer.stress} ({stressLabel(selectedPlayer.stress)})
                   </span>
                 </div>
+                {selectedPlayer.exposure !== undefined && (
+                  <div className="text-sm relative group">
+                    <span className="text-muted-foreground">暴露度：</span>
+                    <span className={selectedPlayer.exposure > 0.6 ? 'text-red-400' : selectedPlayer.exposure > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
+                      {(selectedPlayer.exposure * 100).toFixed(0)}%
+                      {selectedPlayer.exposure > 0.6 ? ' (高)' : selectedPlayer.exposure > 0.3 ? ' (中)' : ' (低)'}
+                    </span>
+                    {/* Hover 弹窗：显示暴露度变更日志 */}
+                    <div className="absolute left-0 top-6 z-50 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg hidden group-hover:block min-w-64 max-h-64 overflow-y-auto">
+                      <div className="text-xs font-bold text-gray-300 mb-2">暴露度变更日志</div>
+                      {(selectedPlayer as any).exposureLog?.map((log: any, i: number) => (
+                        <div key={i} className="text-xs mb-1 border-b border-gray-700 pb-1">
+                          <div className="text-gray-400">{log.reason}</div>
+                          <div className={`${log.delta > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                            {log.delta > 0 ? '+' : ''}{(log.delta * 100).toFixed(1)}% → {(log.after * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                      ))}
+                      {!(selectedPlayer as any).exposureLog?.length && (
+                        <div className="text-xs text-gray-500">暂无变更记录</div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {selectedPlayer.traits.length > 0 && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">特质：</span>
@@ -101,21 +125,41 @@ export default function PlayerDrawer({
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-bold mb-2 text-muted-foreground">关系网</h4>
                 <div className="space-y-1">
-                  {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > RELATION_DISPLAY_THRESHOLD || Math.abs(rel.friendly) > RELATION_DISPLAY_THRESHOLD).map(([otherId, rel]) => {
-                    const other = players.find((p) => p.id === otherId);
-                    if (!other) return null;
+                  {players.filter(p => p.id !== selectedPlayer.id && p.alive).map(other => {
+                    const rel = selectedPlayer.relations[other.id];
+                    const favor = rel?.favor ?? 0;
+                    const suspicion = selectedPlayer.suspicionByOthers?.[other.id] ?? 0.5;
+                    const isEnemy = other.team !== selectedPlayer.team;
+
+                    // 敌人始终显示，友方只显示显著变化
+                    if (!isEnemy && Math.abs(favor) <= RELATION_DISPLAY_THRESHOLD) return null;
+
                     return (
-                      <div key={otherId} className="text-sm flex items-center justify-between">
+                      <div key={other.id} className="text-sm flex items-center justify-between">
                         <span className="text-muted-foreground">{other.name}</span>
-                        <span className="text-xs">
-                          <span className={rel.trust > 0 ? 'text-green-400' : 'text-red-400'}>信任{rel.trust > 0 ? '+' : ''}{rel.trust.toFixed(1)}</span>
-                          <span className="mx-1">·</span>
-                          <span className={rel.friendly > 0 ? 'text-green-400' : 'text-red-400'}>友好{rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}</span>
-                        </span>
+                        <div className="flex items-center gap-3 text-xs">
+                          {/* 好感度（敌人显示，友方只在有变化时显示） */}
+                          {(isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD) && (
+                            <span className={favor > 0 ? 'text-green-400' : favor < 0 ? 'text-red-400' : 'text-gray-500'}>
+                              好感{favor > 0 ? '+' : ''}{favor.toFixed(1)}
+                            </span>
+                          )}
+                          {/* 怀疑度（只显示敌人） */}
+                          {isEnemy && (
+                            <span className={suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
+                              怀疑{(suspicion * 100).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
-                  {Object.entries(selectedPlayer.relations).filter(([_, rel]) => Math.abs(rel.trust) > RELATION_DISPLAY_THRESHOLD || Math.abs(rel.friendly) > RELATION_DISPLAY_THRESHOLD).length === 0 && (
+                  {players.filter(p => p.id !== selectedPlayer.id && p.alive).filter(p => {
+                    const rel = selectedPlayer.relations[p.id];
+                    const favor = rel?.favor ?? 0;
+                    const isEnemy = p.team !== selectedPlayer.team;
+                    return isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD;
+                  }).length === 0 && (
                     <div className="text-xs text-muted-foreground">暂无显著关系变化</div>
                   )}
                 </div>

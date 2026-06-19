@@ -126,7 +126,7 @@ export class BeliefSystem {
   initializeRelations(allPlayers: Player[]) {
     allPlayers.forEach((p) => {
       if (p.id !== this.playerId) {
-        this.l3Social.relations[p.id] = { friendly: 0, trust: 0 };
+        this.l3Social.relations[p.id] = { favor: 0 };
         this.l1Inferences.roleBeliefs[p.id] = { werewolf: BELIEF_DEFAULT_PROBABILITY, villager: BELIEF_DEFAULT_PROBABILITY };
         this.l1Inferences.trustScore[p.id] = 0;
       }
@@ -399,13 +399,12 @@ export class BeliefSystem {
     });
   }
 
-  updateRelation(targetId: string, friendlyDelta: number, trustDelta: number) {
+  updateRelation(targetId: string, favorDelta: number) {
     if (!this.l3Social.relations[targetId]) {
-      this.l3Social.relations[targetId] = { friendly: 0, trust: 0 };
+      this.l3Social.relations[targetId] = { favor: 0 };
     }
     const rel = this.l3Social.relations[targetId];
-    rel.friendly = Math.max(-10, Math.min(10, rel.friendly + friendlyDelta));
-    rel.trust = Math.max(-10, Math.min(10, rel.trust + trustDelta));
+    rel.favor = Math.max(-10, Math.min(10, rel.favor + favorDelta));
   }
 
   updatePressure(delta: number) {
@@ -445,7 +444,7 @@ export class BeliefSystem {
   }
 
   getRelation(targetId: string): Relation {
-    return this.l3Social.relations[targetId] ?? { friendly: 0, trust: 0 };
+    return this.l3Social.relations[targetId] ?? { favor: 0 };
   }
 
   getSummary() {

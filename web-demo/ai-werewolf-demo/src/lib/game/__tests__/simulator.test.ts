@@ -30,8 +30,7 @@ describe('GameSimulator', () => {
         sim.players.forEach(other => {
           if (p.id !== other.id) {
             expect(p.relations[other.id]).toBeDefined();
-            expect(p.relations[other.id].trust).toBe(0);
-            expect(p.relations[other.id].friendly).toBe(0);
+            expect(p.relations[other.id].favor).toBe(0);
           }
         });
       });

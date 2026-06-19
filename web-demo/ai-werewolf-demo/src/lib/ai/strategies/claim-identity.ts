@@ -42,7 +42,6 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
 
       // 计算时机分数
       const timing = calculateTimingScore(self, allPlayers, belief, voteRound || 1, publicActions, fakeState);
-      if (timing.score < -50) continue; // 时机太差，不跳
 
       // 阵营倾向修正
       const alignmentMod = getClaimIdentityAlignmentModifier(self.alignment, motivation.targetRole);

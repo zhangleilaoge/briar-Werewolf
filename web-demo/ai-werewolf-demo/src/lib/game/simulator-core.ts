@@ -248,7 +248,7 @@ export class GameSimulator {
     this.players.forEach((p) => {
       this.players.forEach((other) => {
         if (p.id !== other.id) {
-          p.relations[other.id] = { trust: 0, friendly: 0 };
+          p.relations[other.id] = { favor: 0 };
         }
       });
     });
@@ -465,7 +465,36 @@ export class GameSimulator {
   }
 
   getPlayers(): Player[] {
-    return this.players;
+    // 计算每个玩家的暴露度和怀疑度数据并添加到Player对象中
+    return this.players.map(p => {
+      const agent = this._aiAgents[p.id];
+
+      // 计算其他人对这个玩家的怀疑度（l1层）
+      const suspicionByOthers: Record<string, number> = {};
+      let totalSuspicion = 0;
+      let count = 0;
+
+      this.players.forEach(other => {
+        if (other.id !== p.id && other.alive) {
+          const otherAgent = this._aiAgents[other.id];
+          if (otherAgent?.belief) {
+            const roleBeliefs = otherAgent.belief.l1Inferences.roleBeliefs[p.id];
+            const suspicion = roleBeliefs?.werewolf ?? 0.5;
+            suspicionByOthers[other.id] = suspicion;
+            totalSuspicion += suspicion;
+            count++;
+          }
+        }
+      });
+
+      // 暴露度 = 其他存活玩家对我的平均怀疑度（l1层）
+      const exposure = count > 0 ? totalSuspicion / count : 0;
+
+      // 暴露度变更日志（从agent的exposureLog获取）
+      const exposureLog = (agent as any)?.exposureLog ?? [];
+
+      return { ...p, exposure, suspicionByOthers, exposureLog };
+    });
   }
 
   getPublicActions(): PublicActionRecord[] {

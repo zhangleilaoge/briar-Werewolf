@@ -28,6 +28,7 @@ export class AIAgent {
   logs: LogEntry[];
   currentRound: number = 0;
   pluginRegistry?: PluginRegistry;
+  exposureLog: { reason: string; delta: number; before: number; after: number; timestamp: number }[] = [];
 
   private _allPlayers: Player[];
 
@@ -192,6 +193,20 @@ export class AIAgent {
 
   recordObservation(targetId: string, stress: number, attributes: Attributes) {
     this.belief.recordObservation(targetId, stress, attributes);
+  }
+
+  recordExposureChange(reason: string, delta: number, before: number, after: number) {
+    this.exposureLog.push({
+      reason,
+      delta,
+      before,
+      after,
+      timestamp: Date.now(),
+    });
+    // 只保留最近20条记录
+    if (this.exposureLog.length > 20) {
+      this.exposureLog = this.exposureLog.slice(-20);
+    }
   }
 
   getCheckResults(): Record<string, 'werewolf' | 'villager'> {

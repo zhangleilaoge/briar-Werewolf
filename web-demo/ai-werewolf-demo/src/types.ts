@@ -31,8 +31,8 @@ export type GoodAxis = 'good' | 'neutral_good' | 'evil';
 export interface Alignment { law: LawAxis; good: GoodAxis }
 
 // ---------- Relations (关系) ----------
-export interface Relation { trust: number; friendly: number }
-export interface RelationDelta { trustDelta: number; friendlyDelta: number }
+export interface Relation { favor: number } // 好感度（-10 ~ +10），合并信任和友好
+export interface RelationDelta { favorDelta: number }
 
 // ---------- Items (道具) ----------
 export type ItemType = 'action_prerequisite' | 'check_bonus' | 'consumable' | 'passive';
@@ -77,6 +77,8 @@ export interface Player {
   id: string; name: string; role: Role; team: Team; alive: boolean;
   items: ItemInstance[]; attributes: Attributes; alignment: Alignment;
   traits: string[]; stress: number; relations: Record<string, Relation>;
+  exposure?: number; // 暴露度（0-1），由belief系统计算
+  suspicionByOthers?: Record<string, number>; // 其他人对我的怀疑度
 }
 
 // ---------- Fake Identity System (伪装身份系统) ----------

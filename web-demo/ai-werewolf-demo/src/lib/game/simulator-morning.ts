@@ -49,10 +49,8 @@ export function resolveMorningEvents(sim: GameSimulator) {
       Object.keys(p.relations).forEach((otherId) => {
         const rel = p.relations[otherId];
         if (rel) {
-          if (rel.trust > 0) rel.trust = clampRelation(rel.trust - RELATION_NATURAL_RECOVERY);
-          else if (rel.trust < 0) rel.trust = clampRelation(rel.trust + RELATION_NATURAL_RECOVERY);
-          if (rel.friendly > 0) rel.friendly = clampRelation(rel.friendly - RELATION_NATURAL_RECOVERY);
-          else if (rel.friendly < 0) rel.friendly = clampRelation(rel.friendly + RELATION_NATURAL_RECOVERY);
+          if (rel.favor > 0) rel.favor = clampRelation(rel.favor - RELATION_NATURAL_RECOVERY);
+          else if (rel.favor < 0) rel.favor = clampRelation(rel.favor + RELATION_NATURAL_RECOVERY);
         }
       });
     }

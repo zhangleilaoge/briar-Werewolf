@@ -394,8 +394,8 @@ export class DecisionEngine {
   private _getEmotionalTone(belief: BeliefSystem, self: Player, targetId: string | null, stage: string): string {
     if (!targetId || stage === 'duty') return 'neutral';
     const relation = belief.getRelation(targetId);
-    if (relation.friendly > 5) return 'reluctant';
-    if (relation.friendly < -5) return 'firm';
+    if (relation.favor > 5) return 'reluctant';
+    if (relation.favor < -5) return 'firm';
     if (self.stress > 5) return 'anxious';
     if (self.stress < -5) return 'calm';
     return 'neutral';

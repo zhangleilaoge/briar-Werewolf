@@ -142,8 +142,7 @@ export const FollowCallVoteStrategy: Strategy = {
       if (!caller || !callTarget?.alive) return;
 
       const relation = belief.getRelation(caller.id);
-      const followScore = ((relation.trust + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * SCORE_FOLLOW_CALL_VOTE
-        + ((relation.friendly + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_FOLLOW_CALL_VOTE / 2);
+      const followScore = ((relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * SCORE_FOLLOW_CALL_VOTE;
 
       if (followScore > (SCORE_FOLLOW_CALL_VOTE / 2)) {
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', call.targetId!);
@@ -151,11 +150,11 @@ export const FollowCallVoteStrategy: Strategy = {
           action: ACTION.VOTE,
           target: call.targetId!,
           score: followScore + scoreDelta,
-          confidence: relation.trust / 10,
-          reason: `跟随${caller.name}的号召：投票给${callTarget.name}（信任${relation.trust.toFixed(1)}）${reason}`,
+          confidence: relation.favor / 10,
+          reason: `跟随${caller.name}的号召：投票给${callTarget.name}（好感度${relation.favor.toFixed(1)}）${reason}`,
           strategy: 'FollowCallVoteStrategy',
           rule: 'follow_call',
-          trigger: `followScore=${followScore.toFixed(1)}，信任度=${relation.trust.toFixed(1)}`,
+          trigger: `followScore=${followScore.toFixed(1)}，好感度=${relation.favor.toFixed(1)}`,
         });
       }
     });
@@ -182,12 +181,11 @@ export const SocialTieBreakerStrategy: Strategy = {
       const relation = belief.getRelation(target.id);
       let socialScore = 0;
       if (self.team !== 'werewolf') {
-        // 村民：不信任/不友好的人更可能投
-        socialScore = (1 - (relation.friendly + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER / 2)
-          + (1 - (relation.trust + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER / 2);
+        // 村民：好感度低的人更可能投
+        socialScore = (1 - (relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * SCORE_SOCIAL_TIE_BREAKER;
       } else {
-        // 狼人：投友好的人伪装好人，或投低嫌疑的
-        socialScore = ((relation.friendly + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER * 0.75);
+        // 狼人：投好感度高的人伪装好人，或投低嫌疑的
+        socialScore = ((relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER * 0.75);
       }
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
       result.push({
@@ -195,10 +193,10 @@ export const SocialTieBreakerStrategy: Strategy = {
         target: target.id,
         score: socialScore + scoreDelta,
         confidence: 0.3,
-        reason: `L3社交：与${target.name}信任${relation.trust.toFixed(1)}友好${relation.friendly.toFixed(1)}${reason}`,
+        reason: `L3社交：与${target.name}好感度${relation.favor.toFixed(1)}${reason}`,
         strategy: 'SocialTieBreakerStrategy',
         rule: self.team === 'werewolf' ? 'wolf_deflect_social' : 'social_tiebreaker',
-        trigger: `self.team=${self.team}，信任=${relation.trust.toFixed(1)}，友好=${relation.friendly.toFixed(1)}`,
+        trigger: `self.team=${self.team}，好感度=${relation.favor.toFixed(1)}`,
       });
     });
 
