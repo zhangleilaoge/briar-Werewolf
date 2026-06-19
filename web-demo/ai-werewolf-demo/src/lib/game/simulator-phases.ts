@@ -48,8 +48,11 @@ export abstract class TickPhase extends PhaseController {
     this.advanceThinkers(sim);
     this.executeActors(sim);
     this.flushEventBus(sim);
+    this.beforeCheckEnd(sim);
     return this.checkEnd(sim);
   }
+
+  protected beforeCheckEnd(_sim: GameSimulator): void {}
 
   protected advanceThinkers(sim: GameSimulator): void {
     sim.eventBus.flush(sim);
@@ -106,22 +109,12 @@ export class DayPhaseController extends TickPhase {
   private aliveOrder: string[] = [];
   private nextIndex = 0;
 
-  onTick(sim: GameSimulator): boolean {
-    if (sim.forcePhaseEnd) {
-      sim.forcePhaseEnd = false;
-      return false;
-    }
-    this.advanceThinkers(sim);
-    this.executeActors(sim);
-    this.flushEventBus(sim);
-
+  protected beforeCheckEnd(sim: GameSimulator): void {
     // 所有玩家 idle（没有 pending 的思考或行动）→ 可以通知下一个行动者
     const allIdle = sim.areAllActorsIdle();
     if (allIdle) {
       this._notifyNextSpeaker(sim);
     }
-
-    return this.checkEnd(sim);
   }
 
   onEnter(sim: GameSimulator) {

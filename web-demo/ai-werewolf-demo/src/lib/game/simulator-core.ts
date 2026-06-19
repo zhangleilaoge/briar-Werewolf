@@ -410,7 +410,7 @@ export class GameSimulator {
     this._prepareNextRound();
   }
 
-  // ==================== LEGACY STEP API (for compatibility) ====================
+  // ==================== LEGACY STEP API (used by useGameRunner) ====================
 
   executeNextStep(): boolean {
     return this.tick();
@@ -420,14 +420,6 @@ export class GameSimulator {
     if (this.winner) return false;
     if (this.currentPhase) return true;
     return this.currentPhaseIndex < this.phaseQueue.length;
-  }
-
-  runRound(_options: GameSimulatorOptions = {}): Winner {
-    this.generateRoundSteps();
-    while (this.hasMoreSteps()) {
-      this.executeNextStep();
-    }
-    return this.getWinner();
   }
 
   // ==================== WIN CHECK ====================
@@ -457,11 +449,6 @@ export class GameSimulator {
 
   getLogs(): GameLogItem[] {
     return this.logs;
-  }
-
-  /** @deprecated Use getPlayers() instead. Kept for backward compatibility. */
-  getPlayerStates(): Player[] {
-    return this.players;
   }
 
   getPlayers(): Player[] {
