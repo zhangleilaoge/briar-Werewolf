@@ -183,7 +183,7 @@ export class IntentionManager {
     const lines = this.intentions.map((i) => {
       const status = i.abandoned ? '[已放弃]' : i.active ? '[激活]' : '[完成]';
       const stepInfo = i.plan[i.currentStepIndex]
-        ? `${phaseNames[i.plan[i.currentStepIndex].phase] || i.plan[i.currentStepIndex].phase}:${actionNames[i.plan[i.currentStepIndex].action] || i.plan[i.currentStepIndex].action}`
+        ? `${phaseNames[i.plan[i.currentStepIndex].phase] || i.plan[i.currentStepIndex].phase},${actionNames[i.plan[i.currentStepIndex].action] || i.plan[i.currentStepIndex].action}`
         : '无';
       return `  ${status} ${typeNames[i.type] || i.type}${i.targetId ? `→${getName(i.targetId)}` : ''} (优先级${i.priority}, 意愿强度${commitmentNames[i.commitment] || i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
     });

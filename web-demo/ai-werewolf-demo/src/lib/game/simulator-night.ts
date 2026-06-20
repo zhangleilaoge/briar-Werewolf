@@ -1,7 +1,7 @@
 import type { GameSimulator } from './simulator-core';
 import type { Player, NightActionType } from '@/types';
 import { hasItem } from '@/types';
-import { ACTION } from '@/lib/constants/action-constants';
+import { ACTION, NIGHT_ACTION } from '@/lib/constants/action-constants';
 import { log, getPublicPlayerStates } from './simulator-utils';
 
 export function runNightAction(sim: GameSimulator, player: Player) {
@@ -11,6 +11,13 @@ export function runNightAction(sim: GameSimulator, player: Player) {
 
   const decision = agent.nightAction(getPublicPlayerStates(sim), sim.nightDecisions);
   if (!decision) return;
+
+  // 健壮性：过滤非法夜间动作
+  const validNightActions = Object.values(NIGHT_ACTION);
+  if (!validNightActions.includes(decision.action as string)) {
+    console.warn(`[runNightAction] ${player.id} returned invalid night action: ${decision.action}, skipping`);
+    return;
+  }
 
   sim.nightDecisions.push({
     playerId: player.id,

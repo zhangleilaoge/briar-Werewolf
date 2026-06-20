@@ -1,7 +1,9 @@
+import { useRef, useState } from 'react';
 import type { Player } from '@/types';
 import { getAlignmentName, RELATION_DISPLAY_THRESHOLD, IDENTITY_CRISIS_HIGH_THRESHOLD, IDENTITY_CRISIS_LOW_THRESHOLD, BELIEF_DEFAULT_PROBABILITY } from '@/types';
 import { PERCENT_MULTIPLIER, SUSPICION_COLOR_HIGH, SUSPICION_COLOR_MEDIUM } from '@/lib/constants/ui-thresholds';
 import { roleNameMap, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel } from '../ui-utils';
+import { PopOverlay } from '@/components/ui/PopOverlay';
 
 interface PlayerDrawerProps {
   selectedPlayer: Player | null;
@@ -18,6 +20,9 @@ export default function PlayerDrawer({
   onToggleDrawer,
   onClosePlayer,
 }: PlayerDrawerProps) {
+  const crisisTriggerRef = useRef<HTMLButtonElement>(null);
+  const [crisisVisible, setCrisisVisible] = useState(false);
+
   return (
     <div className={`bg-card border-l border-border overflow-y-auto transition-all duration-300 flex flex-col ${drawerOpen ? 'w-80 p-4' : 'w-10 items-center'}`}>
       {/* 抽屉切换按钮 */}
@@ -70,15 +75,26 @@ export default function PlayerDrawer({
                   </span>
                 </div>
                 {selectedPlayer.identityCrisis !== undefined && (
-                  <div className="text-sm relative group">
+                  <div className="text-sm">
                     <span className="text-muted-foreground">身份危机：</span>
-                    <span className={selectedPlayer.identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD ? 'text-red-400' : selectedPlayer.identityCrisis > IDENTITY_CRISIS_LOW_THRESHOLD ? 'text-yellow-400' : 'text-green-400'}>
+                    <button
+                      ref={crisisTriggerRef}
+                      type="button"
+                      className={`${selectedPlayer.identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD ? 'text-red-400' : selectedPlayer.identityCrisis > IDENTITY_CRISIS_LOW_THRESHOLD ? 'text-yellow-400' : 'text-green-400'} bg-transparent p-0 m-0 border-0 cursor-help`}
+                      onMouseEnter={() => setCrisisVisible(true)}
+                    >
                       {(selectedPlayer.identityCrisis * PERCENT_MULTIPLIER).toFixed(0)}%
                       {selectedPlayer.identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD ? ' (高)' : selectedPlayer.identityCrisis > IDENTITY_CRISIS_LOW_THRESHOLD ? ' (中)' : ' (低)'}
-                    </span>
-                    {/* Hover 弹窗：显示身份危机变更日志 */}
-                    <div className="absolute left-0 top-6 z-50 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg hidden group-hover:block min-w-64 max-h-64 overflow-y-auto">
-                      <div className="text-xs font-bold text-gray-300 mb-2">身份危机变更日志</div>
+                    </button>
+                    <PopOverlay
+                      triggerRef={crisisTriggerRef}
+                      visible={crisisVisible}
+                      onClose={() => setCrisisVisible(false)}
+                      title="身份危机变更日志"
+                      zIndex={50}
+                      width={260}
+                      className="max-h-64 overflow-y-auto"
+                    >
                       {selectedPlayer.identityCrisisLog?.map((log, i) => (
                         <div key={i} className="text-xs mb-1 border-b border-gray-700 pb-1">
                           <div className="text-gray-400">{log.reason}</div>
@@ -95,7 +111,7 @@ export default function PlayerDrawer({
                       {!selectedPlayer.identityCrisisLog?.length && (
                         <div className="text-xs text-gray-500">暂无变更记录</div>
                       )}
-                    </div>
+                    </PopOverlay>
                   </div>
                 )}
                 {selectedPlayer.traits.length > 0 && (

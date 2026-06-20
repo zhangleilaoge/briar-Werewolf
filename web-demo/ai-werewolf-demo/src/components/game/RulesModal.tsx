@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PopOverlay } from '@/components/ui/PopOverlay';
 
 interface RulesModalProps {
   open: boolean;
@@ -405,48 +406,31 @@ const TAB_CONTENT: Record<TabId, () => React.JSX.Element> = {
 export default function RulesModal({ open, onClose }: RulesModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
-  if (!open) return null;
-
   const Content = TAB_CONTENT[activeTab];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-        aria-label="关闭规则弹窗"
-      />
-      <div className="relative bg-[#0f1019] border border-gray-700/60 rounded-2xl shadow-2xl w-[900px] max-w-[95vw] max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/50">
-          <h2 className="text-xl font-bold text-white">📖 游戏规则</h2>
-          <button
-            className="text-gray-400 hover:text-white text-2xl leading-none transition-colors"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700/50 px-4 overflow-x-auto shrink-0">
-          {TABS.map((tab) => (
-            <TabButton
-              key={tab.id}
-              label={tab.label}
-              active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            />
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <Content />
-        </div>
+    <PopOverlay
+      visible={open}
+      onClose={onClose}
+      title="📖 游戏规则"
+      zIndex={50}
+      width={900}
+      className="max-h-[85vh]"
+      overlay
+      hoverTrigger={false}
+    >
+      {/* Tabs */}
+      <div className="flex border-b border-gray-700/50 overflow-x-auto shrink-0 mb-5">
+        {TABS.map((tab) => (
+          <TabButton
+            key={tab.id}
+            label={tab.label}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          />
+        ))}
       </div>
-    </div>
+      <Content />
+    </PopOverlay>
   );
 }

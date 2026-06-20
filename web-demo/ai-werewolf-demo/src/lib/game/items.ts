@@ -46,13 +46,22 @@ export function addItem(player: Player, itemId: string): boolean {
 }
 
 /**
- * 损坏道具（减少耐久度，耐久度为 0 时自动移除）
+ * 损坏道具（减少耐久度，耐久度为 0 时替换为损坏版本，不直接移除）
  */
 export function damageItem(player: Player, itemId: string): boolean {
   const item = player.items.find((i) => i.definitionId === itemId);
   if (!item) return false;
   item.durability--;
-  if (item.durability <= 0) removeItem(player, itemId);
+  if (item.durability <= 0) {
+    const brokenId = `${itemId}_broken`;
+    if (ITEM_DEFINITIONS[brokenId]) {
+      item.definitionId = brokenId;
+      item.durability = 0;
+    } else {
+      // 如果没有损坏版本定义，才移除（兜底）
+      removeItem(player, itemId);
+    }
+  }
   return true;
 }
 

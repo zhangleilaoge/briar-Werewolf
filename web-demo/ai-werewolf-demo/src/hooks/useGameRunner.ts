@@ -21,7 +21,6 @@ function compressLogForExport(logs: GameLogItem[]): GameLogItem[] {
       const proc = details.process as Record<string, unknown>;
       const winnerStr = proc.winner as string;
       const candidates = proc.candidates as Record<string, unknown>[] | undefined;
-      // 只保留 winner 对应的候选（精简字段）
       const winnerCandidate = candidates?.find((c) => {
         const key = `${c.action} → ${c.target || '无目标'}`;
         return key === winnerStr;
@@ -34,12 +33,9 @@ function compressLogForExport(logs: GameLogItem[]): GameLogItem[] {
       }
     }
 
-    // 移除空 checks 数组
     if (Array.isArray(details.checks) && details.checks.length === 0) {
       delete details.checks;
     }
-
-    // 移除 mentions（内部字段）
     delete details.mentions;
 
     return { ...log, details };
@@ -51,7 +47,7 @@ function exportGameLog(sim: GameSimulator) {
     timestamp: new Date().toISOString(),
     winner: sim.getWinner(),
     totalRounds: sim.round,
-    players: sim.getPlayers().map(p => ({
+    players: sim.getPlayers().map((p) => ({
       id: p.id,
       name: p.name,
       role: p.role,
@@ -85,13 +81,15 @@ export function useGameRunner() {
   const [winner, setWinner] = useState<string | null>(null);
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [logs, setLogs] = useState<GameLogItem[]>([]);
-  const [speed, setSpeed] = useState(1); // 倍速: 1x = 2s/步
+  const [speed, setSpeed] = useState(1);
 
   const simulatorRef = useRef<GameSimulator | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pausedRef = useRef(false);
   const speedRef = useRef(1);
   const phaseRef = useRef('setup');
+  const lastProgressRef = useRef<number>(0);
+  const watchdogIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     speedRef.current = speed;
@@ -108,7 +106,6 @@ export function useGameRunner() {
     const newLogs = sim.getLogs();
 
     setPlayers((prev) => {
-      // 避免不必要的重渲染：只在关键字段变化时更新
       if (
         prev.length === newPlayers.length &&
         prev.every(
@@ -129,60 +126,63 @@ export function useGameRunner() {
 
   const runNextStepRef = useRef<(() => void) | undefined>(undefined);
 
-  const runNextStep = useCallback(() => {
-    if (pausedRef.current) {
-      return;
-    }
+  const _safeTick = useCallback(() => {
     const sim = simulatorRef.current;
-    if (!sim) {
-      return;
-    }
-
-    const hasMore = sim.executeNextStep();
-    syncFromSimulator();
-
-    if (!hasMore) {
-      const win = sim.getWinner();
-      if (win) {
-        setWinner(win);
-        setPhase('ended');
-        return;
+    if (!sim) return;
+    try {
+      const hasMore = sim.executeNextStep();
+      syncFromSimulator();
+      if (!hasMore) {
+        const win = sim.getWinner();
+        if (win) {
+          setWinner(win);
+          setPhase('ended');
+          phaseRef.current = 'ended'; // 同步更新，避免看门狗误判
+          lastProgressRef.current = Date.now(); // 更新进度，避免看门狗触发
+          return;
+        }
+        sim.generateRoundSteps();
       }
-      sim.generateRoundSteps();
+      lastProgressRef.current = Date.now();
+    } catch (e) {
+      console.error('[useGameRunner] tick error:', e);
     }
+  }, [syncFromSimulator]);
+
+  const runNextStep = useCallback(() => {
+    if (pausedRef.current) return;
+    const sim = simulatorRef.current;
+    if (!sim) return;
+
+    _safeTick();
 
     if (!pausedRef.current && phaseRef.current !== 'ended') {
-      const tickRate = (sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE);
+      const tickRate = sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
       const delay = tickRate / speedRef.current;
       timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
     }
-  }, [syncFromSimulator]);
+  }, [_safeTick]);
 
   useEffect(() => {
     runNextStepRef.current = runNextStep;
   }, [runNextStep]);
 
-  const startGame = useCallback(
-    (config: GameConfig) => {
-      console.log(`[startGame] speed=${speedRef.current}`);
-      const configs = generateGameConfig(config.totalPlayers, config.werewolfConfig, config.villagerConfig);
-      const sim = new GameSimulator(configs);
-      simulatorRef.current = sim;
-      pausedRef.current = false;
-      setWinner(null);
-      setRound(0);
-      setLogs([]);
-      setPlayers(sim.getPlayers());
-      setPhase('running');
-      sim.generateRoundSteps();
-      // 立即开始，不等待
-      timerRef.current = setTimeout(() => runNextStepRef.current?.(), 0);
-    },
-    []
-  );
+  const startGame = useCallback((config: GameConfig) => {
+    const configs = generateGameConfig(config.totalPlayers, config.werewolfConfig, config.villagerConfig);
+    const sim = new GameSimulator(configs);
+    simulatorRef.current = sim;
+    pausedRef.current = false;
+    setWinner(null);
+    setRound(0);
+    setLogs([]);
+    setPlayers(sim.getPlayers());
+    setPhase('running');
+    lastProgressRef.current = Date.now();
+    sim.generateRoundSteps();
+    timerRef.current = setTimeout(() => runNextStepRef.current?.(), 0);
+  }, []);
 
   const pauseGame = useCallback(() => {
-    console.log('[pauseGame]');
     pausedRef.current = true;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -192,35 +192,22 @@ export function useGameRunner() {
   }, []);
 
   const resumeGame = useCallback(() => {
-    console.log('[resumeGame]');
     pausedRef.current = false;
     setPhase('running');
+    lastProgressRef.current = Date.now();
     const sim = simulatorRef.current;
     const tickRate = sim?.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
     const delay = tickRate / speedRef.current;
-    console.log(`[resumeGame] delay=${delay}ms tickRate=${tickRate}`);
     timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
   }, []);
 
   const nextStep = useCallback(() => {
-    console.log('[nextStep] manual');
     const sim = simulatorRef.current;
     if (!sim || phaseRef.current === 'ended') return;
-    const hasMore = sim.executeNextStep();
-    syncFromSimulator();
-    if (!hasMore) {
-      const win = sim.getWinner();
-      if (win) {
-        setWinner(win);
-        setPhase('ended');
-      } else {
-        sim.generateRoundSteps();
-      }
-    }
-  }, [syncFromSimulator]);
+    _safeTick();
+  }, [_safeTick]);
 
   const resetGame = useCallback(() => {
-    console.log('[resetGame]');
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     simulatorRef.current = null;
@@ -232,9 +219,80 @@ export function useGameRunner() {
     setLogs([]);
   }, []);
 
+  // 看门狗：检测流程卡住并自动推动
+  useEffect(() => {
+    if (watchdogIntervalRef.current) {
+      clearInterval(watchdogIntervalRef.current);
+      watchdogIntervalRef.current = null;
+    }
+    if (phase !== 'running') return;
+
+    watchdogIntervalRef.current = setInterval(() => {
+      if (pausedRef.current || phaseRef.current !== 'running') return;
+      const elapsed = Date.now() - lastProgressRef.current;
+      if (elapsed > 10000) {
+        const sim = simulatorRef.current;
+        if (!sim) return;
+
+        // 健壮性：如果已经分出胜负，同步结束避免看门狗误报
+        const win = sim.getWinner();
+        if (win) {
+          phaseRef.current = 'ended';
+          if (timerRef.current) clearTimeout(timerRef.current);
+          timerRef.current = null;
+          return;
+        }
+
+        // 检查是否有 actor 卡住
+        const stuckActors: string[] = [];
+        sim.actors.forEach((actor, id) => {
+          if (actor.state !== 'idle') {
+            stuckActors.push(`${id}(${actor.state})`);
+          }
+        });
+
+        console.error(
+          `[useGameRunner] ⚠️ WATCHDOG: game stuck for ${elapsed}ms. ` +
+          `simulator phase=${sim.phase}, round=${sim.round}, ` +
+          `stuck actors=[${stuckActors.join(', ') || 'none'}]`
+        );
+
+        // 强制推动：恢复卡住的 actor 并执行一次 tick
+        if (stuckActors.length > 0) {
+          sim.actors.forEach((actor) => {
+            if (actor.state !== 'idle') {
+              actor.state = 'idle';
+              actor.pendingEvent = null;
+              actor.thinkCountdown = 0;
+            }
+          });
+          console.error('[useGameRunner] WATCHDOG: forced all actors to idle');
+        }
+
+        _safeTick();
+
+        // 如果 tick 后仍未结束，重新设置 timer
+        if (!pausedRef.current && phaseRef.current !== 'ended') {
+          const tickRate = sim.getCurrentTickRate?.() ?? DEFAULT_TICK_RATE;
+          const delay = tickRate / speedRef.current;
+          if (timerRef.current) clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
+        }
+      }
+    }, 2000);
+
+    return () => {
+      if (watchdogIntervalRef.current) {
+        clearInterval(watchdogIntervalRef.current);
+        watchdogIntervalRef.current = null;
+      }
+    };
+  }, [phase, _safeTick]);
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (watchdogIntervalRef.current) clearInterval(watchdogIntervalRef.current);
     };
   }, []);
 

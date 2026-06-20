@@ -75,11 +75,16 @@ export abstract class TickPhase extends PhaseController {
     }
     for (const actor of acting) {
       const event = actor.pendingEvent;
-      if (event) {
-        this.handleEvent(sim, actor, event);
+      try {
+        if (event) {
+          this.handleEvent(sim, actor, event);
+        }
+      } catch (e) {
+        console.error(`[TickPhase] Actor ${actor.id} handleEvent failed for event ${event?.type}:`, e);
+      } finally {
+        actor.state = 'idle';
+        actor.pendingEvent = null;
       }
-      actor.state = 'idle';
-      actor.pendingEvent = null;
     }
   }
 
@@ -147,6 +152,13 @@ export class DayPhaseController extends TickPhase {
   }
 
   checkEnd(sim: GameSimulator): boolean {
+    // 如果有未完成的 actor（追加反应等），继续阶段
+    const hasPendingActors = Array.from(sim.actors.values()).some((a) => a.state !== 'idle');
+    if (hasPendingActors) {
+      debugLog(`[消息中心] ⏳ 白天继续：${Array.from(sim.actors.values()).filter((a) => a.state !== 'idle').map((a) => `${a.id}(${a.state})`).join(', ')}`);
+      return true;
+    }
+
     const allActed = this.aliveOrder.every((id) => this.hasActed.has(id));
 
     if (this.silenceCount >= sim.getAliveCount()) {
@@ -355,6 +367,13 @@ export class VotePhaseController extends TickPhase {
   }
 
   checkEnd(sim: GameSimulator): boolean {
+    // 防御性：如果有未完成的 actor（插件触发的追加反应等），继续阶段
+    const hasPendingActors = Array.from(sim.actors.values()).some((a) => a.state !== 'idle');
+    if (hasPendingActors) {
+      debugLog(`[消息中心] ⏳ 投票继续：${Array.from(sim.actors.values()).filter((a) => a.state !== 'idle').map((a) => `${a.id}(${a.state})`).join(', ')}`);
+      return true;
+    }
+
     const allVoted = this.aliveVoters.every((id) => this.voted.has(id));
     if (!allVoted) return true;
 

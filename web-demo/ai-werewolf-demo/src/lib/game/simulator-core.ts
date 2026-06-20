@@ -203,6 +203,8 @@ export class GameSimulator {
 
     // Wire bus to players and register death callbacks
     this.playerStateBus.setPlayers(this.players);
+    // 每次死亡后立即检查胜利条件
+    this.playerStateBus.onDeath(() => this._checkWinCondition());
     Object.values(this._aiAgents).forEach(agent => {
       this.playerStateBus.onDeath((playerId) => agent.onEvent({ type: 'death', playerId }));
     });
@@ -277,6 +279,7 @@ export class GameSimulator {
     });
 
     // Register death callbacks for new agents
+    this.playerStateBus.onDeath(() => this._checkWinCondition());
     Object.values(this._aiAgents).forEach(agent => {
       this.playerStateBus.onDeath((playerId) => agent.onEvent({ type: 'death', playerId }));
     });
@@ -329,6 +332,15 @@ export class GameSimulator {
       if (!continuePhase) {
         debugLog(`[消息中心] 🔄 ${this.currentPhase.name} 阶段结束`);
         this.currentPhase.onExit(this);
+        // 防御性重置：无论哪个阶段结束，确保所有 actor 状态清理，防止遗留 pending 影响下一阶段
+        this.actors.forEach((a) => {
+          a.state = 'idle';
+          a.thinkCountdown = 0;
+          a.pendingEvent = null;
+        });
+        this.eventBus.flush(this);
+        this.thinkingLogPlayerIds.clear();
+        this._actorStuckSince.clear();
         this.currentPhaseIndex++;
         this.currentPhase = null;
       }
@@ -368,6 +380,16 @@ export class GameSimulator {
         } else if (this._tickCount - stuckSince > maxTicks) {
           console.warn(`[GameSimulator] ⚠️ Actor ${id} stuck in thinking for ${this._tickCount - stuckSince} ticks, forcing to acting`);
           actor.state = 'acting';
+          this._actorStuckSince.delete(id);
+        }
+      } else if (actor.state === 'acting') {
+        const stuckSince = this._actorStuckSince.get(id);
+        if (stuckSince === undefined) {
+          this._actorStuckSince.set(id, this._tickCount);
+        } else if (this._tickCount - stuckSince > maxTicks) {
+          console.warn(`[GameSimulator] ⚠️ Actor ${id} stuck in acting for ${this._tickCount - stuckSince} ticks, forcing to idle`);
+          actor.state = 'idle';
+          actor.pendingEvent = null;
           this._actorStuckSince.delete(id);
         }
       } else {
@@ -449,6 +471,7 @@ export class GameSimulator {
   // ==================== WIN CHECK ====================
 
   _checkWinCondition() {
+    if (this.winner) return; // 已分出胜负，不再重复检查
     const aliveWerewolves = this.players.filter((p) => p.team === 'werewolf' && p.alive).length;
     const aliveVillagers = this.players.filter((p) => p.team !== 'werewolf' && p.alive).length;
 
