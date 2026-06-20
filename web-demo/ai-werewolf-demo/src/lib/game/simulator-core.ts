@@ -476,11 +476,11 @@ export class GameSimulator {
   }
 
   getPlayers(): Player[] {
-    // 计算每个玩家的暴露度和怀疑度数据并添加到Player对象中
+    // 计算每个玩家的身份危机和怀疑度数据并添加到Player对象中
     return this.players.map(p => {
       const agent = this._aiAgents[p.id];
 
-      // 计算其他人对这个玩家的怀疑度（l1层）
+      // 计算其他人对这个玩家的怀疑度（l1层），显示所有非自己玩家
       const suspicionByOthers: Record<string, number> = {};
       let totalSuspicion = 0;
       let count = 0;
@@ -490,21 +490,23 @@ export class GameSimulator {
           const otherAgent = this._aiAgents[other.id];
           if (otherAgent?.belief) {
             const roleBeliefs = otherAgent.belief.l1Inferences.roleBeliefs[p.id];
-            const suspicion = roleBeliefs?.werewolf ?? 0.5;
+            const suspicion = roleBeliefs?.werewolf ?? 0;
             suspicionByOthers[other.id] = suspicion;
-            totalSuspicion += suspicion;
-            count++;
+            if (other.team !== p.team) {
+              totalSuspicion += suspicion;
+              count++;
+            }
           }
         }
       });
 
-      // 暴露度 = 其他存活玩家对我的平均怀疑度（l1层）
-      const exposure = count > 0 ? totalSuspicion / count : 0;
+      // 身份危机 = 优先取 identityCrisisLog 最后一条记录的 after，和日志保持一致
+      const identityCrisisLog = agent?.identityCrisisLog ?? [];
+      const identityCrisis = identityCrisisLog.length > 0
+        ? identityCrisisLog[identityCrisisLog.length - 1].after
+        : (agent?.belief.getIdentityCrisis() ?? 0);
 
-      // 暴露度变更日志（从agent的exposureLog获取）
-      const exposureLog = agent?.exposureLog ?? [];
-
-      return { ...p, exposure, suspicionByOthers, exposureLog };
+      return { ...p, identityCrisis, suspicionByOthers, identityCrisisLog };
     });
   }
 

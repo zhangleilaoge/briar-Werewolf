@@ -21,7 +21,7 @@ export class DesireEngine {
     const desires: Desire[] = [];
     const aliveWolves = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
     const aliveVillagers = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;
-    const myExposure = belief.getExposure();
+    const myIdentityCrisis = belief.getIdentityCrisis();
 
     // === ROLE_DUTY: 角色义务 ===
     if (self.role === 'prophet') {
@@ -30,13 +30,23 @@ export class DesireEngine {
         if (result === 'werewolf') {
           const target = allPlayers.find((p) => p.id === targetId);
           if (target?.alive) {
+            // 身份危机评估：危机高时不跳，危机低时可以跳
+            let strength = 1000;
+            let reason = `预言家查验到${target.name}是狼人，必须公布`;
+            if (myIdentityCrisis > 0.6) {
+              strength = 300; // 危机高，大幅降权，优先自保
+              reason = `查验到${target.name}是狼人，但自身身份危机过高，谨慎公布`;
+            } else if (myIdentityCrisis > 0.3) {
+              strength = 700; // 危机中等，适度降权
+              reason = `查验到${target.name}是狼人，身份危机中等，择机公布`;
+            }
             desires.push({
               type: IntentionType.REVEAL,
               targetId,
-              strength: 1000,
+              strength,
               source: IntentionSource.ROLE_DUTY,
-              reason: `预言家查验到${target.name}是狼人，必须公布`,
-              conditions: ['role=prophet', 'check_result=werewolf', 'target_alive'],
+              reason,
+              conditions: ['role=prophet', 'check_result=werewolf', 'target_alive', `self_crisis=${myIdentityCrisis.toFixed(2)}`],
             });
           }
         }
@@ -64,18 +74,18 @@ export class DesireEngine {
         });
       }
 
-      // 切割模式：队友极度暴露且自身安全
+      // 切割模式：队友极度身份危机且自身安全
       const teammates = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team === self.team);
       for (const teammate of teammates) {
-        const teammateExposure = belief.getPlayerExposure(teammate.id);
-        if (teammateExposure > 0.8 && myExposure < 0.5 && aliveWolves < aliveVillagers) {
+        const teammateIdentityCrisis = belief.getPlayerIdentityCrisis(teammate.id);
+        if (teammateIdentityCrisis > 0.8 && myIdentityCrisis < 0.5 && aliveWolves < aliveVillagers) {
           desires.push({
             type: IntentionType.CUT_LOSS,
             targetId: teammate.id,
             strength: 700,
             source: IntentionSource.TEAM_DUTY,
-            reason: `队友${teammate.name}极度暴露，切割保团队`,
-            conditions: ['teammate_exposure>0.8', 'self_exposure<0.5', 'wolf_disadvantage'],
+            reason: `队友${teammate.name}极度身份危机，切割保团队`,
+            conditions: ['teammate_crisis>0.8', 'self_crisis<0.5', 'wolf_disadvantage'],
           });
         }
       }
@@ -99,19 +109,19 @@ export class DesireEngine {
 
     // === PERSONAL_GOAL: 主意图 ===
     // 生存压力
-    if (myExposure > 0.6) {
+    if (myIdentityCrisis > 0.6) {
       desires.push({
         type: IntentionType.SURVIVE,
         targetId: null,
         strength: 800,
         source: IntentionSource.PERSONAL_GOAL,
-        reason: `自身暴露度${myExposure.toFixed(2)}过高，需自保`,
-        conditions: ['self_exposure>0.6'],
+        reason: `自身身份危机${myIdentityCrisis.toFixed(2)}过高，需自保`,
+        conditions: ['self_crisis>0.6'],
       });
     }
 
-    // 狼人隐藏身份。强度受模式影响：normal=优先躲藏，dominant=可以暴露
-    if (self.team === 'werewolf' && myExposure < 0.4) {
+    // 狼人隐藏身份。强度受模式影响：normal=优先躲藏，dominant=可以身份危机
+    if (self.team === 'werewolf' && myIdentityCrisis < 0.4) {
       const modeConcealStrength = mode === 'normal'
         ? INTENTION_MODE_CONCEAL_NORMAL
         : mode === 'desperate'
@@ -123,7 +133,19 @@ export class DesireEngine {
         strength: modeConcealStrength,
         source: IntentionSource.PERSONAL_GOAL,
         reason: '狼人需隐藏身份，伪装好人',
-        conditions: ['team=werewolf', 'self_exposure<0.4'],
+        conditions: ['team=werewolf', 'self_crisis<0.4'],
+      });
+    }
+
+    // 村民被怀疑时自证清白（非狼人且身份危机高）
+    if (self.team !== 'werewolf' && myIdentityCrisis > 0.5) {
+      desires.push({
+        type: IntentionType.DEFEND,
+        targetId: self.id,
+        strength: 600 + Math.round(myIdentityCrisis * 200),
+        source: IntentionSource.PERSONAL_GOAL,
+        reason: `村民被怀疑，身份危机${myIdentityCrisis.toFixed(2)}，需自证清白`,
+        conditions: ['team=villager', 'self_crisis>0.5'],
       });
     }
 

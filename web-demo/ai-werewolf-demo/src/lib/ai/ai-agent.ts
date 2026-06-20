@@ -28,20 +28,25 @@ export class AIAgent {
   logs: LogEntry[];
   currentRound: number = 0;
   pluginRegistry?: PluginRegistry;
-  exposureLog: { reason: string; delta: number; before: number; after: number; timestamp: number }[] = [];
+  identityCrisisLog: { reason: string; delta: number; before: number; after: number; timestamp: number }[] = [];
 
   private _allPlayers: Player[];
+  private _lastIdentityCrisis: number = 0;
 
   constructor(player: Player, allPlayers: Player[], pluginRegistry?: PluginRegistry) {
     this.id = player.id;
     this.player = player;
-    this.belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment);
+    this.belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment, allPlayers);
     this.engine = new DecisionEngine();
     this.intentionManager = new IntentionManager();
     this._registerDefaultStrategies();
     this.logs = [];
     this._allPlayers = allPlayers;
     this.pluginRegistry = pluginRegistry;
+    this._lastIdentityCrisis = this.belief.getIdentityCrisis();
+    if (this._lastIdentityCrisis > 0) {
+      this.recordIdentityCrisisChange('初始身份危机计算', this._lastIdentityCrisis);
+    }
   }
 
   private _registerDefaultStrategies() {
@@ -91,6 +96,7 @@ export class AIAgent {
   dayAction(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[], consecutiveSilence: number, aliveCount: number): DecisionResult | null {
     if (!this.player?.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this._checkAndLogIdentityCrisisChange(publicActions || [], 'day');
     const availableActions = this._getAvailableDayActions();
     this.belief.updateInferences(allPlayers, this.player, publicActions);
     
@@ -108,6 +114,7 @@ export class AIAgent {
     const availableActions = this._getAvailableAppendixActions(triggerAction);
     if (availableActions.length === 0) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this._checkAndLogIdentityCrisisChange(publicActions || [], 'appendix');
     
     const decision = this.engine.decide(this.belief, this.player, 'appendix', availableActions, allPlayers, [], publicActions, 0, 0, 1, undefined, undefined, this.intentionManager);
     this._log('day', `追加行动：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
@@ -118,6 +125,7 @@ export class AIAgent {
   vote(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], voteRound: number = 1): DecisionResult | null {
     if (!this.player?.alive) return null;
     this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this._checkAndLogIdentityCrisisChange(publicActions || [], 'vote');
     const availableActions = [{ type: ACTION.VOTE }];
     this.belief.updateInferences(allPlayers, this.player, publicActions);
     
@@ -188,18 +196,71 @@ export class AIAgent {
     this.belief.recordObservation(targetId, stress, attributes);
   }
 
-  recordExposureChange(reason: string, delta: number, before: number, after: number) {
-    this.exposureLog.push({
+  recordIdentityCrisisChange(reason: string, delta: number) {
+    const before = this._lastIdentityCrisis;
+    const after = Math.min(1, Math.max(0, before + delta));
+    this.identityCrisisLog.push({
       reason,
-      delta,
+      delta: after - before,
       before,
       after,
       timestamp: Date.now(),
     });
     // 只保留最近20条记录
-    if (this.exposureLog.length > 20) {
-      this.exposureLog = this.exposureLog.slice(-20);
+    if (this.identityCrisisLog.length > 20) {
+      this.identityCrisisLog = this.identityCrisisLog.slice(-20);
     }
+    this._lastIdentityCrisis = after;
+  }
+
+  /** 检测自我认知身份危机变化并记录日志 */
+  private _checkAndLogIdentityCrisisChange(publicActions: { actorId: string; type: string; targetId?: string }[], phase: string) {
+    const current = this.belief.getIdentityCrisis();
+    if (Math.abs(current - this._lastIdentityCrisis) > 0.001) {
+      const delta = current - this._lastIdentityCrisis;
+      const before = this._lastIdentityCrisis;
+      const after = current;
+      const reason = this._buildIdentityCrisisReason(publicActions, phase);
+      this.identityCrisisLog.push({
+        reason,
+        delta,
+        before,
+        after,
+        timestamp: Date.now(),
+      });
+      if (this.identityCrisisLog.length > 20) {
+        this.identityCrisisLog = this.identityCrisisLog.slice(-20);
+      }
+      this._lastIdentityCrisis = after;
+    }
+  }
+
+  private _buildIdentityCrisisReason(publicActions: { actorId: string; type: string; targetId?: string }[], phase: string): string {
+    const phaseMap: Record<string, string> = { day: '白天', vote: '投票', appendix: '追加' };
+    const phaseName = phaseMap[phase] || '信念';
+
+    // 找到最近一条针对自己的怀疑/指控
+    const lastAttack = [...publicActions].reverse().find(a =>
+      (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE) &&
+      a.targetId === this.id
+    );
+    if (lastAttack) {
+      const actor = this._allPlayers.find(p => p.id === lastAttack.actorId);
+      const actorName = actor?.name || lastAttack.actorId;
+      const actionType = lastAttack.type === ACTION.ACCUSE ? '被指认' : '被怀疑';
+      return `${actorName}${actionType}后信念更新`;
+    }
+
+    // 检查是否有辩护
+    const lastDefend = [...publicActions].reverse().find(a =>
+      (a.type === ACTION.DEFEND || a.type === ACTION.GUARANTEE) &&
+      a.targetId === this.id
+    );
+    if (lastDefend) {
+      return '被辩护后信念更新';
+    }
+
+    return `${phaseName}行动后信念更新`;
   }
 
   getCheckResults(): Record<string, 'werewolf' | 'villager'> {

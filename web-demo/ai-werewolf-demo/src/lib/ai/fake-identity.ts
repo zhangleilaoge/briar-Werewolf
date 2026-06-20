@@ -11,9 +11,9 @@ import {
   FAKE_IDENTITY_BASE_SCORE_SUSPECTED,
   FAKE_IDENTITY_BASE_SCORE_DISADVANTAGE,
   FAKE_IDENTITY_BASE_SCORE_PROPHET_NOT_REVEALED,
-  FAKE_IDENTITY_BASE_SCORE_HIGH_EXPOSURE,
+  FAKE_IDENTITY_BASE_SCORE_HIGH_CRISIS,
   FAKE_IDENTITY_BASE_SCORE_HUNTER_SUSPECTED,
-  FAKE_IDENTITY_BASE_SCORE_HUNTER_EXPOSURE,
+  FAKE_IDENTITY_BASE_SCORE_HUNTER_CRISIS,
   FAKE_IDENTITY_TIMING_EARLY_ROUND,
   FAKE_IDENTITY_TIMING_LATE_ROUND,
   FAKE_IDENTITY_TIMING_EARLY_PENALTY,
@@ -65,16 +65,16 @@ export function calculateFakeIdentityMotivation(
   const aliveWerewolves = allPlayers.filter(p => p.team === 'werewolf' && p.alive).length;
   const aliveVillagers = allPlayers.filter(p => p.team !== 'werewolf' && p.alive).length;
   const isWolfAdvantage = aliveWerewolves >= aliveVillagers;
-  const myExposure = belief.getExposure();
+  const myIdentityCrisis = belief.getIdentityCrisis();
 
   // 伪装预言家
-  const prophetMotivation = calculateProphetMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myExposure, aliveWerewolves, aliveVillagers);
+  const prophetMotivation = calculateProphetMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myIdentityCrisis, aliveWerewolves, aliveVillagers);
   if (prophetMotivation) motivations.push(prophetMotivation);
 
   // 伪装猎人（仅当场上有猎人职业时才考虑）
   const hasHunter = allPlayers.some(p => p.role === 'hunter');
   if (hasHunter) {
-    const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myExposure);
+    const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myIdentityCrisis);
     if (hunterMotivation) motivations.push(hunterMotivation);
   }
 
@@ -88,7 +88,7 @@ function calculateProphetMotivation(
   round: number,
   fakeState: FakeIdentityState,
   isWolfAdvantage: boolean,
-  myExposure: number,
+  myIdentityCrisis: number,
   aliveWerewolves: number,
   aliveVillagers: number
 ): FakeIdentityMotivation | null {
@@ -113,9 +113,9 @@ function calculateProphetMotivation(
     baseScore += FAKE_IDENTITY_BASE_SCORE_PROPHET_NOT_REVEALED;
   }
 
-  // 高暴露时伪装预言家（ desperation）
-  if (myExposure > WEREWOLF_PROBABILITY_MEDIUM) {
-    baseScore += FAKE_IDENTITY_BASE_SCORE_HIGH_EXPOSURE;
+  // 高身份危机时伪装预言家（ desperation）
+  if (myIdentityCrisis > WEREWOLF_PROBABILITY_MEDIUM) {
+    baseScore += FAKE_IDENTITY_BASE_SCORE_HIGH_CRISIS;
   }
 
   // 时机收益
@@ -156,7 +156,7 @@ function calculateHunterMotivation(
   _round: number,
   _fakeState: FakeIdentityState,
   _isWolfAdvantage: boolean,
-  myExposure: number
+  myIdentityCrisis: number
 ): FakeIdentityMotivation | null {
   // 猎人伪装收益较低，主要用于混淆视听
   let baseScore = 0;
@@ -169,9 +169,9 @@ function calculateHunterMotivation(
     baseScore += FAKE_IDENTITY_BASE_SCORE_HUNTER_SUSPECTED;
   }
 
-  // 高暴露时伪装猎人
-  if (myExposure > WEREWOLF_PROBABILITY_MEDIUM) {
-    baseScore += FAKE_IDENTITY_BASE_SCORE_HUNTER_EXPOSURE;
+  // 高身份危机时伪装猎人
+  if (myIdentityCrisis > WEREWOLF_PROBABILITY_MEDIUM) {
+    baseScore += FAKE_IDENTITY_BASE_SCORE_HUNTER_CRISIS;
   }
 
   const alignmentScore = getClaimIdentityAlignmentModifier(self.alignment, 'hunter');
@@ -186,7 +186,7 @@ function calculateHunterMotivation(
     timingScore: 0,
     competitionScore: 0,
     alignmentScore,
-    reason: `伪装猎人：被${suspectsMe}人怀疑，暴露度${(myExposure * FAKE_IDENTITY_PERCENTAGE_MULTIPLIER).toFixed(0)}%`,
+    reason: `伪装猎人：被${suspectsMe}人怀疑，身份危机${(myIdentityCrisis * FAKE_IDENTITY_PERCENTAGE_MULTIPLIER).toFixed(0)}%`,
   };
 }
 

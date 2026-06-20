@@ -76,9 +76,9 @@ export const FAKE_IDENTITY_SUSPECT_THRESHOLD = 2;         // 被怀疑人数阈�
 export const FAKE_IDENTITY_BASE_SCORE_SUSPECTED = 80;     // 被怀疑时伪装预言家基础分
 export const FAKE_IDENTITY_BASE_SCORE_DISADVANTAGE = 150; // 己方劣势时伪装预言家基础分
 export const FAKE_IDENTITY_BASE_SCORE_PROPHET_NOT_REVEALED = 200; // 预言家未跳时伪装基础分
-export const FAKE_IDENTITY_BASE_SCORE_HIGH_EXPOSURE = 100; // 高暴露时伪装基础分
+export const FAKE_IDENTITY_BASE_SCORE_HIGH_CRISIS = 100; // 高身份危机时伪装基础分
 export const FAKE_IDENTITY_BASE_SCORE_HUNTER_SUSPECTED = 60; // 被怀疑时伪装猎人基础分
-export const FAKE_IDENTITY_BASE_SCORE_HUNTER_EXPOSURE = 40; // 高暴露时伪装猎人基础分
+export const FAKE_IDENTITY_BASE_SCORE_HUNTER_CRISIS = 40; // 高身份危机时伪装猎人基础分
 
 // 时机选择
 export const FAKE_IDENTITY_TIMING_EARLY_ROUND = 3;        // 早期跳身份阈值回合

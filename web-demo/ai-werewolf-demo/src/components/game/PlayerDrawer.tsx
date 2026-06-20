@@ -68,25 +68,30 @@ export default function PlayerDrawer({
                     {selectedPlayer.stress > 0 ? '+' : ''}{selectedPlayer.stress} ({stressLabel(selectedPlayer.stress)})
                   </span>
                 </div>
-                {selectedPlayer.exposure !== undefined && (
+                {selectedPlayer.identityCrisis !== undefined && (
                   <div className="text-sm relative group">
-                    <span className="text-muted-foreground">暴露度：</span>
-                    <span className={selectedPlayer.exposure > 0.6 ? 'text-red-400' : selectedPlayer.exposure > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
-                      {(selectedPlayer.exposure * 100).toFixed(0)}%
-                      {selectedPlayer.exposure > 0.6 ? ' (高)' : selectedPlayer.exposure > 0.3 ? ' (中)' : ' (低)'}
+                    <span className="text-muted-foreground">身份危机：</span>
+                    <span className={selectedPlayer.identityCrisis > 0.6 ? 'text-red-400' : selectedPlayer.identityCrisis > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
+                      {(selectedPlayer.identityCrisis * 100).toFixed(0)}%
+                      {selectedPlayer.identityCrisis > 0.6 ? ' (高)' : selectedPlayer.identityCrisis > 0.3 ? ' (中)' : ' (低)'}
                     </span>
-                    {/* Hover 弹窗：显示暴露度变更日志 */}
+                    {/* Hover 弹窗：显示身份危机变更日志 */}
                     <div className="absolute left-0 top-6 z-50 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg hidden group-hover:block min-w-64 max-h-64 overflow-y-auto">
-                      <div className="text-xs font-bold text-gray-300 mb-2">暴露度变更日志</div>
-                      {(selectedPlayer as any).exposureLog?.map((log: any, i: number) => (
+                      <div className="text-xs font-bold text-gray-300 mb-2">身份危机变更日志</div>
+                      {(selectedPlayer as any).identityCrisisLog?.map((log: any, i: number) => (
                         <div key={i} className="text-xs mb-1 border-b border-gray-700 pb-1">
                           <div className="text-gray-400">{log.reason}</div>
                           <div className={`${log.delta > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                            {log.delta > 0 ? '+' : ''}{(log.delta * 100).toFixed(1)}% → {(log.after * 100).toFixed(0)}%
+                            {(log.before * 100).toFixed(0)}% {log.delta >= 0 ? '+' : ''}{(log.delta * 100).toFixed(1)}% → {(log.after * 100).toFixed(0)}%
                           </div>
+                          {log.timestamp && (
+                            <div className="text-gray-600 text-[10px]">
+                              {new Date(log.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
+                          )}
                         </div>
                       ))}
-                      {!(selectedPlayer as any).exposureLog?.length && (
+                      {!(selectedPlayer as any).identityCrisisLog?.length && (
                         <div className="text-xs text-gray-500">暂无变更记录</div>
                       )}
                     </div>
@@ -124,7 +129,7 @@ export default function PlayerDrawer({
               {/* 关系网 */}
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-bold mb-2 text-muted-foreground">关系网</h4>
-                <div className="space-y-1">
+                <div className="grid grid-cols-[1fr_80px_80px] gap-1 text-sm">
                   {players.filter(p => p.id !== selectedPlayer.id && p.alive).map(other => {
                     const rel = selectedPlayer.relations[other.id];
                     const favor = rel?.favor ?? 0;
@@ -134,35 +139,35 @@ export default function PlayerDrawer({
                     // 敌人始终显示，友方只显示显著变化
                     if (!isEnemy && Math.abs(favor) <= RELATION_DISPLAY_THRESHOLD) return null;
 
+                    const showFavor = isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD;
+
                     return (
-                      <div key={other.id} className="text-sm flex items-center">
-                        <span className="text-muted-foreground shrink-0">{other.name}</span>
-                        <div className="flex items-center gap-2 text-xs ml-auto shrink-0">
-                          {/* 好感度（敌人显示，友方只在有变化时显示） */}
-                          {(isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD) && (
-                            <span className={`${favor > 0 ? 'text-green-400' : favor < 0 ? 'text-red-400' : 'text-gray-500'} w-16 text-right`}>
-                              好感{favor > 0 ? '+' : ''}{favor.toFixed(1)}
-                            </span>
-                          )}
-                          {/* 怀疑度（敌人始终显示） */}
-                          {isEnemy && (
-                            <span className={`${suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'} w-16 text-right`}>
+                      <div key={other.id} className="contents">
+                        <span className="text-muted-foreground">{other.name}</span>
+                        <span className={`text-xs text-right ${showFavor ? (favor > 0 ? 'text-green-400' : favor < 0 ? 'text-red-400' : 'text-gray-500') : 'text-transparent'}`}>
+                          {showFavor ? `好感${favor > 0 ? '+' : ''}${favor.toFixed(1)}` : ' '}
+                        </span>
+                        <span className="text-xs text-right">
+                          {selectedPlayer.team === 'werewolf' && other.team === 'werewolf' ? (
+                            <span className="text-gray-500">-</span>
+                          ) : (
+                            <span className={`${suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'}`}>
                               怀疑{(suspicion * 100).toFixed(0)}%
                             </span>
                           )}
-                        </div>
+                        </span>
                       </div>
                     );
                   })}
-                  {players.filter(p => p.id !== selectedPlayer.id && p.alive).filter(p => {
-                    const rel = selectedPlayer.relations[p.id];
-                    const favor = rel?.favor ?? 0;
-                    const isEnemy = p.team !== selectedPlayer.team;
-                    return isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD;
-                  }).length === 0 && (
-                    <div className="text-xs text-muted-foreground">暂无显著关系变化</div>
-                  )}
                 </div>
+                {players.filter(p => p.id !== selectedPlayer.id && p.alive).filter(p => {
+                  const rel = selectedPlayer.relations[p.id];
+                  const favor = rel?.favor ?? 0;
+                  const isEnemy = p.team !== selectedPlayer.team;
+                  return isEnemy || Math.abs(favor) > RELATION_DISPLAY_THRESHOLD;
+                }).length === 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">暂无显著关系变化</div>
+                )}
               </div>
             </div>
           ) : (

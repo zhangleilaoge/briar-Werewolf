@@ -1,7 +1,7 @@
 import {
   SCORE_MAX_INFO_VOTE, SCORE_WEREWOLF_VOTE_DUTY, SCORE_FOLLOW_CALL_VOTE, SCORE_SOCIAL_TIE_BREAKER,
   SCORE_SURVIVAL_VOTE, SCORE_PROPHET_VOTE_DUTY, WEREWOLF_PROBABILITY_MEDIUM,
-  RELATION_MIN, RELATION_MAX, EXPOSURE_HIGH_THRESHOLD,
+  RELATION_MIN, RELATION_MAX, IDENTITY_CRISIS_HIGH_THRESHOLD,
 } from '@/types';
 import type { Player } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -35,7 +35,7 @@ export const CheckRevelationVoteStrategy: Strategy = {
             score,
             confidence: 1.0,
             reason: isTeammate
-              ? `L2推断：${target.name}被查验暴露，作为狼人我需避免投他${reason}`
+              ? `L2推断：${target.name}被查验身份危机，作为狼人我需避免投他${reason}`
               : `L0事实：查验到${target.name}是狼人，必须投票淘汰${reason}`,
             strategy: 'CheckRevelationVoteStrategy',
             rule: isTeammate ? 'avoid_exposed_teammate' : 'vote_known_wolf',
@@ -204,7 +204,7 @@ export const SocialTieBreakerStrategy: Strategy = {
   },
 };
 
-// ---------- 生存投票（暴露高时寻找安全目标） ----------
+// ---------- 生存投票（身份危机高时寻找安全目标） ----------
 export const SurvivalVoteStrategy: Strategy = {
   name: 'survival_vote',
   requiredRoles: undefined,
@@ -212,9 +212,9 @@ export const SurvivalVoteStrategy: Strategy = {
   evaluate(context) {
     const { self, belief, allPlayers } = context;
     const result: import('@/types').DecisionCandidate[] = [];
-    const myExposure = belief.getPlayerExposure(self.id);
+    const myIdentityCrisis = belief.getPlayerIdentityCrisis(self.id);
 
-    if (myExposure > EXPOSURE_HIGH_THRESHOLD) {
+    if (myIdentityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD) {
       const alivePlayers = allPlayers.filter((p) => p.id !== self.id && p.alive);
       let safeTargets: Player[];
 
@@ -235,14 +235,14 @@ export const SurvivalVoteStrategy: Strategy = {
         result.push({
           action: ACTION.VOTE,
           target: target.id,
-          score: SCORE_SURVIVAL_VOTE - myExposure * SCORE_MAX_INFO_VOTE + scoreDelta,
+          score: SCORE_SURVIVAL_VOTE - myIdentityCrisis * SCORE_MAX_INFO_VOTE + scoreDelta,
           confidence: 0.6,
           reason: self.team === 'werewolf'
-            ? `L2推断：自身被怀疑度${myExposure.toFixed(2)}过高，投低嫌疑目标伪装好人${reason}`
-            : `L2推断：自身被怀疑度${myExposure.toFixed(2)}过高，需投高嫌疑目标证明立场${reason}`,
+            ? `L2推断：自身被怀疑度${myIdentityCrisis.toFixed(2)}过高，投低嫌疑目标伪装好人${reason}`
+            : `L2推断：自身被怀疑度${myIdentityCrisis.toFixed(2)}过高，需投高嫌疑目标证明立场${reason}`,
           strategy: 'SurvivalVoteStrategy',
           rule: self.team === 'werewolf' ? 'wolf_survival_deflect' : 'survival_clear_name',
-          trigger: `myExposure=${myExposure.toFixed(2)} > 阈值=${EXPOSURE_HIGH_THRESHOLD}，self.team=${self.team}`,
+          trigger: `myIdentityCrisis=${myIdentityCrisis.toFixed(2)} > 阈值=${IDENTITY_CRISIS_HIGH_THRESHOLD}，self.team=${self.team}`,
         });
       });
     }

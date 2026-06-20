@@ -44,7 +44,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('狼人更新后生成攻击村民意图', () => {
     const wolf1 = allPlayers[0];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -65,7 +65,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('预言家查验到狼人后生成REVEAL意图（STRONG承诺）', () => {
     const prophet = allPlayers[4];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment);
+    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
     belief.updateInferences(allPlayers, prophet, []);
@@ -86,7 +86,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('意图生命周期：执行步骤后推进计划', () => {
     const prophet = allPlayers[4];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment);
+    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
     belief.updateInferences(allPlayers, prophet, []);
@@ -106,7 +106,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('多回合意图持久性：非ROLE_DUTY意图有寿命限制', () => {
     const wolf1 = allPlayers[0];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -125,7 +125,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('意图冲突：攻击队友 vs 保护队友 → 攻击被拦截/消解', () => {
     const wolf1 = allPlayers[0];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -159,12 +159,12 @@ describe('IntentionManager - Core Lifecycle', () => {
     }
   });
 
-  it('切割模式：生成CUT_LOSS意图（队友暴露）', () => {
+  it('切割模式：生成CUT_LOSS意图（队友身份危机）', () => {
     const wolf1 = allPlayers[0];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    // 模拟 w2 极度暴露
+    // 模拟 w2 极度身份危机
     belief.l2TheoryOfMind.othersBeliefs = {
       v1: { w2: 0.9 },
       v2: { w2: 0.85 },
@@ -179,7 +179,7 @@ describe('IntentionManager - Core Lifecycle', () => {
 
     const intentions = manager.getActiveIntentions();
     const cutLoss = intentions.find((i) => i.type === IntentionType.CUT_LOSS);
-    // 切割模式应生成（队友暴露+自身安全+狼队劣势）
+    // 切割模式应生成（队友身份危机+自身安全+狼队劣势）
     expect(cutLoss).toBeDefined();
     if (cutLoss) {
       expect(cutLoss.targetId).toBe('w2');
@@ -190,7 +190,7 @@ describe('IntentionManager - Core Lifecycle', () => {
   it('意图驱动评分：匹配的候选获得额外分数', () => {
     const wolf1 = allPlayers[0];
     const manager = new IntentionManager();
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -229,7 +229,7 @@ describe('DesireEngine', () => {
   it('预言家愿望包含高优先级REVEAL', () => {
     const engine = new DesireEngine();
     const prophet = allPlayers[4];
-    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment);
+    const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
     belief.updateInferences(allPlayers, prophet, []);
@@ -244,7 +244,7 @@ describe('DesireEngine', () => {
   it('狼人愿望不包含攻击队友', () => {
     const engine = new DesireEngine();
     const wolf1 = allPlayers[0];
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -256,12 +256,12 @@ describe('DesireEngine', () => {
     }
   });
 
-  it('高暴露时生成SURVIVE愿望', () => {
+  it('高身份危机时生成SURVIVE愿望', () => {
     const engine = new DesireEngine();
     const wolf1 = allPlayers[0];
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    // 高暴露
+    // 高身份危机
     belief.l2TheoryOfMind.othersBeliefs = {
       v1: { w1: 0.9 },
       v2: { w1: 0.85 },
@@ -325,7 +325,7 @@ describe('Hard Constraints', () => {
     const engine = new DecisionEngine();
     buildStrategies().forEach((s) => engine.registerStrategy(s.category, s.strategy));
 
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 
@@ -344,7 +344,7 @@ describe('Hard Constraints', () => {
     const engine = new DecisionEngine();
     buildStrategies().forEach((s) => engine.registerStrategy(s.category, s.strategy));
 
-    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment);
+    const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.updateInferences(allPlayers, wolf1, []);
 

@@ -108,8 +108,10 @@ export const RebutStrategy: Strategy = {
     // 计算反驳收益 vs 不反驳损失
     const baseScore = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER;
     const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.REBUT, originalActorId);
-    const myExposure = belief.getExposure();
-    const notRebutPenalty = myExposure > 0.5 ? -30 : -10;
+    const myIdentityCrisis = belief.getIdentityCrisis();
+    const notRebutPenalty = self.team === 'werewolf'
+      ? (myIdentityCrisis > 0.5 ? -30 : -10)  // 狼人：不反驳损失较小（本来就要藏）
+      : (myIdentityCrisis > 0.5 ? -50 : -20); // 村民：不反驳损失更大（被误投）
 
     result.push({
       action: ACTION.REBUT,

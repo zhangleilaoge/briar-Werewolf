@@ -23,7 +23,7 @@ function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 }
 
 function makeBelief(player: Player, allPlayers: Player[]): BeliefSystem {
-  const belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment);
+  const belief = new BeliefSystem(player.id, player.name, player.role, player.team, player.attributes, player.alignment, allPlayers);
   belief.initializeRelations(allPlayers);
   return belief;
 }

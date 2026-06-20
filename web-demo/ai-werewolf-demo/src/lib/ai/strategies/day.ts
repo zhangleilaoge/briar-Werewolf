@@ -1,4 +1,4 @@
-import {EXPOSURE_HIGH_THRESHOLD,
+import {IDENTITY_CRISIS_HIGH_THRESHOLD,
   WEREWOLF_PROBABILITY_LOW, WEREWOLF_PROBABILITY_MEDIUM, WEREWOLF_PROBABILITY_HIGH,
   STRESS_ANXIOUS_MIN,
   SCORE_BERSERKER_SUICIDE, SILENCE_NEAR_FULL_THRESHOLD,
@@ -8,14 +8,14 @@ import {EXPOSURE_HIGH_THRESHOLD,
   SCORE_DEFAULT_ROUND1_OBSERVE, SCORE_DEFAULT_OTHER_OBSERVE,
   SCORE_WW_DEFEND_ATTACKED_ACCUSE, SCORE_WW_DEFEND_ATTACKED_SUSPECT,
   SCORE_WW_CAMOUFLAGE_BASE, SCORE_WW_CAMOUFLAGE_BONUS,
-  SCORE_WW_TEAMMATE_EXPOSED_GOUGE, SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
+  SCORE_WW_TEAMMATE_CRISIS_GOUGE, SCORE_WW_TEAMMATE_CRISIS_DEFEND,
   SCORE_WW_BREAK_SILENCE, SCORE_WW_DEFAULT_ROUND1_TARGET, SCORE_WW_DEFAULT_ROUND1, SCORE_WW_DEFAULT_OTHER,
 } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import {
   STRATEGY_WOLF_PROB_CRITICAL,
-  STRATEGY_EXPOSURE_CRITICAL,
-  STRATEGY_EXPOSURE_SAFE,
+  STRATEGY_IDENTITY_CRISIS_CRITICAL,
+  STRATEGY_IDENTITY_CRISIS_SAFE,
   STRATEGY_SILENCE_SUSPICIOUS,
   STRATEGY_STRESS_SUSPICIOUS,
   STRATEGY_TRUST_LOW,
@@ -536,33 +536,33 @@ export const WerewolfCamouflageStrategy: Strategy = {
       }
     });
 
-    // 3. 队友暴露 -> 袒护/切割（根据 self.team 动态找队友）
+    // 3. 队友身份危机 -> 袒护/切割（根据 self.team 动态找队友）
     const teammates = allPlayers.filter(p => p.id !== self.id && p.alive && p.team === self.team);
     teammates.forEach(teammate => {
-      const exposure = belief.getPlayerExposure(teammate.id);
-      if (exposure > EXPOSURE_HIGH_THRESHOLD) {
-        if (exposure > STRATEGY_EXPOSURE_CRITICAL && belief.getExposure() < STRATEGY_EXPOSURE_SAFE) {
+      const identityCrisis = belief.getPlayerIdentityCrisis(teammate.id);
+      if (identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD) {
+        if (identityCrisis > STRATEGY_IDENTITY_CRISIS_CRITICAL && belief.getIdentityCrisis() < STRATEGY_IDENTITY_CRISIS_SAFE) {
           // 倒钩：反咬队友
           result.push({
             action: ACTION.SUSPECT,
             target: teammate.id,
-            score: SCORE_WW_TEAMMATE_EXPOSED_GOUGE,
+            score: SCORE_WW_TEAMMATE_CRISIS_GOUGE,
             confidence: 0.7,
             reason: `我怀疑${teammate.name}，他行为太可疑了，不像是好人。`,
             strategy: 'WerewolfCamouflageStrategy',
             rule: 'teammate_exposed_gouge',
-            trigger: `队友暴露度=${exposure.toFixed(2)} > ${STRATEGY_EXPOSURE_CRITICAL} 且 自身暴露度=${belief.getExposure().toFixed(2)} < ${STRATEGY_EXPOSURE_SAFE}`,
+            trigger: `队友身份危机=${identityCrisis.toFixed(2)} > ${STRATEGY_IDENTITY_CRISIS_CRITICAL} 且 自身身份危机=${belief.getIdentityCrisis().toFixed(2)} < ${STRATEGY_IDENTITY_CRISIS_SAFE}`,
           });
         }
         result.push({
           action: ACTION.DEFEND,
           target: teammate.id,
-          score: SCORE_WW_TEAMMATE_EXPOSED_DEFEND,
+          score: SCORE_WW_TEAMMATE_CRISIS_DEFEND,
           confidence: 0.5,
           reason: `我觉得${teammate.name}被冤枉了，大家再想想。`,
           strategy: 'WerewolfCamouflageStrategy',
           rule: 'teammate_exposed_defend',
-          trigger: `队友暴露度=${exposure.toFixed(2)} > 阈值=${EXPOSURE_HIGH_THRESHOLD}`,
+          trigger: `队友身份危机=${identityCrisis.toFixed(2)} > 阈值=${IDENTITY_CRISIS_HIGH_THRESHOLD}`,
         });
       }
     });

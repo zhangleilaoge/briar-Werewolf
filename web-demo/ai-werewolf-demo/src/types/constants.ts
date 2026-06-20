@@ -59,8 +59,8 @@ export const STAGE_WEIGHT_SOCIAL = 100;               // 社交阶段权重
 export const WEREWOLF_PROBABILITY_HIGH = 0.6;         // 高狼人概率阈值（超过此值认为很可能是狼人）
 export const WEREWOLF_PROBABILITY_LOW = 0.4;          // 低狼人概率阈值（低于此值认为不太可能是狼人）
 export const WEREWOLF_PROBABILITY_MEDIUM = 0.5;       // 中等狼人概率阈值
-export const EXPOSURE_HIGH_THRESHOLD = 0.6;           // 高暴露阈值（超过此值认为身份可能暴露）
-export const EXPOSURE_CRITICAL_THRESHOLD = 0.7;       // 临界暴露阈值（超过此值认为身份几乎暴露）
+export const IDENTITY_CRISIS_HIGH_THRESHOLD = 0.6;           // 高身份危机阈值（超过此值认为身份可能身份危机）
+export const IDENTITY_CRISIS_CRITICAL_THRESHOLD = 0.7;       // 临界身份危机阈值（超过此值认为身份几乎身份危机）
 export const SILENCE_NEAR_FULL_THRESHOLD = 2;         // 连续沉默接近上限的阈值
 
 // ---------- 游戏引擎 ----------

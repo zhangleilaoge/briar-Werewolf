@@ -104,31 +104,6 @@ export function runAppendixAction(sim: GameSimulator, playerId: string, triggerA
         const successText = rebutResult.success ? `（成功，优势 ${rebutResult.margin}）` : '（失败）';
         logAction(sim, 'action', `${player.name} 反驳：「我不是狼人！」${successText}`, rebutReason, [rebutCheck], { actorId: player.id, action: ACTION.REBUT, targetId: triggerActor.id });
 
-        // 记录反驳者的暴露度变更
-        const playerAgent = sim._aiAgents[player.id];
-        if (playerAgent) {
-          const before = playerAgent.belief.getExposure();
-          if (rebutResult.success) {
-            // 反驳成功：暴露度降低
-            const delta = -0.1;
-            playerAgent.recordExposureChange(
-              `反驳成功：${player.name} 成功反驳 ${triggerActor.name}`,
-              delta,
-              before,
-              Math.max(0, before + delta)
-            );
-          } else {
-            // 反驳失败：暴露度增加
-            const delta = 0.1;
-            playerAgent.recordExposureChange(
-              `反驳失败：${player.name} 反驳 ${triggerActor.name} 失败`,
-              delta,
-              before,
-              Math.min(1, before + delta)
-            );
-          }
-        }
-
         if (rebutResult.success) {
           sim.playerStateBus.changeStress(player.id, -STRESS_CHANGE_MINOR_POS, 'rebut_success');
           // 旁观者信任反驳者

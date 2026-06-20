@@ -78,6 +78,7 @@ export const RealProphetClaimStrategy: Strategy = {
   requiredPhase: ['day'],
   evaluate(context: StrategyContext): DecisionCandidate[] {
     const { self, allPlayers, belief, publicActions } = context;
+    const myIdentityCrisis = belief.getIdentityCrisis();
     const result: DecisionCandidate[] = [];
 
     // 检查是否已经跳过
@@ -100,6 +101,15 @@ export const RealProphetClaimStrategy: Strategy = {
     if (foundWerewolf) {
       score += 200;
       reason = '验到狼人，立即公布身份';
+    }
+
+    // 身份危机修正：危机高时降低跳身份意愿（自保优先），危机低时增加
+    if (myIdentityCrisis > 0.6) {
+      score -= 150;
+      reason += '，但身份危机高，谨慎跳身份';
+    } else if (myIdentityCrisis < 0.3) {
+      score += 50;
+      reason += '，身份危机低，适合跳身份';
     }
 
     // 有人跳预言家时，必须跳

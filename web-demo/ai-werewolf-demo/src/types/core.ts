@@ -74,7 +74,7 @@ export interface Player {
   id: string; name: string; role: Role; team: Team; alive: boolean;
   items: ItemInstance[]; attributes: Attributes; alignment: Alignment;
   traits: string[]; stress: number; relations: Record<string, Relation>;
-  exposure?: number; // 暴露度（0-1），由belief系统计算
+  identityCrisis?: number; // 身份危机（0-1），由belief系统计算
   suspicionByOthers?: Record<string, number>; // 其他人对我的怀疑度
 }
 

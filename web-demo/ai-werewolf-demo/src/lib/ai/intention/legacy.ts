@@ -18,11 +18,11 @@ export function generateDesireProfile(self: Player, belief: BeliefSystem, allPla
 } {
   const aliveWolves = allPlayers.filter((p) => p.team === 'werewolf' && p.alive).length;
   const aliveVillagers = allPlayers.filter((p) => p.team !== 'werewolf' && p.alive).length;
-  const myExposure = belief.getExposure();
+  const myIdentityCrisis = belief.getIdentityCrisis();
 
   let mode: GameMode = 'normal';
   if (self.team === 'werewolf') {
-    if (aliveWolves < aliveVillagers && myExposure > 0.6) {
+    if (aliveWolves < aliveVillagers && myIdentityCrisis > 0.6) {
       mode = 'desperate';
     } else if (aliveWolves >= aliveVillagers) {
       mode = 'dominant';
@@ -78,9 +78,9 @@ export function isBusMode(context: IntentionContext): boolean {
 
   const teammates = allWolves.filter((p) => p.id !== context.self.id);
   for (const teammate of teammates) {
-    const exposure = context.belief.getPlayerExposure(teammate.id);
-    const myExposure = context.belief.getExposure();
-    if (exposure > 0.8 && myExposure < 0.5) {
+    const identityCrisis = context.belief.getPlayerIdentityCrisis(teammate.id);
+    const myIdentityCrisis = context.belief.getIdentityCrisis();
+    if (identityCrisis > 0.8 && myIdentityCrisis < 0.5) {
       return true;
     }
   }

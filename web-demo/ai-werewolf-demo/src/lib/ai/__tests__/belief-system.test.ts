@@ -23,7 +23,7 @@ describe('BeliefSystem', () => {
 
   function makeBelief(playerId: string = 'p1') {
     const self = allPlayers.find(p => p.id === playerId)!;
-    const belief = new BeliefSystem(self.id, self.name, self.role, self.team, self.attributes, self.alignment);
+    const belief = new BeliefSystem(self.id, self.name, self.role, self.team, self.attributes, self.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     return belief;
   }
@@ -79,35 +79,35 @@ describe('BeliefSystem', () => {
         { actorId: 'p2', type: 'suspect', targetId: 'p3' },
       ], allPlayers[0]);
 
-      // p2 suspects p3, so p2's belief about p3 should have higher suspicion
-      const p2BeliefAboutP3 = belief.l2TheoryOfMind.othersBeliefs.p2?.p3 ?? 0.5;
-      expect(p2BeliefAboutP3).toBeGreaterThan(0.5);
+      // p2 suspects p3, so p2's belief about p3 should be higher than base (0 + 0.3 = 0.3)
+      const p2BeliefAboutP3 = belief.l2TheoryOfMind.othersBeliefs.p2?.p3 ?? 0;
+      expect(p2BeliefAboutP3).toBeCloseTo(0.3, 1);
     });
   });
 
-  describe('getPlayerExposure', () => {
+  describe('getPlayerIdentityCrisis', () => {
     it('returns 0 when no data', () => {
       const belief = makeBelief();
-      expect(belief.getPlayerExposure('p2')).toBe(0);
+      expect(belief.getPlayerIdentityCrisis('p2')).toBe(0);
     });
 
-    it('calculates average exposure from observer beliefs', () => {
+    it('calculates average identity crisis from observer beliefs', () => {
       const belief = makeBelief();
       // Manually set some L2 data
       belief.l2TheoryOfMind.othersBeliefs.p2 = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
       belief.l2TheoryOfMind.othersBeliefs.p4 = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
 
-      const exposure = belief.getPlayerExposure('p1');
+      const identityCrisis = belief.getPlayerIdentityCrisis('p1');
       // Average of 0.8 and 0.6 = 0.7
-      expect(exposure).toBeCloseTo(0.7, 1);
+      expect(identityCrisis).toBeCloseTo(0.7, 1);
     });
 
-    it('getExposure returns self exposure', () => {
+    it('getIdentityCrisis returns self identity crisis', () => {
       const belief = makeBelief('p1');
       belief.l2TheoryOfMind.othersBeliefs.p2 = { 'p1': 0.8, 'p3': 0.3, 'p4': 0.2 };
       belief.l2TheoryOfMind.othersBeliefs.p4 = { 'p1': 0.6, 'p3': 0.5, 'p4': 0.1 };
 
-      expect(belief.getExposure()).toBeCloseTo(0.7, 1);
+      expect(belief.getIdentityCrisis()).toBeCloseTo(0.7, 1);
     });
   });
 

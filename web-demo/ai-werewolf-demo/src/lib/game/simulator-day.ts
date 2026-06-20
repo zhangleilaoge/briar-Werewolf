@@ -129,21 +129,6 @@ export function resolveDayAction(
           logAction(sim, logItem.type as 'action', logItem.message, decisionReason, result.checks || [], { actorId: actor.id, action, targetId, process });
         });
 
-        // Record exposure change for suspect/accuse actions
-        if (target && (action === ACTION.SUSPECT || action === ACTION.ACCUSE)) {
-          const targetAgent = sim._aiAgents[target.id];
-          if (targetAgent) {
-            const before = targetAgent.belief.getExposure();
-            const delta = action === ACTION.ACCUSE ? 0.2 : 0.1;
-            targetAgent.recordExposureChange(
-              `${actor.name} ${action === ACTION.ACCUSE ? '强烈指认' : '怀疑'} ${target.name}`,
-              delta,
-              before,
-              Math.min(1, before + delta)
-            );
-          }
-        }
-
         return shouldResetSilence;
       }
     } catch (error) {

@@ -11,7 +11,7 @@ import {
   TRUST_SCORE_MIN, TRUST_SCORE_MAX,
   BELIEF_DEFAULT_PROBABILITY, BELIEF_LOW_SUSPICION_THRESHOLD, BELIEF_HIGH_SUSPICION_THRESHOLD,
   BELIEF_SUSPICION_BASE, BELIEF_SUSPICION_VOTE_ADJ, BELIEF_SUSPICION_ACCUSE_ADJ, BELIEF_SUSPICION_DEFEND_ADJ,
-  BELIEF_TRUST_ATTACKED, BELIEF_TRUST_DEFAULT, BELIEF_EXPOSURE_KNOWN, BELIEF_EXPOSURE_UNKNOWN,
+  BELIEF_TRUST_ATTACKED, BELIEF_TRUST_DEFAULT, BELIEF_IDENTITY_CRISIS_KNOWN, BELIEF_IDENTITY_CRISIS_UNKNOWN,
 } from '@/types';
 
 export class BeliefSystem {
@@ -21,6 +21,7 @@ export class BeliefSystem {
   myTeam: Team | null;
   myAttributes: Attributes;
   myAlignment: Alignment;
+  teammateIds: Set<string>;
 
   // L0: Raw Facts (immutable truths this agent knows)
   l0Facts: {
@@ -59,7 +60,8 @@ export class BeliefSystem {
     role: Role,
     team: Team,
     attributes: Attributes,
-    alignment: Alignment
+    alignment: Alignment,
+    allPlayers?: Player[]
   ) {
     this.playerId = playerId;
     this.playerName = playerName;
@@ -67,6 +69,9 @@ export class BeliefSystem {
     this.myTeam = team;
     this.myAttributes = attributes;
     this.myAlignment = alignment;
+    this.teammateIds = new Set(
+      allPlayers?.filter(p => p.id !== playerId && p.team === team && team === 'werewolf').map(p => p.id) ?? []
+    );
 
     this.l0Facts = {
       checks: {},
@@ -395,7 +400,7 @@ export class BeliefSystem {
       this.l2TheoryOfMind.othersTrustMe[observer.id] = attackedMe ? BELIEF_TRUST_ATTACKED : BELIEF_TRUST_DEFAULT;
 
       const myClaims = this.l0Facts.publicClaims.filter((c) => c.playerId === this.playerId);
-      this.l2TheoryOfMind.othersKnowMyRole[observer.id] = myClaims.length > 0 ? BELIEF_EXPOSURE_KNOWN : BELIEF_EXPOSURE_UNKNOWN;
+      this.l2TheoryOfMind.othersKnowMyRole[observer.id] = myClaims.length > 0 ? BELIEF_IDENTITY_CRISIS_KNOWN : BELIEF_IDENTITY_CRISIS_UNKNOWN;
     });
   }
 
@@ -464,7 +469,7 @@ export class BeliefSystem {
       role: this.myRole,
       l0: { checks: this.l0Facts.checks, deaths: this.l0Facts.deaths },
       l1: { topSuspect: this._getTopSuspect() },
-      l2: { myExposure: this.getExposure() },
+      l2: { myIdentityCrisis: this.getIdentityCrisis() },
       l3: { relations: this.l3Social.relations, pressure: this.l3Social.pressure, emotionalState: this.l3Social.emotionalState },
     };
   }
@@ -481,14 +486,14 @@ export class BeliefSystem {
     return { id: topId, probability: maxProb };
   }
 
-  getExposure(): number {
-    return this.getPlayerExposure(this.playerId);
+  getIdentityCrisis(): number {
+    return this.getPlayerIdentityCrisis(this.playerId);
   }
 
-  /** 计算任意玩家在其他人眼中的平均暴露度 */
-  getPlayerExposure(playerId: string): number {
+  /** 计算任意玩家在其他人眼中的平均身份危机（排除队友） */
+  getPlayerIdentityCrisis(playerId: string): number {
     const beliefs = this.l2TheoryOfMind.othersBeliefs;
-    const entries = Object.entries(beliefs);
+    const entries = Object.entries(beliefs).filter(([observerId]) => !this.teammateIds.has(observerId));
     if (entries.length === 0) return 0;
     let total = 0;
     entries.forEach(([, b]) => {

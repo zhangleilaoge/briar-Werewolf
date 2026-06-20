@@ -110,6 +110,7 @@ export class DayPhaseController extends TickPhase {
   private silenceCount = 0;
   private aliveOrder: string[] = [];
   private nextIndex = 0;
+  private _extraRoundDone = false;
 
   protected beforeCheckEnd(sim: GameSimulator): void {
     // 所有玩家 idle（没有 pending 的思考或行动）→ 可以通知下一个行动者
@@ -124,6 +125,7 @@ export class DayPhaseController extends TickPhase {
     this.silenceCount = 0;
     this.aliveOrder = sim.getAlivePlayerIds();
     this.nextIndex = 0;
+    this._extraRoundDone = false;
     sim.dayActionTargets.clear();
 
     log(sim, 'phase', '-- 白天阶段 --');
@@ -146,10 +148,31 @@ export class DayPhaseController extends TickPhase {
 
   checkEnd(sim: GameSimulator): boolean {
     const allActed = this.aliveOrder.every((id) => this.hasActed.has(id));
-    if (allActed || this.silenceCount >= sim.getAliveCount()) {
-      debugLog(`[消息中心] 🌅 白天结束 (${this.hasActed.size}/${this.aliveOrder.length}已行动, 沉默=${this.silenceCount})`);
+
+    if (this.silenceCount >= sim.getAliveCount()) {
+      debugLog(`[消息中心] 🌅 白天结束（全员沉默）`);
       return false;
     }
+
+    if (allActed && !this._extraRoundDone) {
+      // 第一轮发言结束，进入第二轮白天发言
+      // 允许已行动过的玩家再次行动
+      debugLog(`[消息中心] 🔄 白天开启额外轮次`);
+      this.hasActed.clear();
+      this.nextIndex = 0;
+      this.silenceCount = 0;
+      sim.consecutiveSilenceCount = 0;
+      this._extraRoundDone = true;
+      this._notifyNextSpeaker(sim);
+      return true;
+    }
+
+    // 第二轮也全部行动完毕，结束白天阶段
+    if (allActed && this._extraRoundDone) {
+      debugLog(`[消息中心] 🌅 白天结束（第二轮完成）`);
+      return false;
+    }
+
     return true;
   }
 

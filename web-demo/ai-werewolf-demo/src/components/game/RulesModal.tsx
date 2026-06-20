@@ -349,7 +349,7 @@ function AITab() {
         </p>
         <div className="mt-3 bg-[#1a1b2e] border border-gray-700/40 rounded-lg p-3 text-xs text-gray-400 space-y-1">
           <div>• <span className="text-white">职业义务 (1000)</span>：最高优先级，如预言家公布查验</div>
-          <div>• <span className="text-white">生存 (800)</span>：自保行为，如高暴露时隐藏身份</div>
+          <div>• <span className="text-white">生存 (800)</span>：自保行为，如高身份危机时隐藏身份</div>
           <div>• <span className="text-white">信息 (500)</span>：获取/传播信息，如怀疑、观察</div>
           <div>• <span className="text-white">社交 (100)</span>：社交互动，如跟随号召、反驳</div>
         </div>
