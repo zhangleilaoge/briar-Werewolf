@@ -74,7 +74,7 @@ export class GuaranteePlugin implements ActionProvider {
     if (self.team === 'werewolf') {
       const attacksOnMe = (context.publicActions || []).filter(a => a.targetId === self.id && (a.type === ACTION.SUSPECT || a.type === ACTION.ACCUSE));
       if (attacksOnMe.length > 0) {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.GUARANTEE, self.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.GUARANTEE);
         result.push({
           action: ACTION.GUARANTEE,
           target: self.id,
@@ -94,7 +94,7 @@ export class GuaranteePlugin implements ActionProvider {
       suspects.forEach(suspectAction => {
         const target = allPlayers.find(p => p.id === suspectAction.targetId);
         if (target?.alive && belief.getWerewolfProbability(target.id) < BELIEF_VERY_LOW_SUSPICION_THRESHOLD) {
-          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.GUARANTEE, target.id);
+          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.GUARANTEE);
           result.push({
             action: ACTION.GUARANTEE,
             target: target.id,

@@ -95,7 +95,7 @@ describe('投票解析 (resolveVotesRound)', () => {
         [target2.id]: [alive[4].id, alive[5].id],
       };
 
-      resolveVotesRound2(sim, [target1.id, target2.id]); // nextRoundOnTie=false
+      resolveVotesRound2(sim); // nextRoundOnTie=false
 
       expect(sim.voteResult!.tie).toBe(true);
       expect(sim.voteResult!.nextRound).toBe(false);

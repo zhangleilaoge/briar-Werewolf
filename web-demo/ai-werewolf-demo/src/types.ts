@@ -29,7 +29,8 @@ export { getStressModifier, getAlignmentModifier, calculateModifierBreakdown, ca
 export type { ModifierBreakdown } from '@/lib/game/modifiers';
 
 // ---------- Action Constants (从 lib/constants 重新导出) ----------
-export type { IntentionType, IntentionSource, CommitmentLevel, GameMode } from '@/lib/constants/action-constants';
+export type { GameMode } from '@/lib/constants/action-constants';
+export { IntentionType, IntentionSource, CommitmentLevel } from '@/lib/ai/intention/types';
 
 // ---------- 策略分数常量 - 从 ./lib/constants/scores 重新导出 ----------
 export * from './lib/constants/scores';

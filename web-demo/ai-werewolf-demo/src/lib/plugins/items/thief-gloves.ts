@@ -29,7 +29,7 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
   protected itemId = 'thief_gloves';
   protected actionType = ACTION.STEAL;
   
-  getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getAvailableActions(player: Player, _context: ActionContext): ActionDefinition[] {
     // Anyone with gloves can steal, but only once per game
     if (!hasItem(player, 'thief_gloves')) {
       return [];
@@ -139,7 +139,7 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
     const aliveTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.items.length > 0);
     
     aliveTargets.forEach((target) => {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.STEAL, target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.STEAL);
 
       result.push({
         action: ACTION.STEAL,

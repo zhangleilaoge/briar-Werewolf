@@ -46,7 +46,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const manager = new IntentionManager();
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     manager.update(wolf1, belief, allPlayers, 1);
 
@@ -68,7 +68,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
-    belief.updateInferences(allPlayers, prophet, []);
+    belief.updateInferences(allPlayers, []);
 
     manager.update(prophet, belief, allPlayers, 1);
 
@@ -89,7 +89,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
-    belief.updateInferences(allPlayers, prophet, []);
+    belief.updateInferences(allPlayers, []);
 
     manager.update(prophet, belief, allPlayers, 1);
     const intention = manager.getTopIntention('day')!;
@@ -108,7 +108,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const manager = new IntentionManager();
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     // 第1回合
     manager.update(wolf1, belief, allPlayers, 1);
@@ -127,7 +127,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const manager = new IntentionManager();
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     // 先制造一个攻击队友的意图（模拟旧系统可能出现的错误）
     // 通过手动创建
@@ -173,7 +173,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     // wolf1 自身安全
     belief.l2TheoryOfMind.othersBeliefs.v1.w1 = 0.2;
     belief.l2TheoryOfMind.othersBeliefs.v2.w1 = 0.3;
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     manager.update(wolf1, belief, allPlayers, 1);
 
@@ -192,7 +192,7 @@ describe('IntentionManager - Core Lifecycle', () => {
     const manager = new IntentionManager();
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     manager.update(wolf1, belief, allPlayers, 1);
 
@@ -232,9 +232,9 @@ describe('DesireEngine', () => {
     const belief = new BeliefSystem(prophet.id, prophet.name, prophet.role, prophet.team, prophet.attributes, prophet.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
     belief.recordCheck('w1', 'werewolf');
-    belief.updateInferences(allPlayers, prophet, []);
+    belief.updateInferences(allPlayers, []);
 
-    const desires = engine.generateDesires(prophet, belief, allPlayers, 1);
+    const desires = engine.generateDesires(prophet, belief, allPlayers);
     const reveal = desires.find((d) => d.type === IntentionType.REVEAL);
     expect(reveal).toBeDefined();
     expect(reveal!.strength).toBe(1000);
@@ -246,9 +246,9 @@ describe('DesireEngine', () => {
     const wolf1 = allPlayers[0];
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
-    const desires = engine.generateDesires(wolf1, belief, allPlayers, 1);
+    const desires = engine.generateDesires(wolf1, belief, allPlayers);
     const attackDesires = desires.filter((d) => d.type === IntentionType.ATTACK);
     for (const d of attackDesires) {
       const target = allPlayers.find((p) => p.id === d.targetId);
@@ -267,7 +267,7 @@ describe('DesireEngine', () => {
       v2: { w1: 0.85 },
     };
 
-    const desires = engine.generateDesires(wolf1, belief, allPlayers, 1);
+    const desires = engine.generateDesires(wolf1, belief, allPlayers);
     const survive = desires.find((d) => d.type === IntentionType.SURVIVE);
     expect(survive).toBeDefined();
     expect(survive!.strength).toBe(800);
@@ -327,7 +327,7 @@ describe('Hard Constraints', () => {
 
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     const decision = engine.decide(
       belief, wolf1, 'day',
@@ -346,7 +346,7 @@ describe('Hard Constraints', () => {
 
     const belief = new BeliefSystem(wolf1.id, wolf1.name, wolf1.role, wolf1.team, wolf1.attributes, wolf1.alignment, allPlayers);
     belief.initializeRelations(allPlayers);
-    belief.updateInferences(allPlayers, wolf1, []);
+    belief.updateInferences(allPlayers, []);
 
     const decision = engine.decide(
       belief, wolf1, 'vote',

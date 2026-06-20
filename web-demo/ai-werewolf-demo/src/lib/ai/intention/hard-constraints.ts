@@ -2,7 +2,8 @@
 // Hard Constraints — 硬约束过滤
 // ============================================================
 
-import { ACTION, INTENTION_SOURCE } from '@/lib/constants/action-constants';
+import { ACTION } from '@/lib/constants/action-constants';
+import { IntentionSource } from './types';
 import type { IntentionContext } from './types';
 
 export interface HardConstraint {
@@ -27,7 +28,7 @@ export const WolfNoAttackTeammateConstraint: HardConstraint = {
     const attackActions: string[] = [ACTION.CALL_VOTE, ACTION.ACCUSE, ACTION.SUSPECT, ACTION.VOTE];
     return attackActions.includes(candidate.action);
   },
-  source: INTENTION_SOURCE.TEAM_DUTY,
+  source: IntentionSource.TEAM_DUTY,
 };
 
 export function filterByHardConstraints<T extends { action: string; target: string | null; score?: number; confidence?: number; reason?: string; strategy?: string; rule?: string }>(

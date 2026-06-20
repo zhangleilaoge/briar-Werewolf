@@ -29,7 +29,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
   protected itemId = 'coroner_tools';
   protected actionType = ACTION.INSPECT;
   
-  getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getAvailableActions(player: Player, _context: ActionContext): ActionDefinition[] {
     // Anyone with tools can inspect, but only once per game
     if (!hasItem(player, 'coroner_tools')) {
       return [];
@@ -45,7 +45,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
       label: '验尸',
       description: '使用验尸工具查看死亡角色的道具',
       requiresTarget: true,
-      targetFilter: (player, target) => !target.alive && target.items.length > 0,
+      targetFilter: (_player, target) => !target.alive && target.items.length > 0,
       maxUsesPerGame: 1,
     }];
   }
@@ -123,7 +123,7 @@ export class CoronerToolsPlugin extends SingleUseItemPlugin {
     const deadTargets = allPlayers.filter((p) => !p.alive && p.items.length > 0);
     
     deadTargets.forEach((target) => {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.INSPECT, target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.INSPECT);
       
       result.push({
         action: ACTION.INSPECT,

@@ -140,7 +140,6 @@ export class BeliefSystem {
 
   updateInferences(
     allPlayers: Player[],
-    _self: Player,
     publicActions?: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[]
   ) {
     // 1. L0 hard facts: checks override everything
@@ -170,7 +169,7 @@ export class BeliefSystem {
 
     // 4. Infer from public actions (NEW - core of this refactor)
     if (publicActions && publicActions.length > 0) {
-      this._inferFromPublicActions(publicActions, allPlayers);
+      this._inferFromPublicActions(publicActions);
     }
 
     // 5. Initialize missing players
@@ -192,8 +191,7 @@ export class BeliefSystem {
   }
 
   private _inferFromPublicActions(
-    publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[],
-    _allPlayers: Player[]
+    publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[]
   ) {
     // 统计各类型行动
     const suspectCount: Record<string, number> = {};
@@ -367,8 +365,7 @@ export class BeliefSystem {
 
   updateTheoryOfMind(
     allPlayers: Player[],
-    publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[],
-    _self: Player
+    publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[]
   ) {
     allPlayers.forEach((observer) => {
       if (observer.id === this.playerId) return;

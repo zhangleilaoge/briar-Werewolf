@@ -82,7 +82,7 @@ export class AccusePlugin implements ActionProvider {
     if (self.team === 'werewolf') {
       const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > STRATEGY_WOLF_PROB_CRITICAL);
       suspects.forEach(target => {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE, target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE);
         result.push({
           action: ACTION.ACCUSE,
           target: target.id,
@@ -101,7 +101,7 @@ export class AccusePlugin implements ActionProvider {
       const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > WEREWOLF_PROBABILITY_HIGH);
       suspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE, target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE);
         result.push({
           action: ACTION.ACCUSE,
           target: target.id,

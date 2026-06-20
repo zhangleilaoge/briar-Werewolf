@@ -73,7 +73,7 @@ export class DefendPlugin implements ActionProvider {
       if (attacksOnMe.length > 0) {
         const attacker = allPlayers.find(p => p.id === attacksOnMe[0].actorId);
         if (attacker) {
-          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.DEFEND, self.id);
+          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.DEFEND);
           result.push({
             action: ACTION.DEFEND,
             target: self.id,
@@ -94,7 +94,7 @@ export class DefendPlugin implements ActionProvider {
       suspects.forEach(suspectAction => {
         const target = allPlayers.find(p => p.id === suspectAction.targetId);
         if (target?.alive && belief.getWerewolfProbability(target.id) < BELIEF_VERY_LOW_SUSPICION_THRESHOLD) {
-          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.DEFEND, target.id);
+          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.DEFEND);
           result.push({
             action: ACTION.DEFEND,
             target: target.id,

@@ -33,14 +33,14 @@ describe('BeliefSystem', () => {
       const belief = makeBelief();
       belief.recordCheck('p2', 'werewolf');
       expect(belief.getCheckResult('p2')).toBe('werewolf');
-      belief.updateInferences(allPlayers, allPlayers[0]);
+      belief.updateInferences(allPlayers);
       expect(belief.getWerewolfProbability('p2')).toBe(1.0);
     });
 
     it('villager check sets probability to 0', () => {
       const belief = makeBelief();
       belief.recordCheck('p2', 'villager');
-      belief.updateInferences(allPlayers, allPlayers[0]);
+      belief.updateInferences(allPlayers);
       expect(belief.getWerewolfProbability('p2')).toBe(0);
     });
   });
@@ -56,14 +56,14 @@ describe('BeliefSystem', () => {
   describe('updateInferences', () => {
     it('wolf knows teammates', () => {
       const belief = makeBelief('p3'); // p3 is werewolf
-      belief.updateInferences(allPlayers, allPlayers[2]);
+      belief.updateInferences(allPlayers);
       // p3 should know other wolves (there are none other, but p3 itself is wolf)
       // Since p3 is the only wolf, no teammate knowledge changes
     });
 
     it('suspect actions increase werewolf probability', () => {
       const belief = makeBelief();
-      belief.updateInferences(allPlayers, allPlayers[0], [
+      belief.updateInferences(allPlayers, [
         { actorId: 'p2', type: 'suspect', targetId: 'p4' },
         { actorId: 'p3', type: 'suspect', targetId: 'p4' },
       ]);
@@ -77,7 +77,7 @@ describe('BeliefSystem', () => {
       const belief = makeBelief();
       belief.updateTheoryOfMind(allPlayers, [
         { actorId: 'p2', type: 'suspect', targetId: 'p3' },
-      ], allPlayers[0]);
+      ]);
 
       // p2 suspects p3, so p2's belief about p3 should be higher than base (0 + 0.3 = 0.3)
       const p2BeliefAboutP3 = belief.l2TheoryOfMind.othersBeliefs.p2?.p3 ?? 0;
@@ -133,7 +133,7 @@ describe('BeliefSystem', () => {
     it('returns sorted suspects by werewolf probability', () => {
       const belief = makeBelief();
       belief.recordCheck('p3', 'werewolf');
-      belief.updateInferences(allPlayers, allPlayers[0]);
+      belief.updateInferences(allPlayers);
       const ranking = belief.getSuspectRanking(allPlayers);
       expect(ranking[0].id).toBe('p3');
       expect(ranking[0].werewolfProb).toBe(1.0);

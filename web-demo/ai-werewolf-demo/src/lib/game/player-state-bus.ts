@@ -32,7 +32,6 @@ export type DeathNotificationCallback = (playerId: string) => void;
 export class PlayerStateBus {
   private _players: Player[] = [];
   private _deathCallbacks: DeathNotificationCallback[] = [];
-  private _pluginRegistry: PluginRegistry | null = null;
   private _eventLog: StateEvent[] = [];
   private _listeners: StateEventListener[] = [];
 

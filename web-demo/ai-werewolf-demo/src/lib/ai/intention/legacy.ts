@@ -45,9 +45,7 @@ export function generateDesireProfile(self: Player, belief: BeliefSystem, allPla
 }
 
 export function explainIntention(
-  desire: ReturnType<typeof generateDesireProfile>,
-  blocked: { candidate: { action: string; target: string | null }; reason: string }[],
-  allPlayers: Player[]
+  desire: ReturnType<typeof generateDesireProfile>
 ): string {
   const modeNames = MODE_NAMES;
   const teamNames = TEAM_OBJECTIVE_NAMES;

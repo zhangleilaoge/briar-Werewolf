@@ -5,8 +5,9 @@ import { ROLE_INFO } from '@/types';
 import type { Player } from '@/types';
 import { ACTION_NAMES } from '@/lib/constants/display-names';
 import { MIND_MULTIPLIER_BASE, MIND_MULTIPLIER_SCALE, MIND_MULTIPLIER_SOCIAL_BASE, MIND_MULTIPLIER_SOCIAL_SCALE } from '@/lib/constants/mind';
-import { TOP_CANDIDATES_COUNT, POPUP_OFFSET_PX, PERCENT_MULTIPLIER } from '@/lib/constants/ui-thresholds';
+import { TOP_CANDIDATES_COUNT, PERCENT_MULTIPLIER } from '@/lib/constants/ui-thresholds';
 import { PopOverlay, FactorTooltip } from '@/components/ui/PopOverlay';
+import { usePopManager } from '@/hooks/usePopManager';
 
 interface DecisionProcessViewProps {
   process: DecisionProcess;
@@ -40,7 +41,7 @@ function ScoreLine({ candidate }: { candidate: DecisionProcess['candidates'][0] 
   const { score, intentionDrivenBonus, stageWeight, stage, modifiers, totalScore, mindData } = candidate;
 
   // 基础分来源
-  const baseSource = (() => {
+  const _baseSource = (() => {
     if (candidate.rule?.includes('intention') || candidate.strategy?.includes('Intention')) return '意图分数';
     if (candidate.strategy?.includes('Plugin') || candidate.strategy?.includes('fake') || candidate.rule?.includes('fake')) return '插件分数';
     return '策略分数';
@@ -277,6 +278,8 @@ function CandidatePopupItem({
 export default function DecisionProcessView({ process, players, logIdx }: DecisionProcessViewProps) {
   const [hoveredCandidates, setHoveredCandidates] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popIdRef = useRef<string | null>(null);
+  const manager = usePopManager();
 
   const allCandidates = process.candidates || [];
   const winnerActionStr = process.winner?.action || '';
@@ -311,6 +314,18 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
     }
   }
 
+  const handleTriggerLeave = () => {
+    const id = popIdRef.current;
+    console.log('[DecisionProcessView] triggerLeave, popId=', id, 'pinned=', id ? manager.isPinned(id) : 'n/a');
+    if (id && manager.isPinned(id)) return;
+    setHoveredCandidates(null);
+  };
+
+  const handleRegisterPop = (id: string) => {
+    console.log('[DecisionProcessView] registerPop', id);
+    popIdRef.current = id;
+  };
+
   return (
     <div className="space-y-0.5 text-xs text-gray-500 whitespace-pre-wrap font-mono">
       {/* 头部：意图状态等 */}
@@ -330,13 +345,15 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
             type="button"
             className="relative inline-block p-0 border-0 bg-transparent"
             onMouseEnter={() => setHoveredCandidates(logIdx)}
-            onMouseLeave={() => setHoveredCandidates(null)}
+            onMouseLeave={handleTriggerLeave}
           >
             <MoreHorizontal size={12} className="text-gray-500 hover:text-gray-300 cursor-pointer" />
             <PopOverlay
               triggerRef={triggerRef}
               visible={hoveredCandidates === logIdx}
               onClose={() => setHoveredCandidates(null)}
+              onMouseLeave={() => setHoveredCandidates(null)}
+              onRegisterPop={handleRegisterPop}
               title="所有候选行动（按分数排序）"
               zIndex={100}
               width={520}

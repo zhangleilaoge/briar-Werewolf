@@ -1,4 +1,3 @@
-import type { BeliefSystem } from '../belief-system';
 import type { Player } from '@/types';
 import type { SocialContext, MentalSimulation } from './types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -34,7 +33,6 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
   ): MentalSimulation {
     const sim: MentalSimulation = {
       action,
@@ -47,31 +45,31 @@ export class MentalSimulator {
 
     switch (action) {
       case ACTION.GUARANTEE:
-        this._simulateGuarantee(sim, target, socialContext, self, belief);
+        this._simulateGuarantee(sim, target, socialContext, self);
         break;
       case ACTION.ACCUSE:
-        this._simulateAccuse(sim, target, socialContext, self, belief);
+        this._simulateAccuse(sim, target, socialContext, self);
         break;
       case ACTION.DEFEND:
-        this._simulateDefend(sim, target, socialContext, self, belief);
+        this._simulateDefend(sim, target, socialContext, self);
         break;
       case ACTION.CALL_VOTE:
-        this._simulateCallVote(sim, target, socialContext, self, belief);
+        this._simulateCallVote(sim, target, socialContext, self);
         break;
       case ACTION.BLOCK_VOTE:
-        this._simulateBlockVote(sim, target, socialContext, self, belief);
+        this._simulateBlockVote(sim, target, socialContext, self);
         break;
       case ACTION.EXCLUDE_ALL:
-        this._simulateExcludeAll(sim, socialContext, self, belief);
+        this._simulateExcludeAll(sim, socialContext, self);
         break;
       case ACTION.CLAIM_IDENTITY:
-        this._simulateClaimIdentity(sim, socialContext, self, belief);
+        this._simulateClaimIdentity(sim, socialContext, self);
         break;
       case ACTION.SUSPECT:
-        this._simulateSuspect(sim, target, socialContext, self, belief);
+        this._simulateSuspect(sim, target, socialContext);
         break;
       case ACTION.SILENCE:
-        this._simulateSilence(sim, socialContext, self, belief);
+        this._simulateSilence(sim, socialContext, self);
         break;
     }
 
@@ -82,8 +80,7 @@ export class MentalSimulator {
     sim: MentalSimulation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -110,7 +107,7 @@ export class MentalSimulator {
       sim.exposureRisk = SIMULATION_EXPOSURE_RISK_VERY_LOW;
       sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_MEDIUM;
       
-      for (const [pid, _view] of socialContext.relationNetwork.myView) {
+      for (const [pid] of socialContext.relationNetwork.myView) {
         if (pid !== self.id && pid !== target) {
           sim.expectedReactions.set(pid, {
             reaction: '可能更信任我',
@@ -130,8 +127,7 @@ export class MentalSimulator {
     sim: MentalSimulation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -173,8 +169,7 @@ export class MentalSimulator {
     sim: MentalSimulation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -195,7 +190,7 @@ export class MentalSimulator {
       sim.exposureRisk = targetIsWerewolf ? SIMULATION_EXPOSURE_RISK_MEDIUM : SIMULATION_EXPOSURE_RISK_VERY_LOW;
       sim.goalAlignment = targetIsWerewolf ? SIMULATION_GOAL_ALIGNMENT_VERY_LOW : SIMULATION_GOAL_ALIGNMENT_MEDIUM;
 
-      for (const [pid, _view] of socialContext.relationNetwork.myView) {
+      for (const [pid] of socialContext.relationNetwork.myView) {
         if (pid !== self.id && pid !== target) {
           sim.expectedReactions.set(pid, {
             reaction: targetIsWerewolf ? '可能怀疑我' : '可能更信任我',
@@ -211,8 +206,7 @@ export class MentalSimulator {
     sim: MentalSimulation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -251,15 +245,14 @@ export class MentalSimulator {
     sim: MentalSimulation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
     sim.exposureRisk = SIMULATION_EXPOSURE_RISK_MEDIUM;
     sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_LOW;
 
-    for (const [pid, _view] of socialContext.relationNetwork.myView) {
+    for (const [pid] of socialContext.relationNetwork.myView) {
       if (pid !== self.id && pid !== target) {
         sim.expectedReactions.set(pid, {
           reaction: '可能怀疑我',
@@ -273,14 +266,13 @@ export class MentalSimulator {
   private _simulateExcludeAll(
     sim: MentalSimulation,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     sim.exposureRisk = SIMULATION_DEFAULT_EXPOSURE_RISK;
     sim.goalAlignment = SIMULATION_EXPOSURE_RISK_MEDIUM;
 
     // 搅浑水效果
-    for (const [pid, _view] of socialContext.relationNetwork.myView) {
+    for (const [pid] of socialContext.relationNetwork.myView) {
       if (pid !== self.id) {
         sim.expectedReactions.set(pid, {
           reaction: '可能混乱',
@@ -293,8 +285,7 @@ export class MentalSimulator {
   private _simulateClaimIdentity(
     sim: MentalSimulation,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     sim.exposureRisk = SIMULATION_DEFAULT_EXPOSURE_RISK;
     sim.goalAlignment = self.role === 'prophet' ? SIMULATION_GOAL_ALIGNMENT_MEDIUM : SIMULATION_DEFAULT_GOAL_ALIGNMENT;
@@ -322,9 +313,7 @@ export class MentalSimulator {
   private _simulateSuspect(
     sim: MentalSimulation,
     target: string | null,
-    socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    socialContext: SocialContext
   ): void {
     if (!target) return;
 
@@ -343,14 +332,13 @@ export class MentalSimulator {
   private _simulateSilence(
     sim: MentalSimulation,
     socialContext: SocialContext,
-    self: Player,
-    _belief: BeliefSystem
+    self: Player
   ): void {
     sim.exposureRisk = SIMULATION_EXPOSURE_RISK_VERY_LOW;
     sim.goalAlignment = SIMULATION_DEFAULT_GOAL_ALIGNMENT;
 
     // 沉默 = 不引起注意
-    for (const [pid, _view] of socialContext.relationNetwork.myView) {
+    for (const [pid] of socialContext.relationNetwork.myView) {
       if (pid !== self.id) {
         sim.expectedReactions.set(pid, {
           reaction: '可能忽略我',

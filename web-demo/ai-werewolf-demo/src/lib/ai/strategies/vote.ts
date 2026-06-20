@@ -24,7 +24,7 @@ export const CheckRevelationVoteStrategy: Strategy = {
       if (checkResult === 'werewolf') {
         const target = allPlayers.find((p) => p.id === targetId);
         if (target?.alive) {
-          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', targetId);
+          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
           const isTeammate = self.team === 'werewolf' && target.team === 'werewolf';
           const score = isTeammate
             ? -SCORE_PROPHET_VOTE_DUTY + scoreDelta
@@ -62,7 +62,7 @@ export const AllyProtectionVoteStrategy: Strategy = {
 
     const teammates = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team === self.team);
     teammates.forEach((teammate) => {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', teammate.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
       result.push({
         action: ACTION.VOTE,
         target: teammate.id,
@@ -99,7 +99,7 @@ export const MaxInfoVoteStrategy: Strategy = {
       if (self.team === 'werewolf') {
         baseScore = (1 - wolfProb) * SCORE_WEREWOLF_VOTE_DUTY;
       }
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
       result.push({
         action: ACTION.VOTE,
         target: target.id,
@@ -142,7 +142,7 @@ export const FollowCallVoteStrategy: Strategy = {
       const followScore = ((relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * SCORE_FOLLOW_CALL_VOTE;
 
       if (followScore > (SCORE_FOLLOW_CALL_VOTE / 2)) {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', call.targetId!);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
         result.push({
           action: ACTION.VOTE,
           target: call.targetId!,
@@ -182,7 +182,7 @@ export const SocialTieBreakerStrategy: Strategy = {
       } else {
         socialScore = ((relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER * 0.75);
       }
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
       result.push({
         action: ACTION.VOTE,
         target: target.id,
@@ -224,7 +224,7 @@ export const SurvivalVoteStrategy: Strategy = {
       }
 
       safeTargets.forEach((target) => {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote');
         result.push({
           action: ACTION.VOTE,
           target: target.id,

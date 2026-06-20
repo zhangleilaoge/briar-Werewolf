@@ -37,7 +37,7 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
       if (alreadyClaimed) continue;
 
       // 计算时机分数
-      const timing = calculateTimingScore(self, allPlayers, belief, voteRound || 1, publicActions, fakeState);
+      const timing = calculateTimingScore(self, allPlayers, belief, voteRound || 1, fakeState);
 
       // 阵营倾向修正
       const alignmentMod = getClaimIdentityAlignmentModifier(self.alignment, motivation.targetRole);
@@ -46,7 +46,7 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
       const baseScore = Math.floor((motivation.totalScore + timing.score) * 0.4);
 
       // 计算行为修正
-      const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, null, undefined, motivation.targetRole);
+      const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, undefined, motivation.targetRole);
 
       result.push({
         action: ACTION.CLAIM_IDENTITY,
@@ -83,7 +83,7 @@ export const RealProphetClaimStrategy: Strategy = {
     if (alreadyClaimed) return result;
 
     // 行为修正
-    const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, null, undefined, 'prophet');
+    const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, undefined, 'prophet');
 
     result.push({
       action: ACTION.CLAIM_IDENTITY,
@@ -123,7 +123,7 @@ export const RealHunterClaimStrategy: Strategy = {
     );
 
     if (fakeHunters.length > 0) {
-      const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, null, undefined, 'hunter');
+      const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, undefined, 'hunter');
 
       result.push({
         action: ACTION.CLAIM_IDENTITY,

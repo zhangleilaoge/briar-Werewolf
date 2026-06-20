@@ -7,7 +7,7 @@ import type { Player } from '@/types';
 
 import { IntentionType, type PlanStep } from './types';
 
-function _attackPlan(targetId: string | null, self: Player, _allPlayers: Player[]): PlanStep[] {
+function _attackPlan(targetId: string | null, self: Player): PlanStep[] {
   if (!targetId) return [];
   const steps: PlanStep[] = [];
   if (self.team === 'werewolf') {
@@ -28,7 +28,7 @@ function _attackPlan(targetId: string | null, self: Player, _allPlayers: Player[
   return steps;
 }
 
-function _defendPlan(targetId: string | null, _self: Player): PlanStep[] {
+function _defendPlan(targetId: string | null): PlanStep[] {
   if (!targetId) return [];
   return [
     { phase: 'day', action: ACTION.DEFEND, targetRequired: true },
@@ -100,7 +100,7 @@ function _recruitPlan(self: Player, allPlayers: Player[]): PlanStep[] {
   return [{ phase: 'day', action: ACTION.SILENCE, targetRequired: false }];
 }
 
-function _cutLossPlan(targetId: string | null, _self: Player): PlanStep[] {
+function _cutLossPlan(targetId: string | null): PlanStep[] {
   if (!targetId) return [];
   return [
     { phase: 'day', action: ACTION.SUSPECT, targetRequired: true },
@@ -128,9 +128,9 @@ export const PlanLibrary = {
   getPlan(intentionType: IntentionType, targetId: string | null, self: Player, allPlayers: Player[]): PlanStep[] {
     switch (intentionType) {
       case IntentionType.ATTACK:
-        return _attackPlan(targetId, self, allPlayers);
+        return _attackPlan(targetId, self);
       case IntentionType.DEFEND:
-        return _defendPlan(targetId, self);
+        return _defendPlan(targetId);
       case IntentionType.CONCEAL:
         return _concealPlan(self);
       case IntentionType.REVEAL:
@@ -142,7 +142,7 @@ export const PlanLibrary = {
       case IntentionType.RECRUIT:
         return _recruitPlan(self, allPlayers);
       case IntentionType.CUT_LOSS:
-        return _cutLossPlan(targetId, self);
+        return _cutLossPlan(targetId);
       case IntentionType.FOLLOW:
         return _followPlan(targetId);
       case IntentionType.SILENCE:

@@ -90,12 +90,12 @@ export class LoneWolfTraitPlugin implements TraitProvider {
     };
   }
   
-  getTraitActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getTraitActions(_player: Player, _context: ActionContext): ActionDefinition[] {
     // Lone wolf has no special actions, just modifies kill coordination
     return [];
   }
   
-  evaluate(context: DecisionContext): import('@/types').DecisionCandidate[] {
+  evaluate(_context: DecisionContext): import('@/types').DecisionCandidate[] {
     // Lone wolf doesn't need special AI evaluation
     // The regular werewolf kill strategy handles target selection
     return [];

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import type React from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 
 interface PopState {
   id: string;
@@ -22,7 +23,8 @@ export function PopProvider({ children }: { children: React.ReactNode }) {
   const [, forceUpdate] = useState(0);
 
   const registerPop = useCallback((id: string, element: HTMLElement | null) => {
-    popsRef.current.set(id, { id, pinned: false, element });
+    const existing = popsRef.current.get(id);
+    popsRef.current.set(id, { id, pinned: existing?.pinned ?? false, element });
   }, []);
 
   const unregisterPop = useCallback((id: string) => {
@@ -76,8 +78,10 @@ export function PopProvider({ children }: { children: React.ReactNode }) {
     };
   }, [getPopAtPoint, togglePin]);
 
+  const value = useMemo(() => ({ registerPop, unregisterPop, togglePin, isPinned, getPopAtPoint }), [registerPop, unregisterPop, togglePin, isPinned, getPopAtPoint]);
+
   return (
-    <PopManagerContext.Provider value={{ registerPop, unregisterPop, togglePin, isPinned, getPopAtPoint }}>
+    <PopManagerContext.Provider value={value}>
       {children}
     </PopManagerContext.Provider>
   );

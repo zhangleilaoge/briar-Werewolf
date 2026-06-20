@@ -1,7 +1,7 @@
 import { ACTION } from '@/lib/constants/action-constants';
 import {
   ACTION_VALUE_SIGNATURES,
-  calculateCapabilityMatch,
+  type calculateCapabilityMatch,
 } from '../mind';
 import type {
   MindFactorDetail,
@@ -184,10 +184,8 @@ export function buildCrisisDetail(
 // ========== 关系详情 ==========
 
 export function buildRelationDetail(
-  action: string,
   target: string | null,
   relationNetwork: RelationNetwork,
-  self: Player,
   allPlayers: Player[],
   relationFactor: number
 ): MindFactorDetail {

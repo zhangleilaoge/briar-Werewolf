@@ -74,7 +74,7 @@ export function calculateFakeIdentityMotivation(
   // 伪装猎人（仅当场上有猎人职业时才考虑）
   const hasHunter = allPlayers.some(p => p.role === 'hunter');
   if (hasHunter) {
-    const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, round, fakeState, isWolfAdvantage, myIdentityCrisis);
+    const hunterMotivation = calculateHunterMotivation(self, allPlayers, belief, myIdentityCrisis);
     if (hunterMotivation) motivations.push(hunterMotivation);
   }
 
@@ -145,7 +145,7 @@ function calculateProphetMotivation(
     timingScore,
     competitionScore,
     alignmentScore,
-    reason: buildProphetMotivationReason(baseScore, timingScore, competitionScore, alignmentScore, suspectsMe, isWolfAdvantage, fakeState),
+    reason: buildProphetMotivationReason(baseScore, timingScore, competitionScore, alignmentScore, suspectsMe, isWolfAdvantage),
   };
 }
 
@@ -153,9 +153,6 @@ function calculateHunterMotivation(
   self: Player,
   allPlayers: Player[],
   belief: BeliefSystem,
-  _round: number,
-  _fakeState: FakeIdentityState,
-  _isWolfAdvantage: boolean,
   myIdentityCrisis: number
 ): FakeIdentityMotivation | null {
   // 猎人伪装收益较低，主要用于混淆视听
@@ -196,8 +193,7 @@ function buildProphetMotivationReason(
   competitionScore: number,
   alignmentScore: number,
   suspectsMe: number,
-  isWolfAdvantage: boolean,
-  _fakeState: FakeIdentityState
+  isWolfAdvantage: boolean
 ): string {
   const reasons: string[] = [];
   if (suspectsMe >= 2) reasons.push(`被${suspectsMe}人怀疑`);
@@ -227,7 +223,6 @@ export interface ConsistencyCheckResult {
 export function checkFakeIdentityConsistency(
   impersonator: Player,
   fakeIdentity: FakeIdentity,
-  allPlayers: Player[],
   publicActions: { actorId: string; type: string; targetId?: string }[]
 ): ConsistencyCheckResult {
   const violations: string[] = [];
@@ -295,7 +290,6 @@ export function calculateTimingScore(
   allPlayers: Player[],
   belief: BeliefSystem,
   round: number,
-  publicActions: { actorId: string; type: string; targetId?: string }[],
   fakeState: FakeIdentityState
 ): TimingScore {
   let score = 0;

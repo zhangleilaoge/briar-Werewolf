@@ -24,9 +24,6 @@ import {
   SOCIAL_BONUS_CALL_VOTE_LEADER,
   SOCIAL_BONUS_OBSERVE_RICH_INFO,
 } from '@/lib/constants/mind';
-import type { Player } from '@/types';
-import type { RelationNetwork } from '../mind/types';
-
 // ========== 危机因子 ==========
 
 export function calculateCrisisFactor(
@@ -62,8 +59,7 @@ export function calculateCrisisFactor(
 export function calculateRelationFactor(
   action: string,
   target: string | null,
-  relationNetwork: { myView: Map<string, { trust: number; inferredTeam: 'werewolf' | 'villager' | 'unknown'; confidence: number }> },
-  self: Player
+  relationNetwork: { myView: Map<string, { trust: number; inferredTeam: 'werewolf' | 'villager' | 'unknown'; confidence: number }> }
 ): number {
   if (!target) return RELATION_FACTOR_DEFAULT;
 
@@ -89,7 +85,6 @@ export function calculateRelationFactor(
 
 export function calculateSocialContextBonus(
   action: string,
-  target: string | null,
   socialContext: { situation: { tensionLevel: number; myPosition: string; informationRichness: number } }
 ): number {
   let bonus = 1.0;

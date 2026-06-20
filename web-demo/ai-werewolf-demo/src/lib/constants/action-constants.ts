@@ -69,41 +69,7 @@ export type ReactionActionType = typeof REACTION_ACTION[keyof typeof REACTION_AC
 
 export type ActionType = DayActionType | NightActionType | VoteActionType | ReactionActionType;
 
-// 意图类型常量
-export const INTENTION = {
-  ATTACK: 'attack',
-  RECRUIT: 'recruit',
-  PROTECT: 'protect',
-  REVEAL: 'reveal',
-  INVESTIGATE: 'investigate',
-  COORDINATE: 'coordinate',
-  SURVIVE: 'survive',
-  CONCEAL: 'conceal',
-} as const;
-
-export type IntentionType = typeof INTENTION[keyof typeof INTENTION];
-
-// 意图来源常量
-export const INTENTION_SOURCE = {
-  TEAM_DUTY: 'team_duty',
-  PERSONAL_GOAL: 'personal_goal',
-  CRISIS: 'crisis',
-  STRATEGIC: 'strategic',
-  EXTERNAL: 'external',
-  ROLE_DUTY: 'role_duty',
-  BUS: 'bus',
-} as const;
-
-export type IntentionSource = typeof INTENTION_SOURCE[keyof typeof INTENTION_SOURCE];
-
-// 承诺等级
-export const COMMITMENT_LEVEL = {
-  WEAK: 'weak',
-  MEDIUM: 'medium',
-  STRONG: 'strong',
-} as const;
-
-export type CommitmentLevel = typeof COMMITMENT_LEVEL[keyof typeof COMMITMENT_LEVEL];
+// 承诺等级（从 intention/types.ts 统一导出）
 
 // 模式
 export const GAME_MODE = {

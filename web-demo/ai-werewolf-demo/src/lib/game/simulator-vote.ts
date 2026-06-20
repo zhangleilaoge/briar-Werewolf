@@ -74,7 +74,7 @@ export function resolveVotesRound1(sim: GameSimulator) {
   resolveVotesRound(sim, 1, true, '第一轮');
 }
 
-export function resolveVotesRound2(sim: GameSimulator, _candidates: string[]) {
+export function resolveVotesRound2(sim: GameSimulator) {
   resolveVotesRound(sim, 2, false, '第二轮');
 }
 

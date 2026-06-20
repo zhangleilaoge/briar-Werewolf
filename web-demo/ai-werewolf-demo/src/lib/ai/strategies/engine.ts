@@ -1,6 +1,5 @@
 import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate, DecisionResult, EnrichedCandidate } from '@/types';
-import { getAlignmentBehaviorModifier, getStressBehaviorModifier, getRelationTargetModifier } from '../behavior-modifiers';
 import { filterByHardConstraints, type IntentionContext, explainIntention, generateDesireProfile, type IntentionManager } from '../intention-system';
 import {
   SocialContextBuilder,
@@ -176,13 +175,13 @@ export class DecisionEngine {
       const target = c.target;
 
       const valueAlignment = calculateValueAlignment(c.action, valueSystem);
-      const timing = timingEvaluator.evaluate(c.action, target, socialContext, self, belief);
+      const timing = timingEvaluator.evaluate(c.action, target, socialContext, self);
       const timingScore = calculateTimingScore(timing);
-      const simulation = mentalSimulator.simulate(c.action, target, socialContext, self, belief);
+      const simulation = mentalSimulator.simulate(c.action, target, socialContext, self);
       const simulationScore = calculateSimulationScore(simulation);
       const crisisFactor = calculateCrisisFactor(c.action, socialContext.identityCrisis);
-      const relationFactor = calculateRelationFactor(c.action, target, socialContext.relationNetwork, self);
-      const socialContextBonus = calculateSocialContextBonus(c.action, target, socialContext);
+      const relationFactor = calculateRelationFactor(c.action, target, socialContext.relationNetwork);
+      const socialContextBonus = calculateSocialContextBonus(c.action, socialContext);
       const capabilityMatch = calculateCapabilityMatch(c.action, self);
       const capabilityFactor = calculateCapabilityFactor(c.action, self);
 
@@ -208,7 +207,7 @@ export class DecisionEngine {
         crisisFactor,
         crisisDetail: buildCrisisDetail(c.action, socialContext.identityCrisis, crisisFactor),
         relationFactor,
-        relationDetail: buildRelationDetail(c.action, target, socialContext.relationNetwork, self, allPlayers, relationFactor),
+        relationDetail: buildRelationDetail(target, socialContext.relationNetwork, allPlayers, relationFactor),
         socialContextBonus,
         socialContextDetail: buildSocialContextDetail(c.action, socialContext, socialContextBonus),
         capabilityFactor,
@@ -226,7 +225,7 @@ export class DecisionEngine {
     };
     const { allowed, blocked } = filterByHardConstraints(enrichedCandidates, intentionContext);
     const desire = generateDesireProfile(self, belief, allPlayers);
-    const intentionExplanation = explainIntention(desire, blocked, allPlayers);
+    const intentionExplanation = explainIntention(desire);
 
     const effectiveCandidates = allowed;
 

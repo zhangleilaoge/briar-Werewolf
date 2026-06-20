@@ -57,7 +57,7 @@ export class AIAgent {
   nightAction(allPlayers: Player[], nightDecisions: { playerId: string; action: string; targetId: string | null; reason: string }[]): DecisionResult | null {
     if (!this.player?.alive) return null;
     const availableActions = this._getAvailableNightActions();
-    this.belief.updateInferences(allPlayers, this.player, []);
+    this.belief.updateInferences(allPlayers, []);
     
     // === 意图系统更新 ===
     this.intentionManager.update(this.player, this.belief, allPlayers, this.currentRound);
@@ -95,10 +95,10 @@ export class AIAgent {
 
   dayAction(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string; details?: Record<string, unknown> }[], consecutiveSilence: number, aliveCount: number): DecisionResult | null {
     if (!this.player?.alive) return null;
-    this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this.belief.updateTheoryOfMind(allPlayers, publicActions || []);
     this._checkAndLogIdentityCrisisChange(publicActions || [], 'day');
     const availableActions = this._getAvailableDayActions();
-    this.belief.updateInferences(allPlayers, this.player, publicActions);
+    this.belief.updateInferences(allPlayers, publicActions);
     
     // === 意图系统更新 ===
     this.intentionManager.update(this.player, this.belief, allPlayers, this.currentRound, publicActions || []);
@@ -113,7 +113,7 @@ export class AIAgent {
     if (!this.player?.alive) return null;
     const availableActions = this._getAvailableAppendixActions(triggerAction);
     if (availableActions.length === 0) return null;
-    this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this.belief.updateTheoryOfMind(allPlayers, publicActions || []);
     this._checkAndLogIdentityCrisisChange(publicActions || [], 'appendix');
     
     const decision = this.engine.decide(this.belief, this.player, 'appendix', availableActions, allPlayers, [], publicActions, 0, 0, 1, undefined, undefined, this.intentionManager);
@@ -124,10 +124,10 @@ export class AIAgent {
 
   vote(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], voteRound: number = 1): DecisionResult | null {
     if (!this.player?.alive) return null;
-    this.belief.updateTheoryOfMind(allPlayers, publicActions || [], this.player);
+    this.belief.updateTheoryOfMind(allPlayers, publicActions || []);
     this._checkAndLogIdentityCrisisChange(publicActions || [], 'vote');
     const availableActions = [{ type: ACTION.VOTE }];
-    this.belief.updateInferences(allPlayers, this.player, publicActions);
+    this.belief.updateInferences(allPlayers, publicActions);
     
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, voteRound, undefined, undefined, this.intentionManager);
     this._log('vote', `投票：${decision.target || '无目标'}，原因：${decision.reason}`);
@@ -138,7 +138,7 @@ export class AIAgent {
   voteRound2(allPlayers: Player[], publicActions: { actorId: string; type: string; targetId?: string }[], candidates: string[]): DecisionResult | null {
     if (!this.player?.alive) return null;
     const availableActions = [{ type: ACTION.VOTE }];
-    this.belief.updateInferences(allPlayers, this.player, publicActions);
+    this.belief.updateInferences(allPlayers, publicActions);
     
     const decision = this.engine.decide(this.belief, this.player, 'vote', availableActions, allPlayers, [], publicActions, 0, 0, 2, candidates, undefined, this.intentionManager);
     this._log('vote', `第二轮投票：${decision.target || '无目标'}，原因：${decision.reason}`);

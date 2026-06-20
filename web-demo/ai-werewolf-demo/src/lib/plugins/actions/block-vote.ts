@@ -75,7 +75,7 @@ export class BlockVotePlugin implements ActionProvider {
       const lowSuspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) < BELIEF_VERY_LOW_SUSPICION_THRESHOLD);
       lowSuspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BLOCK_VOTE, target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BLOCK_VOTE);
         result.push({
           action: ACTION.BLOCK_VOTE,
           target: target.id,
@@ -93,7 +93,7 @@ export class BlockVotePlugin implements ActionProvider {
     if (self.team === 'werewolf') {
       const wolfTeammates = allPlayers.filter(p => p.id !== self.id && p.alive && p.team === 'werewolf');
       wolfTeammates.forEach(target => {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BLOCK_VOTE, target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BLOCK_VOTE);
         result.push({
           action: ACTION.BLOCK_VOTE,
           target: target.id,

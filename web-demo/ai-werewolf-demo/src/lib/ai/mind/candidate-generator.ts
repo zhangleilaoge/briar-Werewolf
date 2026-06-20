@@ -2,6 +2,26 @@ import type { BeliefSystem } from '../belief-system';
 import type { Player, DecisionCandidate } from '@/types';
 import type { SocialContext, ValueSystem } from './types';
 import { ACTION } from '@/lib/constants/action-constants';
+
+/** L0 事实内容类型 */
+interface ActionContent {
+  type: string;
+  actorId: string;
+  targetId?: string;
+}
+
+interface CheckContent {
+  result: 'werewolf' | 'villager';
+  targetId: string;
+}
+
+function isActionContent(content: Record<string, unknown>): content is ActionContent {
+  return typeof content.type === 'string' && typeof content.actorId === 'string';
+}
+
+function isCheckContent(content: Record<string, unknown>): content is CheckContent {
+  return typeof content.result === 'string' && typeof content.targetId === 'string';
+}
 import {
   INTENTION_BASE_SCORE_SELF_PRESERVATION,
   INTENTION_BASE_SCORE_INFORMATION,
@@ -36,44 +56,41 @@ export class CandidateGenerator {
     const candidates: DecisionCandidate[] = [];
 
     // 1. 自我保护意图（高优先级）
-    candidates.push(...this._generateSelfPreservation(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateSelfPreservation(socialContext, self, belief));
 
     // 2. 信息收集意图
-    candidates.push(...this._generateInformationGathering(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateInformationGathering(socialContext, self, allPlayers, isWerewolf));
 
     // 3. 社交操控意图
-    candidates.push(...this._generateSocialManipulation(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateSocialManipulation(socialContext, valueSystem, self, allPlayers, belief));
 
     // 4. 攻击/怀疑意图
-    candidates.push(...this._generateAttack(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateAttack(self, allPlayers, belief));
 
     // 5. 保护/支持意图
-    candidates.push(...this._generateProtection(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateProtection(socialContext, self, allPlayers, belief));
 
     // 6. 沉默/观察意图（默认）
-    candidates.push(...this._generateDefault(socialContext, valueSystem, self, allPlayers, belief, isWerewolf));
+    candidates.push(...this._generateDefault(self, allPlayers));
 
     return candidates;
   }
 
   private _generateSelfPreservation(
     socialContext: SocialContext,
-    valueSystem: ValueSystem,
     self: Player,
-    allPlayers: Player[],
-    belief: BeliefSystem,
-    isWerewolf?: boolean
+    belief: BeliefSystem
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
 
     // 被攻击时：反驳、自辩
     const attacksOnMe = socialContext.informationState.knownFacts
-      .filter(f => f.type === 'action' && (f.content as any)?.targetId === self.id
-        && ((f.content as any)?.type === ACTION.SUSPECT || (f.content as any)?.type === ACTION.ACCUSE));
+      .filter(f => f.type === 'action' && isActionContent(f.content) && f.content.targetId === self.id
+        && (f.content.type === ACTION.SUSPECT || f.content.type === ACTION.ACCUSE));
 
     if (attacksOnMe.length > 0) {
       const attacker = attacksOnMe[0];
-      const attackerId = (attacker.content as any)?.actorId;
+      const attackerId = isActionContent(attacker.content) ? attacker.content.actorId : undefined;
 
       // 反驳规则（无条件执行）
       candidates.push({
@@ -119,10 +136,8 @@ export class CandidateGenerator {
 
   private _generateInformationGathering(
     socialContext: SocialContext,
-    valueSystem: ValueSystem,
     self: Player,
     allPlayers: Player[],
-    belief: BeliefSystem,
     isWerewolf?: boolean
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
@@ -158,10 +173,10 @@ export class CandidateGenerator {
 
     // 有信息缺口时：公开信息（如果验到狼人）
     const knownChecks = socialContext.informationState.knownFacts
-      .filter(f => f.type === 'check' && (f.content as any)?.result === 'werewolf');
+      .filter(f => f.type === 'check' && isCheckContent(f.content) && f.content.result === 'werewolf');
 
     for (const check of knownChecks) {
-      const targetId = (check.content as any)?.targetId;
+      const targetId = isCheckContent(check.content) ? check.content.targetId : undefined;
       const target = allPlayers.find(p => p.id === targetId);
       if (target?.alive) {
         // 狼人验到狼人时不会公开，村民会公开
@@ -188,8 +203,7 @@ export class CandidateGenerator {
     valueSystem: ValueSystem,
     self: Player,
     allPlayers: Player[],
-    belief: BeliefSystem,
-    isWerewolf?: boolean
+    belief: BeliefSystem
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
 
@@ -242,12 +256,9 @@ export class CandidateGenerator {
   }
 
   private _generateAttack(
-    socialContext: SocialContext,
-    valueSystem: ValueSystem,
     self: Player,
     allPlayers: Player[],
-    belief: BeliefSystem,
-    isWerewolf?: boolean
+    belief: BeliefSystem
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
 
@@ -296,11 +307,9 @@ export class CandidateGenerator {
 
   private _generateProtection(
     socialContext: SocialContext,
-    valueSystem: ValueSystem,
     self: Player,
     allPlayers: Player[],
-    belief: BeliefSystem,
-    isWerewolf?: boolean
+    belief: BeliefSystem
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
 
@@ -310,8 +319,8 @@ export class CandidateGenerator {
       if (self.team === 'werewolf' && player.team === 'werewolf') continue;
 
       const attacksOnPlayer = socialContext.informationState.knownFacts
-        .filter(f => f.type === 'action' && (f.content as any)?.targetId === player.id
-          && ((f.content as any)?.type === ACTION.SUSPECT || (f.content as any)?.type === ACTION.ACCUSE));
+        .filter(f => f.type === 'action' && isActionContent(f.content) && f.content.targetId === player.id
+          && (f.content.type === ACTION.SUSPECT || f.content.type === ACTION.ACCUSE));
 
       const protectionRule = {
         condition: () => attacksOnPlayer.length >= ATTACK_COUNT_THRESHOLD,
@@ -340,12 +349,8 @@ export class CandidateGenerator {
   }
 
   private _generateDefault(
-    socialContext: SocialContext,
-    valueSystem: ValueSystem,
     self: Player,
-    allPlayers: Player[],
-    belief: BeliefSystem,
-    isWerewolf?: boolean
+    allPlayers: Player[]
   ): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
 

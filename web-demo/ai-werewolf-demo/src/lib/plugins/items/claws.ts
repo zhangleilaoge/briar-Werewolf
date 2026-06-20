@@ -33,7 +33,7 @@ export class ClawsPlugin implements ActionProvider {
   id = 'claws';
   type = 'item' as const;
   
-  getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getAvailableActions(player: Player, _context: ActionContext): ActionDefinition[] {
     // Only werewolves with claws can kill
     if (player.team !== 'werewolf' || !hasItem(player, 'claws')) {
       return [];
@@ -87,7 +87,7 @@ export class ClawsPlugin implements ActionProvider {
       const teammateTarget = otherWolfDecisions[0].targetId;
       if (teammateTarget) {
         const teammate = allPlayers.find((p) => p.id === otherWolfDecisions[0].playerId);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, teammateTarget);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL);
         result.push({
           action: ACTION.KILL,
           target: teammateTarget,
@@ -112,7 +112,7 @@ export class ClawsPlugin implements ActionProvider {
       if (belief.getWerewolfProbability(target.id) < WEREWOLF_PROBABILITY_LOW) score += SCORE_WEREWOLF_KILL_GOD_BONUS / 3;
       
       const relation = self.relations[target.id];
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, target.id, relation);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, relation);
 
       result.push({
         action: ACTION.KILL,
@@ -136,7 +136,7 @@ export class ClawsPlugin implements ActionProvider {
     
     // Empty-kill option
     if (aliveTargets.length > 0 && Math.random() < EMPTY_KILL_CHANCE) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL, null);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.KILL);
       result.push({
         action: ACTION.KILL,
         target: null,

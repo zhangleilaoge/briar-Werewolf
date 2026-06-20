@@ -29,7 +29,7 @@ export class CrystalBallPlugin implements ActionProvider {
   id = 'crystal_ball';
   type = 'item' as const;
   
-  getAvailableActions(player: Player, context: ActionContext): ActionDefinition[] {
+  getAvailableActions(player: Player, _context: ActionContext): ActionDefinition[] {
     // Anyone with crystal ball can check
     if (!hasItem(player, 'crystal_ball')) {
       return [];
@@ -107,7 +107,7 @@ export class CrystalBallPlugin implements ActionProvider {
       if (belief.l0Facts?.checks[target.id] !== undefined) return;
       
       const wolfProb = belief.getWerewolfProbability(target.id);
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK);
       
       result.push({
         action: ACTION.CHECK,
@@ -126,7 +126,7 @@ export class CrystalBallPlugin implements ActionProvider {
       const unchecked = alivePlayers.filter((p) => belief.l0Facts?.checks[p.id] === undefined);
       if (unchecked.length > 0) {
         const random = unchecked[Math.floor(Math.random() * unchecked.length)];
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK, random.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CHECK);
         
         result.push({
           action: ACTION.CHECK,

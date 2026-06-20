@@ -28,6 +28,19 @@ export const TRUST_SCORE_MAX = 10;                     // 信任分数最大值
 // 意图系统
 export const INTENTION_STRENGTH_BASE = 500;            // 意图强度基础值
 export const INTENTION_STRENGTH_PROB_FACTOR = 300;     // 意图强度概率因子
+export const INTENTION_STRENGTH_REVEAL_HIGH_CRISIS = 300;    // 预言家高危机时公布强度
+export const INTENTION_STRENGTH_REVEAL_MED_CRISIS = 700;     // 预言家中危机时公布强度
+export const INTENTION_STRENGTH_REVEAL_LOW_CRISIS = 1000;    // 预言家低危机时公布强度
+export const INTENTION_STRENGTH_CUT_LOSS = 700;              // 切割止损强度
+export const INTENTION_STRENGTH_SURVIVE = 800;               // 生存自保强度
+export const INTENTION_STRENGTH_DEFEND_VILLAGER = 600;       // 村民自证清白基础强度
+export const INTENTION_STRENGTH_DEFEND_VILLAGER_FACTOR = 200; // 村民自证清白危机因子
+export const INTENTION_STRENGTH_RECRUIT = 300;               // 建立信任基础强度
+export const INTENTION_STRENGTH_RECRUIT_FACTOR = 30;         // 建立信任领导力因子
+export const INTENTION_STRENGTH_DEFEND_REACTION = 400;       // 被攻击时自保强度
+export const INTENTION_STRENGTH_ATTACK_REACTION = 350;       // 被攻击时反击强度
+export const INTENTION_STRENGTH_ATTACK_SUSPECT_FACTOR = 100; // 攻击嫌疑目标概率因子
+export const INTENTION_STRENGTH_ATTACK_VILLAGER_FACTOR = 300; // 攻击村民概率因子
 
 // 意图系统：寿命常量
 export const INTENTION_LIFETIME_ROLE_DUTY = -1;        // 永久（角色义务）

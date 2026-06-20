@@ -220,7 +220,6 @@ export function getRelationTargetModifier(
 export function calculateBehaviorScoreDelta(
   player: Player,
   action: string,
-  _targetId: string | null,
   relation?: Relation,
   claimedRole?: string
 ): { scoreDelta: number; reason: string } {

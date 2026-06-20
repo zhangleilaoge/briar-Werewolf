@@ -83,7 +83,7 @@ export class SuspectPlugin implements ActionProvider {
       potentialTargets.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
         if (wolfProb < BELIEF_HIGH_SUSPICION_THRESHOLD) {
-          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT, target.id);
+          const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT);
           result.push({
             action: ACTION.SUSPECT,
             target: target.id,
@@ -103,7 +103,7 @@ export class SuspectPlugin implements ActionProvider {
       const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > BELIEF_HIGH_SUSPICION_THRESHOLD);
       suspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT, target.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT);
         result.push({
           action: ACTION.SUSPECT,
           target: target.id,

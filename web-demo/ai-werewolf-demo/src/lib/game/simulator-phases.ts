@@ -1,5 +1,5 @@
 import type { GameSimulator, PublicActionRecord, GameEvent, PlayerActor } from './simulator-core';
-import type { Phase, Player, DecisionProcess } from '@/types';
+import type { Phase, Player, } from '@/types';
 import { ROLE_INFO } from '@/types';
 import { log, } from './simulator-utils';
 import { runDayAction } from './simulator-day';
@@ -222,7 +222,7 @@ export class DayPhaseController extends TickPhase {
     const player = sim.players.find((p) => p.id === playerId);
     if (!player?.alive || playerId === triggerAction.actorId) return;
 
-    runAppendixAction(sim, playerId, triggerAction, (triggerAction.details as Record<string, unknown>)?.process as DecisionProcess | undefined);
+    runAppendixAction(sim, playerId, triggerAction);
 
     sim.consecutiveSilenceCount = 0;
     this.silenceCount = 0;
@@ -359,7 +359,7 @@ export class VotePhaseController extends TickPhase {
     if (!allVoted) return true;
 
     if (this.round2Candidates) {
-      resolveVotesRound2(sim, this.round2Candidates);
+      resolveVotesRound2(sim);
       debugLog('[消息中心] 🗳️ 投票结束 (Round 2)');
       return false;
     } else {

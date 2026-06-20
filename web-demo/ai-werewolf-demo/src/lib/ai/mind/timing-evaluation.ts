@@ -1,4 +1,3 @@
-import type { BeliefSystem } from '../belief-system';
 import type { Player } from '@/types';
 import type { SocialContext, TimingEvaluation } from './types';
 import { ACTION } from '@/lib/constants/action-constants';
@@ -37,8 +36,7 @@ export class TimingEvaluator {
     action: string,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    self: Player
   ): TimingEvaluation {
     const timing: TimingEvaluation = {
       urgency: TIMING_DEFAULT_SCORE,
@@ -51,30 +49,30 @@ export class TimingEvaluator {
     // 根据行动类型评估时机
     switch (action) {
       case ACTION.CLAIM_IDENTITY:
-        this._evaluateClaimIdentity(timing, socialContext, self, belief);
+        this._evaluateClaimIdentity(timing, socialContext, self);
         break;
       case ACTION.ACCUSE:
       case ACTION.SUSPECT:
-        this._evaluateAccusation(timing, action, target, socialContext, self, belief);
+        this._evaluateAccusation(timing, target, socialContext);
         break;
       case ACTION.CALL_VOTE:
-        this._evaluateCallVote(timing, target, socialContext, self, belief);
+        this._evaluateCallVote(timing, target, socialContext, self);
         break;
       case ACTION.DEFEND:
       case ACTION.GUARANTEE:
-        this._evaluateDefense(timing, action, target, socialContext, self, belief);
+        this._evaluateDefense(timing, target, socialContext, self);
         break;
       case ACTION.BLOCK_VOTE:
-        this._evaluateBlockVote(timing, target, socialContext, self, belief);
+        this._evaluateBlockVote(timing, target, socialContext);
         break;
       case ACTION.EXCLUDE_ALL:
-        this._evaluateExcludeAll(timing, socialContext, self, belief);
+        this._evaluateExcludeAll(timing, socialContext);
         break;
       case ACTION.SILENCE:
-        this._evaluateSilence(timing, socialContext, self, belief);
+        this._evaluateSilence(timing, socialContext);
         break;
       case ACTION.REBUT:
-        this._evaluateRebut(timing, socialContext, self, belief);
+        this._evaluateRebut(timing, socialContext, self);
         break;
     }
 
@@ -84,8 +82,7 @@ export class TimingEvaluator {
   private _evaluateClaimIdentity(
     timing: TimingEvaluation,
     socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    self: Player
   ): void {
     const { round } = socialContext.situation;
     
@@ -121,11 +118,8 @@ export class TimingEvaluator {
 
   private _evaluateAccusation(
     timing: TimingEvaluation,
-    action: string,
     target: string | null,
-    socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    socialContext: SocialContext
   ): void {
     if (!target) return;
 
@@ -159,8 +153,7 @@ export class TimingEvaluator {
     timing: TimingEvaluation,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -190,11 +183,9 @@ export class TimingEvaluator {
 
   private _evaluateDefense(
     timing: TimingEvaluation,
-    action: string,
     target: string | null,
     socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    self: Player
   ): void {
     if (!target) return;
 
@@ -228,9 +219,7 @@ export class TimingEvaluator {
   private _evaluateBlockVote(
     timing: TimingEvaluation,
     target: string | null,
-    socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    socialContext: SocialContext
   ): void {
     if (!target) return;
 
@@ -256,9 +245,7 @@ export class TimingEvaluator {
 
   private _evaluateExcludeAll(
     timing: TimingEvaluation,
-    socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    socialContext: SocialContext
   ): void {
     // 紧迫性：某身份有多人自称 → 紧迫
     const claims = socialContext.informationState.knownFacts
@@ -288,9 +275,7 @@ export class TimingEvaluator {
 
   private _evaluateSilence(
     timing: TimingEvaluation,
-    socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    socialContext: SocialContext
   ): void {
     // 紧迫性：场面紧张时，沉默可能不好
     timing.urgency = socialContext.situation.tensionLevel > TENSION_THRESHOLD_HIGH ? TIMING_RISK_LOW : PROB_THRESHOLD_MEDIUM;
@@ -311,8 +296,7 @@ export class TimingEvaluator {
   private _evaluateRebut(
     timing: TimingEvaluation,
     socialContext: SocialContext,
-    self: Player,
-    belief: BeliefSystem
+    self: Player
   ): void {
     // 紧迫性：被攻击时，必须反驳
     const attacksOnMe = socialContext.informationState.knownFacts

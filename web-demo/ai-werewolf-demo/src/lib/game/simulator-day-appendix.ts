@@ -8,7 +8,7 @@
  */
 
 import type { GameSimulator, PublicActionRecord } from './simulator-core';
-import type { ActionType, DecisionProcess } from '@/types';
+import type { ActionType } from '@/types';
 import { performCheck, performOpposedCheck, calculateModifierBreakdown } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import {
@@ -27,7 +27,7 @@ export function openAppendixWindow(sim: GameSimulator, triggerAction: PublicActi
   });
 }
 
-export function runAppendixAction(sim: GameSimulator, playerId: string, triggerAction: PublicActionRecord, _process?: DecisionProcess) {
+export function runAppendixAction(sim: GameSimulator, playerId: string, triggerAction: PublicActionRecord) {
   const player = sim.players.find((p) => p.id === playerId);
   if (!player?.alive) return;
 

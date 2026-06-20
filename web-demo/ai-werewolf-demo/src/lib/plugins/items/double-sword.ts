@@ -150,7 +150,7 @@ export class DoubleSwordPlugin implements ActionProvider {
       if (isHighThreat) score += 20;
       if (isLikelyVillager) score += 10;
       
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BERSERKER_KILL, target.id);
+      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BERSERKER_KILL);
       
       result.push({
         action: ACTION.BERSERKER_KILL,

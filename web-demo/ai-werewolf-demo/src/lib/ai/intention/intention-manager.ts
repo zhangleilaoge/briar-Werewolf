@@ -40,17 +40,17 @@ export class IntentionManager {
 
     // 2. 从愿望生成新意图候选（模式影响欲望强度）
     const desireProfile = generateDesireProfile(self, belief, allPlayers);
-    const desires = this._desireEngine.generateDesires(self, belief, allPlayers, round, desireProfile.mode);
+    const desires = this._desireEngine.generateDesires(self, belief, allPlayers, desireProfile.mode);
     const newIntentions = this._desiresToIntentions(desires, round, self, allPlayers);
 
     // 3. 合并意图栈，处理冲突
     for (const newInt of newIntentions) {
-      this._mergeIntention(newInt, self, belief, allPlayers);
+      this._mergeIntention(newInt, self, allPlayers);
     }
 
     // 4. 根据外部事件调整意图（如被攻击、被号召投票）
     if (publicActions) {
-      this._reactToEvents(publicActions, self, belief, allPlayers);
+      this._reactToEvents(publicActions, self, allPlayers);
     }
 
     // 5. 排序：按优先级和承诺
@@ -242,7 +242,7 @@ export class IntentionManager {
     }
   }
 
-  private _mergeIntention(newInt: Intention, self: Player, belief: BeliefSystem, allPlayers: Player[]) {
+  private _mergeIntention(newInt: Intention, self: Player, allPlayers: Player[]) {
     // 检查是否已有相同类型+目标的意图
     const existing = this.intentions.find((i) => i.type === newInt.type && i.targetId === newInt.targetId && !i.abandoned);
     if (existing) {
@@ -259,7 +259,7 @@ export class IntentionManager {
     }
 
     // 冲突检测：检查是否有冲突的意图
-    const conflicts = this.intentions.filter((i) => !i.abandoned && this._intentionsConflict(i, newInt, self, belief, allPlayers));
+    const conflicts = this.intentions.filter((i) => !i.abandoned && this._intentionsConflict(i, newInt, self, allPlayers));
     if (conflicts.length > 0) {
       // 冲突消解：按来源优先级 + 承诺级别决定
       for (const conflict of conflicts) {
@@ -276,7 +276,7 @@ export class IntentionManager {
     this.intentions.push(newInt);
   }
 
-  private _intentionsConflict(a: Intention, b: Intention, self: Player, _belief: BeliefSystem, allPlayers: Player[]): boolean {
+  private _intentionsConflict(a: Intention, b: Intention, self: Player, allPlayers: Player[]): boolean {
     // 同类型不同目标：冲突（如同时攻击两个不同的人）
     if (a.type === b.type && a.targetId !== b.targetId && a.targetId && b.targetId) {
       // 但 CUT_LOSS 和 ATTACK 不冲突（Bus队友同时攻击村民）
@@ -335,7 +335,6 @@ export class IntentionManager {
   private _reactToEvents(
     publicActions: { actorId: string; type: string; targetId?: string }[],
     self: Player,
-    _belief: BeliefSystem,
     allPlayers: Player[]
   ) {
     // 被号召投票时，生成 FOLLOW 意图
@@ -362,7 +361,7 @@ export class IntentionManager {
             active: true,
             executionHistory: [],
           };
-          this._mergeIntention(defendIntention, self, _belief, allPlayers);
+          this._mergeIntention(defendIntention, self, allPlayers);
         }
       }
     }

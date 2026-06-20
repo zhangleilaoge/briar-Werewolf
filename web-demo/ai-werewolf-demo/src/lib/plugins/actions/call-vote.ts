@@ -76,7 +76,7 @@ export class CallVotePlugin implements ActionProvider {
         .sort((a, b) => belief.getWerewolfProbability(b.id) - belief.getWerewolfProbability(a.id))[0];
 
       if (topSuspect) {
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CALL_VOTE, topSuspect.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CALL_VOTE);
         result.push({
           action: ACTION.CALL_VOTE,
           target: topSuspect.id,
@@ -98,7 +98,7 @@ export class CallVotePlugin implements ActionProvider {
 
       if (topSuspect) {
         const wolfProb = belief.getWerewolfProbability(topSuspect.id);
-        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CALL_VOTE, topSuspect.id);
+        const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.CALL_VOTE);
         result.push({
           action: ACTION.CALL_VOTE,
           target: topSuspect.id,
