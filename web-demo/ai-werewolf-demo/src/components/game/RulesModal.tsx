@@ -393,7 +393,7 @@ function AITab() {
   );
 }
 
-const TAB_CONTENT: Record<TabId, () => JSX.Element> = {
+const TAB_CONTENT: Record<TabId, () => React.JSX.Element> = {
   overview: OverviewTab,
   roles: RolesTab,
   items: ItemsTab,

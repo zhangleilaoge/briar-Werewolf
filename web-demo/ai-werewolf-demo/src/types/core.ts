@@ -48,7 +48,7 @@ export interface ItemDefinition {
 export interface ItemInstance { definitionId: string; durability: number }
 
 // ---------- Roles (职业) ----------
-export type Role = 'werewolf' | 'lone_wolf' | 'berserker' | 'villager' | 'prophet' | 'thief' | 'coroner';
+export type Role = 'werewolf' | 'lone_wolf' | 'berserker' | 'villager' | 'prophet' | 'thief' | 'coroner' | 'hunter';
 export type Team = 'werewolf' | 'villager';
 
 export interface RoleInfo {
@@ -124,6 +124,11 @@ export interface DecisionCandidate {
   intentionDrivenBonus?: number; // 意图驱动评分调整加分（行为匹配+200，目标匹配+100）
 }
 
+export interface EnrichedCandidate extends DecisionCandidate {
+  totalScore: number;
+  mindData: Record<string, unknown>;
+}
+
 export interface DecisionProcess {
   candidates: {
     action: string; target: string | null; reason: string; score: number;
@@ -131,9 +136,10 @@ export interface DecisionProcess {
     rule: string; trigger: string; random: boolean;
     modifiers: { alignment: number; stress: number; relation: number; total: number };
     intentionDrivenBonus?: number;
+    mindData?: Record<string, unknown>;
     details?: Record<string, unknown>;
   }[];
-  winner: string;
+  winner: { action: string; target: string | null };
   shortlist: string;
 }
 

@@ -8,10 +8,6 @@ import { ACTION } from '@/lib/constants/action-constants';
 import type { Strategy, StrategyContext } from './engine';
 import { calculateFakeIdentityMotivation, calculateTimingScore } from '../fake-identity';
 import { calculateBehaviorScoreDelta, getClaimIdentityAlignmentModifier } from '../behavior-modifiers';
-import {
-  SCORE_PROPHET_CLAIM,
-  WEREWOLF_PROBABILITY_HIGH,
-} from '@/types';
 
 // ---------- 狼人伪装身份策略 ----------
 
@@ -20,10 +16,10 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
   requiredRoles: ['werewolf', 'lone_wolf'],
   requiredPhase: ['day'],
   evaluate(context: StrategyContext): DecisionCandidate[] {
-    const { self, allPlayers, belief, publicActions, voteRound } = context;
+    const { self, allPlayers, belief, publicActions = [], voteRound } = context;
     const result: DecisionCandidate[] = [];
 
-    // 初始化伪装状态（实际项目中应从游戏状态获取）
+    // 初始化伪装状态
     const fakeState: FakeIdentityState = {
       claims: new Map(),
       realProphetRevealed: publicActions.some(a => a.type === 'claim_identity' && allPlayers.find(p => p.id === a.actorId)?.role === 'prophet'),
@@ -62,7 +58,7 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
         rule: `fake_claim_${motivation.targetRole}`,
         trigger: `伪装动机=${motivation.totalScore}，时机=${timing.score}，阵营=${alignmentMod}`,
         details: { claimedRole: motivation.targetRole, isFake: true },
-        stageWeight: 0, // 伪装身份不享受阶段权重
+        stageWeight: 0,
       });
     }
 
@@ -70,15 +66,14 @@ export const WerewolfFakeIdentityStrategy: Strategy = {
   },
 };
 
-// ---------- 真预言家策略 ----------
+// ---------- 真预言家策略（mind-driven） ----------
 
 export const RealProphetClaimStrategy: Strategy = {
   name: 'real_prophet_claim',
   requiredRoles: ['prophet'],
   requiredPhase: ['day'],
   evaluate(context: StrategyContext): DecisionCandidate[] {
-    const { self, allPlayers, belief, publicActions } = context;
-    const myIdentityCrisis = belief.getIdentityCrisis();
+    const { self, publicActions = [] } = context;
     const result: DecisionCandidate[] = [];
 
     // 检查是否已经跳过
@@ -87,61 +82,18 @@ export const RealProphetClaimStrategy: Strategy = {
     );
     if (alreadyClaimed) return result;
 
-    // 检查是否有查验到狼人
-    const checks = belief.l0Facts.checks;
-    const foundWerewolf = Object.entries(checks).some(([targetId, result]) =>
-      result === 'werewolf' && allPlayers.find(p => p.id === targetId)?.alive
-    );
-
-    // 计算跳身份的收益
-    let score = SCORE_PROPHET_CLAIM;
-    let reason = '预言家公布身份';
-
-    // 验到狼人时立即跳
-    if (foundWerewolf) {
-      score += 200;
-      reason = '验到狼人，立即公布身份';
-    }
-
-    // 身份危机修正：危机高时降低跳身份意愿（自保优先），危机低时增加
-    if (myIdentityCrisis > 0.6) {
-      score -= 150;
-      reason += '，但身份危机高，谨慎跳身份';
-    } else if (myIdentityCrisis < 0.3) {
-      score += 50;
-      reason += '，身份危机低，适合跳身份';
-    }
-
-    // 有人跳预言家时，必须跳
-    const fakeProphets = publicActions.filter(a =>
-      a.type === ACTION.CLAIM_IDENTITY && a.details?.claimedRole === 'prophet' && a.actorId !== self.id
-    );
-    if (fakeProphets.length > 0) {
-      score += 150;
-      reason = '有人冒充预言家，必须对跳';
-    }
-
-    // 被怀疑时跳
-    const suspectsMe = allPlayers.filter(p =>
-      p.alive && p.id !== self.id && belief.getWerewolfProbability(self.id) > WEREWOLF_PROBABILITY_HIGH
-    ).length;
-    if (suspectsMe >= 2) {
-      score += 80;
-      reason = '被多人怀疑，公布身份自证';
-    }
-
     // 行为修正
     const { scoreDelta, reason: behaviorReason } = calculateBehaviorScoreDelta(self, ACTION.CLAIM_IDENTITY, null, undefined, 'prophet');
 
     result.push({
       action: ACTION.CLAIM_IDENTITY,
       target: null,
-      score: score + scoreDelta,
+      score: 300 + scoreDelta,
       confidence: 0.9,
-      reason: `${reason}${behaviorReason}`,
+      reason: `预言家公布身份${behaviorReason}`,
       strategy: 'RealProphetClaimStrategy',
       rule: 'prophet_claim',
-      trigger: `验到狼人=${foundWerewolf}，假预言家=${fakeProphets.length}，被怀疑=${suspectsMe}`,
+      trigger: 'role=prophet',
       details: { claimedRole: 'prophet', isFake: false },
     });
 
@@ -149,14 +101,14 @@ export const RealProphetClaimStrategy: Strategy = {
   },
 };
 
-// ---------- 真猎人策略 ----------
+// ---------- 真猎人策略（mind-driven） ----------
 
 export const RealHunterClaimStrategy: Strategy = {
   name: 'real_hunter_claim',
   requiredRoles: ['hunter'],
   requiredPhase: ['day'],
   evaluate(context: StrategyContext): DecisionCandidate[] {
-    const { self, publicActions } = context;
+    const { self, publicActions = [] } = context;
     const result: DecisionCandidate[] = [];
 
     // 检查是否已经跳过
@@ -165,9 +117,7 @@ export const RealHunterClaimStrategy: Strategy = {
     );
     if (alreadyClaimed) return result;
 
-    // 猎人一般不主动跳，除非：
-    // 1. 被投票威胁
-    // 2. 有人冒充猎人
+    // 猎人一般不主动跳，除非有人冒充猎人
     const fakeHunters = publicActions.filter(a =>
       a.type === ACTION.CLAIM_IDENTITY && a.details?.claimedRole === 'hunter' && a.actorId !== self.id
     );

@@ -1,12 +1,12 @@
 import {
   SCORE_MAX_INFO_VOTE, SCORE_WEREWOLF_VOTE_DUTY, SCORE_FOLLOW_CALL_VOTE, SCORE_SOCIAL_TIE_BREAKER,
-  SCORE_SURVIVAL_VOTE, SCORE_PROPHET_VOTE_DUTY, WEREWOLF_PROBABILITY_MEDIUM,
+  SCORE_SURVIVAL_VOTE, SCORE_PROPHET_VOTE_DUTY,
   RELATION_MIN, RELATION_MAX, IDENTITY_CRISIS_HIGH_THRESHOLD,
 } from '@/types';
 import type { Player } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
-import type { Strategy, } from './engine';
+import type { Strategy } from './engine';
 
 // ---------- 查验确认投票（查验到狼人则高权重投） ----------
 export const CheckRevelationVoteStrategy: Strategy = {
@@ -23,8 +23,6 @@ export const CheckRevelationVoteStrategy: Strategy = {
         const target = allPlayers.find((p) => p.id === targetId);
         if (target?.alive) {
           const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', targetId);
-          // 村民：必须投被查的狼人（高权重）
-          // 狼人：避免投被查的队友（反向权重，保护自己）
           const isTeammate = self.team === 'werewolf' && target.team === 'werewolf';
           const score = isTeammate
             ? -SCORE_PROPHET_VOTE_DUTY + scoreDelta
@@ -58,13 +56,11 @@ export const AllyProtectionVoteStrategy: Strategy = {
     const { self, allPlayers } = context;
     const result: import('@/types').DecisionCandidate[] = [];
 
-    // 只有狼人需要避免投队友；村民没有队友概念
     if (self.team !== 'werewolf') return result;
 
     const teammates = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team === self.team);
     teammates.forEach((teammate) => {
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', teammate.id);
-      // 给队友一个负分数，确保加权随机中不会选中队友
       result.push({
         action: ACTION.VOTE,
         target: teammate.id,
@@ -97,7 +93,6 @@ export const MaxInfoVoteStrategy: Strategy = {
 
     alivePlayers.forEach((target) => {
       const wolfProb = belief.getWerewolfProbability(target.id);
-      // 基础分数：村民按嫌疑度，狼人反转（伪装好人）
       let baseScore = wolfProb * SCORE_MAX_INFO_VOTE;
       if (self.team === 'werewolf') {
         baseScore = (1 - wolfProb) * SCORE_WEREWOLF_VOTE_DUTY;
@@ -113,10 +108,10 @@ export const MaxInfoVoteStrategy: Strategy = {
           : wolfProb > 0.55
             ? `L1推理：${target.name}狼嫌疑较高${(wolfProb * 100).toFixed(0)}%${reason}`
             : wolfProb < 0.45
-              ? `L1推理：${target.name}相对安全${reason}`
-              : `L1推理：${target.name}无法确定阵营（${(wolfProb * 100).toFixed(0)}%）${reason}`,
+              ? `L1推理：${target.name}看起来比较可信${(wolfProb * 100).toFixed(0)}%${reason}`
+              : `L1推理：${target.name}嫌疑度不明${(wolfProb * 100).toFixed(0)}%${reason}`,
         strategy: 'MaxInfoVoteStrategy',
-        rule: self.team === 'werewolf' ? 'deflect_vote' : 'max_info_vote',
+        rule: self.team === 'werewolf' ? 'wolf_camouflage_vote' : 'max_info_vote',
         trigger: `wolfProb=${wolfProb.toFixed(2)}，self.team=${self.team}`,
       });
     });
@@ -125,7 +120,7 @@ export const MaxInfoVoteStrategy: Strategy = {
   },
 };
 
-// ---------- 跟随号召投票（跟随信任角色的号召） ----------
+// ---------- 跟随号召投票 ----------
 export const FollowCallVoteStrategy: Strategy = {
   name: 'follow_call_vote',
   requiredRoles: undefined,
@@ -181,10 +176,8 @@ export const SocialTieBreakerStrategy: Strategy = {
       const relation = belief.getRelation(target.id);
       let socialScore = 0;
       if (self.team !== 'werewolf') {
-        // 村民：好感度低的人更可能投
         socialScore = (1 - (relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * SCORE_SOCIAL_TIE_BREAKER;
       } else {
-        // 狼人：投好感度高的人伪装好人，或投低嫌疑的
         socialScore = ((relation.favor + RELATION_MAX) / (RELATION_MAX - RELATION_MIN)) * (SCORE_SOCIAL_TIE_BREAKER * 0.75);
       }
       const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, 'vote', target.id);
@@ -219,14 +212,12 @@ export const SurvivalVoteStrategy: Strategy = {
       let safeTargets: Player[];
 
       if (self.team === 'werewolf') {
-        // 狼人：投给低嫌疑目标或队友（伪装/保队友）
         safeTargets = alivePlayers.filter(
-          (p) => belief.getWerewolfProbability(p.id) > WEREWOLF_PROBABILITY_MEDIUM || p.team === self.team
+          (p) => belief.getWerewolfProbability(p.id) > 0.5 || p.team === self.team
         );
       } else {
-        // 村民：投给高嫌疑目标（证明自己正确，洗脱嫌疑）
         safeTargets = alivePlayers.filter(
-          (p) => belief.getWerewolfProbability(p.id) > WEREWOLF_PROBABILITY_MEDIUM
+          (p) => belief.getWerewolfProbability(p.id) > 0.5
         );
       }
 

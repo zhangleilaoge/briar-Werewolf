@@ -34,8 +34,9 @@ src/
 ├── components/           # React UI 组件
 ├── lib/
 │   ├── ai/              # AI 系统
-│   │   ├── intention/    # 意图系统（按子域拆分）
-│   │   ├── strategies/   # 策略引擎
+│   │   ├── intention/    # 意图系统（BDI 栈）
+│   │   ├── strategies/   # 策略引擎（DecisionEngine）
+│   │   ├── mind/         # 心智驱动系统（SocialContext / ValueSystem / Timing）
 │   │   └── belief-system.ts
 │   ├── constants/        # 策略阈值等常量
 │   ├── game/            # 游戏逻辑（模拟器、修正、道具）
@@ -170,7 +171,7 @@ bun run lint:fix # 自动修复
 
 **新增功能流程**
 
-1. 修改 `../doc/` 中的设计文档
+1. 修改 `../design/` 中的游戏机制设计文档
 2. 更新 `src/types/` 中的类型和常量
 3. 实现代码逻辑
 4. 运行 `bun run build && bun run test`
@@ -182,6 +183,7 @@ bun run lint:fix # 自动修复
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | TODO | `TODO.md` | 功能清单和待办事项 |
-| 数值设计 | `../doc/core/numeric.md` | 属性、检定、修正规则 |
-| 道具设计 | `../doc/content/items.md` | 道具能力和设计原则 |
-| AI 架构 | `../doc/ai/ARCHITECTURE.md` | 信念系统和决策引擎 |
+| 数值设计 | `../design/core/numeric.md` | 属性、检定、修正规则 |
+| 道具设计 | `../design/content/items.md` | 道具能力和设计原则 |
+| AI 决策架构 | `doc/ai/DECISION-ARCHITECTURE.md` | 候选生成 → mind enrich → 硬约束 → Softmax |
+| 心智系统 | `doc/ai/MIND-SYSTEM.md` | SocialContext / ValueSystem / Timing / MentalSimulation |

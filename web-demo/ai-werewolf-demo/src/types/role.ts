@@ -8,6 +8,7 @@ export const ROLE_INFO: Record<Role, RoleInfo> = {
   prophet: { role: 'prophet', label: '预言家', team: 'villager', description: '每晚查验一名玩家身份', defaultItems: ['crystal_ball'], nightAction: true },
   thief: { role: 'thief', label: '窃贼', team: 'villager', description: '整场游戏限一次偷取一名玩家的道具', defaultItems: ['thief_gloves'], nightAction: true },
   coroner: { role: 'coroner', label: '验尸官', team: 'villager', description: '整场游戏限一次查看死亡角色的道具', defaultItems: ['coroner_tools'], nightAction: true },
+  hunter: { role: 'hunter', label: '猎人', team: 'villager', description: '被投票出局时可以带走一名玩家', defaultItems: [] },
 };
 
 export const TRAITS: Record<string, Trait> = {

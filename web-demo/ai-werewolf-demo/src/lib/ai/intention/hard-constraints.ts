@@ -33,13 +33,13 @@ export const WolfNoAttackTeammateConstraint: HardConstraint = {
   source: INTENTION_SOURCE.TEAM_DUTY,
 };
 
-export function filterByHardConstraints(
-  candidates: { action: string; target: string | null; score?: number; confidence?: number; reason?: string; strategy?: string; rule?: string }[],
+export function filterByHardConstraints<T extends { action: string; target: string | null; score?: number; confidence?: number; reason?: string; strategy?: string; rule?: string }>(
+  candidates: T[],
   context: IntentionContext,
   constraints: HardConstraint[] = [WolfNoAttackTeammateConstraint]
-): { allowed: typeof candidates; blocked: { candidate: typeof candidates[0]; reason: string }[] } {
-  const allowed: typeof candidates = [];
-  const blocked: { candidate: typeof candidates[0]; reason: string }[] = [];
+): { allowed: T[]; blocked: { candidate: T; reason: string }[] } {
+  const allowed: T[] = [];
+  const blocked: { candidate: T; reason: string }[] = [];
 
   for (const candidate of candidates) {
     let violated = false;

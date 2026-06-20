@@ -67,9 +67,9 @@ export function runNightAction(sim: GameSimulator, player: Player) {
       // Add logs
       result.logs.forEach((logItem) => {
         sim.tickLogBuffer.push({
+          ...logItem,
           round: sim.round,
           phase: 'night',
-          ...logItem,
         });
       });
     }
