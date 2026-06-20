@@ -55,16 +55,6 @@ export function explainIntention(
   const lines: string[] = [];
   lines.push(`【意图状态】 模式=${modeNames[desire.mode] || desire.mode} | 阵营目标=${teamNames[desire.teamObjective] || desire.teamObjective} | 主意图=${personalNames[desire.personalObjective] || desire.personalObjective}`);
 
-  if (blocked.length > 0) {
-    lines.push(`[被硬约束拦截的候选]`);
-    blocked.forEach((b) => {
-      const targetName = b.candidate.target
-        ? allPlayers.find((p) => p.id === b.candidate.target)?.name || b.candidate.target
-        : '无目标';
-      lines.push(`  ○ ${b.candidate.action}→${targetName} (${b.reason})`);
-    });
-  }
-
   return lines.join('\n');
 }
 

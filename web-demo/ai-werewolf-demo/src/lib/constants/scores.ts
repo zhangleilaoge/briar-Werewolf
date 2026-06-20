@@ -1,5 +1,11 @@
 // ---------- 策略分数常量 ----------
 
+// AI 决策阶段权重
+export const STAGE_WEIGHT_DUTY = 1000;                // 职业义务阶段权重（最高优先级）
+export const STAGE_WEIGHT_SURVIVAL = 800;             // 生存阶段权重
+export const STAGE_WEIGHT_INFORMATION = 500;          // 信息阶段权重
+export const STAGE_WEIGHT_SOCIAL = 100;               // 社交阶段权重
+
 // 通用
 export const SCORE_PROPHET_VOTE_DUTY = 200;           // 预言家查验到狼人后，号召投票的义务分数
 export const SCORE_WEREWOLF_VOTE_DUTY = 80;           // 狼人跟票投票的基础分数

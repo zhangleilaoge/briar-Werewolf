@@ -2,14 +2,13 @@ import {
   SILENCE_NEAR_FULL_THRESHOLD,
   SCORE_BREAK_SILENCE,
   SCORE_WW_BREAK_SILENCE,
-  SCORE_DEFAULT_ROUND1_OBSERVE,
-  SCORE_DEFAULT_OTHER_OBSERVE,
 } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import type { Strategy } from './engine';
 import type { Player } from '@/types';
 import { canUseItem } from '@/types';
 import { SocialContextBuilder, ValueSystemFactory, CandidateGenerator } from '../mind';
+import { CONFIDENCE_MEDIUM_HIGH, CONFIDENCE_VERY_LOW, CONFIDENCE_HIGH } from '@/lib/constants/mind';
 
 // ---------- Shared Helper: Break silence candidate ----------
 function generateBreakSilenceCandidate(
@@ -28,7 +27,7 @@ function generateBreakSilenceCandidate(
       action: ACTION.SILENCE,
       target: null,
       score,
-      confidence: 0.7,
+      confidence: CONFIDENCE_MEDIUM_HIGH,
       reason,
       strategy: strategyName,
       rule: 'break_silence',
@@ -39,7 +38,7 @@ function generateBreakSilenceCandidate(
 }
 
 // ---------- Shared Helper: Default behavior fallback ----------
-function generateDefaultCandidates(
+function _generateDefaultCandidates(
   self: Player,
   allPlayers: Player[],
   publicActions:
@@ -76,7 +75,7 @@ function generateDefaultCandidates(
       target: randomTarget.id,
       score: isRound1 ? scores.round1Observe : scores.otherObserve,
       stageWeight: 0,
-      confidence: 0.3,
+      confidence: CONFIDENCE_VERY_LOW,
       reason: isRound1
         ? reasons.round1Observe.replace('{name}', randomTarget.name)
         : reasons.otherObserve.replace('{name}', randomTarget.name),
@@ -211,7 +210,7 @@ export const BerserkerSuicideStrategy: Strategy = {
             action: ACTION.BERSERKER_KILL,
             target: target.id,
             score: 500,
-            confidence: 0.8,
+            confidence: CONFIDENCE_HIGH,
             reason: `狼队劣势(${werewolfCount} vs ${villagerCount})，${target.name}疑似神职，同归于尽。`,
             strategy: 'BerserkerSuicideStrategy',
             rule: 'suicide_kill',

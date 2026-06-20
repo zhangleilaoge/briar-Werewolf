@@ -8,7 +8,7 @@
  */
 
 import type { GameSimulator, PublicActionRecord } from './simulator-core';
-import type { Player, ActionType, DecisionProcess } from '@/types';
+import type { ActionType, DecisionProcess } from '@/types';
 import { performCheck, performOpposedCheck, calculateModifierBreakdown } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import {

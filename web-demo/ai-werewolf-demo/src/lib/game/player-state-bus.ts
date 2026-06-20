@@ -5,8 +5,8 @@
  * 消除 GameSimulator / AIAgent / BeliefSystem 之间的共享引用隐患。
  */
 
-import type { Player, Relation, RelationDelta, ItemInstance } from '@/types';
-import { clampStress, clampRelation, hasItem, damageItem as damageItemFn, addItem as addItemFn } from '@/types';
+import type { Player, RelationDelta, } from '@/types';
+import { clampStress, clampRelation, damageItem as damageItemFn, addItem as addItemFn } from '@/types';
 import type { PluginRegistry } from '../plugins';
 
 // ==================== Event Types ====================
@@ -91,7 +91,7 @@ export class PlayerStateBus {
   /** 杀死玩家：设 alive=false + 通知所有监听者 + 发射事件 */
   killPlayer(playerId: string, source: string = 'system'): boolean {
     const player = this.getPlayer(playerId);
-    if (!player || !player.alive) return false;
+    if (!player?.alive) return false;
 
     const before = player.alive;
     player.alive = false;

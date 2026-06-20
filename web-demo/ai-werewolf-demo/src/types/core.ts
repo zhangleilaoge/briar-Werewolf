@@ -14,11 +14,6 @@ export interface Attributes {
 
 export type AttributeKey = keyof Attributes;
 
-export const DEFAULT_ATTRIBUTES: Attributes = {
-  affinity: 10, logic: 10, leadership: 10,
-  deception: 10, stealth: 10, insight: 10,
-};
-
 // ---------- Alignment (阵营九宫格) ----------
 export type LawAxis = 'lawful' | 'neutral_law' | 'chaotic';
 export type GoodAxis = 'good' | 'neutral_good' | 'evil';
@@ -63,12 +58,6 @@ export interface Trait { id: string; name: string; description: string }
 export type Phase = 'night' | 'morning' | 'day' | 'vote' | 'init' | 'ended' | 'event';
 export type DaySubPhase = 'action' | 'appendix' | 'vote';
 
-// 游戏状态常量（UI 使用，这些在 useGameRunner 中定义，不属于 Phase 类型）
-export const GAME_STATUS_SETUP = 'setup';
-export const GAME_STATUS_RUNNING = 'running';
-export const GAME_STATUS_PAUSED = 'paused';
-export const GAME_STATUS_ENDED = 'ended';
-
 // ---------- Player (玩家) ----------
 export interface Player {
   id: string; name: string; role: Role; team: Team; alive: boolean;
@@ -76,6 +65,7 @@ export interface Player {
   traits: string[]; stress: number; relations: Record<string, Relation>;
   identityCrisis?: number; // 身份危机（0-1），由belief系统计算
   suspicionByOthers?: Record<string, number>; // 其他人对我的怀疑度
+  identityCrisisLog?: { reason: string; delta: number; before: number; after: number; timestamp: number }[];
 }
 
 // ---------- Fake Identity System (伪装身份系统) ----------

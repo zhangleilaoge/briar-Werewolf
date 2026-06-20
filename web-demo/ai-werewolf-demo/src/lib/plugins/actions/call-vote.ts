@@ -4,9 +4,9 @@
  * Influences others' voting behavior
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
-import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_CALL_VOTE } from '@/types';
+import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_CALL_VOTE, WEREWOLF_PROBABILITY_HIGH, BELIEF_HIGH_SUSPICION_THRESHOLD } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
@@ -72,7 +72,7 @@ export class CallVotePlugin implements ActionProvider {
     // 狼人策略：号召投票给高狼概率目标（伪装）
     if (self.team === 'werewolf') {
       const topSuspect = allPlayers
-        .filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > 0.6)
+        .filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > WEREWOLF_PROBABILITY_HIGH)
         .sort((a, b) => belief.getWerewolfProbability(b.id) - belief.getWerewolfProbability(a.id))[0];
 
       if (topSuspect) {
@@ -85,7 +85,7 @@ export class CallVotePlugin implements ActionProvider {
           reason: `${topSuspect.name}嫌疑很高，号召投票${reason}`,
           strategy: 'CallVotePlugin',
           rule: 'high_suspect_call_vote',
-          trigger: `wolfProb=${belief.getWerewolfProbability(topSuspect.id).toFixed(2)} > 0.6`,
+          trigger: `wolfProb=${belief.getWerewolfProbability(topSuspect.id).toFixed(2)} > ${WEREWOLF_PROBABILITY_HIGH}`,
         });
       }
     }
@@ -93,7 +93,7 @@ export class CallVotePlugin implements ActionProvider {
     // 村民策略：号召投票给高狼概率目标
     if (self.team === 'villager') {
       const topSuspect = allPlayers
-        .filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > 0.5)
+        .filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > BELIEF_HIGH_SUSPICION_THRESHOLD)
         .sort((a, b) => belief.getWerewolfProbability(b.id) - belief.getWerewolfProbability(a.id))[0];
 
       if (topSuspect) {
@@ -107,7 +107,7 @@ export class CallVotePlugin implements ActionProvider {
           reason: `${topSuspect.name}嫌疑高，号召投票${reason}`,
           strategy: 'CallVotePlugin',
           rule: 'villager_call_vote',
-          trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.5`,
+          trigger: `wolfProb=${wolfProb.toFixed(2)} > ${BELIEF_HIGH_SUSPICION_THRESHOLD}`,
         });
       }
     }

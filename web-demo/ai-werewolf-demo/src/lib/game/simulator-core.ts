@@ -482,8 +482,8 @@ export class GameSimulator {
 
       // 计算其他人对这个玩家的怀疑度（l1层），显示所有非自己玩家
       const suspicionByOthers: Record<string, number> = {};
-      let totalSuspicion = 0;
-      let count = 0;
+      let _totalSuspicion = 0;
+      let _count = 0;
 
       this.players.forEach(other => {
         if (other.id !== p.id && other.alive) {
@@ -493,8 +493,8 @@ export class GameSimulator {
             const suspicion = roleBeliefs?.werewolf ?? 0;
             suspicionByOthers[other.id] = suspicion;
             if (other.team !== p.team) {
-              totalSuspicion += suspicion;
-              count++;
+              _totalSuspicion += suspicion;
+              _count++;
             }
           }
         }

@@ -6,11 +6,12 @@
 
 import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
-import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_DEFEND } from '@/types';
+import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_DEFEND, BELIEF_VERY_LOW_SUSPICION_THRESHOLD } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import { SCORE_DEFEND_ATTACKED, SCORE_DEFAULT_DEFEND } from '@/types';
+import { CONFIDENCE_LOW_MEDIUM, CONFIDENCE_MEDIUM } from '@/lib/constants/mind';
 
 export class DefendPlugin implements ActionProvider {
   id = 'defend';
@@ -77,7 +78,7 @@ export class DefendPlugin implements ActionProvider {
             action: ACTION.DEFEND,
             target: self.id,
             score: SCORE_DEFEND_ATTACKED + scoreDelta,
-            confidence: 0.5,
+            confidence: CONFIDENCE_LOW_MEDIUM,
             reason: `自保：需要证明清白${reason}`,
             strategy: 'DefendPlugin',
             rule: 'self_guarantee',
@@ -92,13 +93,13 @@ export class DefendPlugin implements ActionProvider {
       const suspects = (context.publicActions || []).filter(a => a.type === ACTION.SUSPECT && a.targetId);
       suspects.forEach(suspectAction => {
         const target = allPlayers.find(p => p.id === suspectAction.targetId);
-        if (target && target.alive && belief.getWerewolfProbability(target.id) < 0.3) {
+        if (target?.alive && belief.getWerewolfProbability(target.id) < BELIEF_VERY_LOW_SUSPICION_THRESHOLD) {
           const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.DEFEND, target.id);
           result.push({
             action: ACTION.DEFEND,
             target: target.id,
             score: SCORE_DEFAULT_DEFEND + scoreDelta,
-            confidence: 0.6,
+            confidence: CONFIDENCE_MEDIUM,
             reason: `袒护${target.name}，狼概率低${reason}`,
             strategy: 'DefendPlugin',
             rule: 'villager_defend',

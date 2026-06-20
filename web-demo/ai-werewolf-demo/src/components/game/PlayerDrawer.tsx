@@ -1,5 +1,6 @@
 import type { Player } from '@/types';
-import { getAlignmentName, RELATION_DISPLAY_THRESHOLD } from '@/types';
+import { getAlignmentName, RELATION_DISPLAY_THRESHOLD, IDENTITY_CRISIS_HIGH_THRESHOLD, IDENTITY_CRISIS_LOW_THRESHOLD, BELIEF_DEFAULT_PROBABILITY } from '@/types';
+import { PERCENT_MULTIPLIER, SUSPICION_COLOR_HIGH, SUSPICION_COLOR_MEDIUM } from '@/lib/constants/ui-thresholds';
 import { roleNameMap, itemLabel, attributeLabel, attributeColor, stressColor, stressLabel } from '../ui-utils';
 
 interface PlayerDrawerProps {
@@ -71,18 +72,18 @@ export default function PlayerDrawer({
                 {selectedPlayer.identityCrisis !== undefined && (
                   <div className="text-sm relative group">
                     <span className="text-muted-foreground">身份危机：</span>
-                    <span className={selectedPlayer.identityCrisis > 0.6 ? 'text-red-400' : selectedPlayer.identityCrisis > 0.3 ? 'text-yellow-400' : 'text-green-400'}>
-                      {(selectedPlayer.identityCrisis * 100).toFixed(0)}%
-                      {selectedPlayer.identityCrisis > 0.6 ? ' (高)' : selectedPlayer.identityCrisis > 0.3 ? ' (中)' : ' (低)'}
+                    <span className={selectedPlayer.identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD ? 'text-red-400' : selectedPlayer.identityCrisis > IDENTITY_CRISIS_LOW_THRESHOLD ? 'text-yellow-400' : 'text-green-400'}>
+                      {(selectedPlayer.identityCrisis * PERCENT_MULTIPLIER).toFixed(0)}%
+                      {selectedPlayer.identityCrisis > IDENTITY_CRISIS_HIGH_THRESHOLD ? ' (高)' : selectedPlayer.identityCrisis > IDENTITY_CRISIS_LOW_THRESHOLD ? ' (中)' : ' (低)'}
                     </span>
                     {/* Hover 弹窗：显示身份危机变更日志 */}
                     <div className="absolute left-0 top-6 z-50 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg hidden group-hover:block min-w-64 max-h-64 overflow-y-auto">
                       <div className="text-xs font-bold text-gray-300 mb-2">身份危机变更日志</div>
-                      {(selectedPlayer as any).identityCrisisLog?.map((log: any, i: number) => (
+                      {selectedPlayer.identityCrisisLog?.map((log, i) => (
                         <div key={i} className="text-xs mb-1 border-b border-gray-700 pb-1">
                           <div className="text-gray-400">{log.reason}</div>
                           <div className={`${log.delta > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                            {(log.before * 100).toFixed(0)}% {log.delta >= 0 ? '+' : ''}{(log.delta * 100).toFixed(1)}% → {(log.after * 100).toFixed(0)}%
+                            {(log.before * PERCENT_MULTIPLIER).toFixed(0)}% {log.delta >= 0 ? '+' : ''}{(log.delta * PERCENT_MULTIPLIER).toFixed(1)}% → {(log.after * PERCENT_MULTIPLIER).toFixed(0)}%
                           </div>
                           {log.timestamp && (
                             <div className="text-gray-600 text-[10px]">
@@ -91,7 +92,7 @@ export default function PlayerDrawer({
                           )}
                         </div>
                       ))}
-                      {!(selectedPlayer as any).identityCrisisLog?.length && (
+                      {!selectedPlayer.identityCrisisLog?.length && (
                         <div className="text-xs text-gray-500">暂无变更记录</div>
                       )}
                     </div>
@@ -133,7 +134,7 @@ export default function PlayerDrawer({
                   {players.filter(p => p.id !== selectedPlayer.id && p.alive).map(other => {
                     const rel = selectedPlayer.relations[other.id];
                     const favor = rel?.favor ?? 0;
-                    const suspicion = selectedPlayer.suspicionByOthers?.[other.id] ?? 0.5;
+                    const suspicion = selectedPlayer.suspicionByOthers?.[other.id] ?? BELIEF_DEFAULT_PROBABILITY;
                     const isEnemy = other.team !== selectedPlayer.team;
 
                     // 敌人始终显示，友方只显示显著变化
@@ -151,8 +152,8 @@ export default function PlayerDrawer({
                           {selectedPlayer.team === 'werewolf' && other.team === 'werewolf' ? (
                             <span className="text-gray-500">-</span>
                           ) : (
-                            <span className={`${suspicion > 0.6 ? 'text-red-400' : suspicion > 0.3 ? 'text-yellow-400' : 'text-green-400'}`}>
-                              怀疑{(suspicion * 100).toFixed(0)}%
+                            <span className={`${suspicion > SUSPICION_COLOR_HIGH ? 'text-red-400' : suspicion > SUSPICION_COLOR_MEDIUM ? 'text-yellow-400' : 'text-green-400'}`}>
+                              怀疑{(suspicion * PERCENT_MULTIPLIER).toFixed(0)}%
                             </span>
                           )}
                         </span>

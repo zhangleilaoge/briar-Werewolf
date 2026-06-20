@@ -3,10 +3,7 @@
 // ============================================================
 
 import { ACTION, INTENTION_SOURCE } from '@/lib/constants/action-constants';
-import type { Player } from '@/types';
-
-import type { BeliefSystem } from '../belief-system';
-import { type IntentionContext } from './types';
+import type { IntentionContext } from './types';
 
 export interface HardConstraint {
   id: string;
@@ -26,7 +23,7 @@ export const WolfNoAttackTeammateConstraint: HardConstraint = {
   violated(candidate, context) {
     if (!candidate.target) return false;
     const target = context.allPlayers.find((p) => p.id === candidate.target);
-    if (!target || target.team !== 'werewolf') return false;
+    if (target?.team !== 'werewolf') return false;
     const attackActions: string[] = [ACTION.CALL_VOTE, ACTION.ACCUSE, ACTION.SUSPECT, ACTION.VOTE];
     return attackActions.includes(candidate.action);
   },
@@ -37,26 +34,25 @@ export function filterByHardConstraints<T extends { action: string; target: stri
   candidates: T[],
   context: IntentionContext,
   constraints: HardConstraint[] = [WolfNoAttackTeammateConstraint]
-): { allowed: T[]; blocked: { candidate: T; reason: string }[] } {
+): { allowed: T[]; blocked: { candidate: T; reason: string; constraintId: string; description: string }[] } {
   const allowed: T[] = [];
-  const blocked: { candidate: T; reason: string }[] = [];
+  const blocked: { candidate: T; reason: string; constraintId: string; description: string }[] = [];
 
   for (const candidate of candidates) {
     let violated = false;
-    let violationReason = '';
+    let violatedConstraint: HardConstraint | null = null;
 
     for (const constraint of constraints) {
       if (!constraint.active(context)) continue;
       if (constraint.violated(candidate, context)) {
         violated = true;
-        const sourceNames: Record<string, string> = { team_duty: '阵营职责', role_duty: '职业职责', survival: '生存', bus: '背锅' };
-        violationReason = `违反硬约束[${constraint.id}]: ${constraint.description} (来源: ${sourceNames[constraint.source] || constraint.source})`;
+        violatedConstraint = constraint;
         break;
       }
     }
 
-    if (violated) {
-      blocked.push({ candidate, reason: violationReason });
+    if (violated && violatedConstraint) {
+      blocked.push({ candidate, reason: '违反硬约束', constraintId: violatedConstraint.id, description: violatedConstraint.description });
     } else {
       allowed.push(candidate);
     }

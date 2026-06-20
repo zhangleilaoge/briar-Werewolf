@@ -8,7 +8,6 @@
 
 import type { Player, GameLogItem, Phase, CheckLog, DecisionProcess } from '@/types';
 import type { DecisionCandidate } from '@/types';
-import type { BeliefSystem } from '../ai/belief-system';
 
 // ==================== Belief Reader Interface ====================
 

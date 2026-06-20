@@ -1,6 +1,6 @@
 import type { BeliefSystem } from '../belief-system';
 import type { Player } from '@/types';
-import type { SocialContext, MentalSimulation, ExpectedReaction } from './types';
+import type { SocialContext, MentalSimulation } from './types';
 import { ACTION } from '@/lib/constants/action-constants';
 import {
   SIMULATION_DEFAULT_GOAL_ALIGNMENT,
@@ -9,6 +9,7 @@ import {
   SIMULATION_EXPOSURE_RISK_MEDIUM,
   SIMULATION_EXPOSURE_RISK_LOW,
   SIMULATION_EXPOSURE_RISK_VERY_LOW,
+  SIMULATION_EXPOSURE_RISK_MODERATE,
   SIMULATION_GOAL_ALIGNMENT_HIGH,
   SIMULATION_GOAL_ALIGNMENT_MEDIUM,
   SIMULATION_GOAL_ALIGNMENT_LOW,
@@ -16,9 +17,14 @@ import {
   SIMULATION_CONFIDENCE_HIGH,
   SIMULATION_CONFIDENCE_MEDIUM,
   SIMULATION_CONFIDENCE_LOW,
+  SIMULATION_PERCEPTION_POSITIVE,
+  SIMULATION_PERCEPTION_POSITIVE_SMALL,
+  SIMULATION_PERCEPTION_NEGATIVE_SMALL,
+  SIMULATION_PERCEPTION_NEGATIVE,
+  SIMULATION_PERCEPTION_NEGATIVE_MEDIUM,
+  SIMULATION_PERCEPTION_NEGATIVE_LARGE,
   PROB_THRESHOLD_HIGH,
   PROB_THRESHOLD_MEDIUM,
-  PROB_THRESHOLD_LOW,
   TRUST_THRESHOLD_MEDIUM,
 } from '@/lib/constants/mind';
 
@@ -77,17 +83,17 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
     const targetView = socialContext.relationNetwork.myView.get(target);
     const targetIsWerewolf = targetView?.inferredTeam === 'werewolf';
 
-    if (targetIsWerewolf && targetView?.confidence > 0.6) {
+    if (targetIsWerewolf && targetView?.confidence > SIMULATION_CONFIDENCE_MEDIUM) {
       // 担保狼人 = 高风险
-      sim.exposureRisk = 0.7;
-      sim.goalAlignment = 0.3; // 不符合 truthSeeking
+      sim.exposureRisk = SIMULATION_EXPOSURE_RISK_HIGH;
+      sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_VERY_LOW;
       
       // 旁观者会怀疑我
       for (const [pid, view] of socialContext.relationNetwork.myView) {
@@ -96,27 +102,27 @@ export class MentalSimulator {
             reaction: view.trust > TRUST_THRESHOLD_MEDIUM ? '可能相信我' : '可能怀疑我',
             confidence: SIMULATION_CONFIDENCE_MEDIUM,
           });
-          sim.expectedPerceptionChange.set(pid, -0.2);
+          sim.expectedPerceptionChange.set(pid, SIMULATION_PERCEPTION_NEGATIVE_MEDIUM);
         }
       }
     } else if (targetView?.inferredTeam === 'villager') {
       // 担保好人 = 低风险，符合 truthSeeking
-      sim.exposureRisk = 0.2;
-      sim.goalAlignment = 0.8;
+      sim.exposureRisk = SIMULATION_EXPOSURE_RISK_VERY_LOW;
+      sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_MEDIUM;
       
-      for (const [pid, view] of socialContext.relationNetwork.myView) {
+      for (const [pid, _view] of socialContext.relationNetwork.myView) {
         if (pid !== self.id && pid !== target) {
           sim.expectedReactions.set(pid, {
             reaction: '可能更信任我',
             confidence: SIMULATION_CONFIDENCE_LOW,
           });
-          sim.expectedPerceptionChange.set(pid, 0.1);
+          sim.expectedPerceptionChange.set(pid, SIMULATION_PERCEPTION_POSITIVE_SMALL);
         }
       }
     } else {
       // 不确定
-      sim.exposureRisk = 0.4;
-      sim.goalAlignment = 0.5;
+      sim.exposureRisk = SIMULATION_EXPOSURE_RISK_MODERATE;
+      sim.goalAlignment = SIMULATION_DEFAULT_GOAL_ALIGNMENT;
     }
   }
 
@@ -125,7 +131,7 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
@@ -133,10 +139,10 @@ export class MentalSimulator {
     const wolfProb = targetView?.confidence || 0;
 
     // 目标真的是狼人 → 目标对齐高
-    sim.goalAlignment = wolfProb > PROB_THRESHOLD_HIGH ? 0.9 : 0.3;
+    sim.goalAlignment = wolfProb > PROB_THRESHOLD_HIGH ? SIMULATION_GOAL_ALIGNMENT_HIGH : SIMULATION_GOAL_ALIGNMENT_VERY_LOW;
     
     // 身份危机高时，激进行动风险高
-    sim.exposureRisk = socialContext.identityCrisis.isHigh ? 0.6 : 0.3;
+    sim.exposureRisk = socialContext.identityCrisis.isHigh ? SIMULATION_EXPOSURE_RISK_MEDIUM : SIMULATION_EXPOSURE_RISK_LOW;
 
     // 目标会反驳
     sim.expectedReactions.set(target, {
@@ -168,7 +174,7 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
@@ -177,8 +183,8 @@ export class MentalSimulator {
 
     if (isSelf) {
       // 自辩
-      sim.exposureRisk = 0.3;
-      sim.goalAlignment = 0.8;
+      sim.exposureRisk = SIMULATION_EXPOSURE_RISK_LOW;
+      sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_MEDIUM;
       sim.expectedReactions.set(target, {
         reaction: '接受我的辩护',
         confidence: SIMULATION_CONFIDENCE_MEDIUM,
@@ -186,16 +192,16 @@ export class MentalSimulator {
     } else {
       // 保他人
       const targetIsWerewolf = targetView?.inferredTeam === 'werewolf';
-      sim.exposureRisk = targetIsWerewolf ? 0.6 : 0.2;
-      sim.goalAlignment = targetIsWerewolf ? 0.3 : 0.8;
+      sim.exposureRisk = targetIsWerewolf ? SIMULATION_EXPOSURE_RISK_MEDIUM : SIMULATION_EXPOSURE_RISK_VERY_LOW;
+      sim.goalAlignment = targetIsWerewolf ? SIMULATION_GOAL_ALIGNMENT_VERY_LOW : SIMULATION_GOAL_ALIGNMENT_MEDIUM;
 
-      for (const [pid, view] of socialContext.relationNetwork.myView) {
+      for (const [pid, _view] of socialContext.relationNetwork.myView) {
         if (pid !== self.id && pid !== target) {
           sim.expectedReactions.set(pid, {
             reaction: targetIsWerewolf ? '可能怀疑我' : '可能更信任我',
             confidence: SIMULATION_CONFIDENCE_LOW,
           });
-          sim.expectedPerceptionChange.set(pid, targetIsWerewolf ? -0.15 : 0.1);
+          sim.expectedPerceptionChange.set(pid, targetIsWerewolf ? SIMULATION_PERCEPTION_NEGATIVE : SIMULATION_PERCEPTION_POSITIVE_SMALL);
         }
       }
     }
@@ -206,7 +212,7 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
@@ -214,15 +220,15 @@ export class MentalSimulator {
     const wolfProb = targetView?.confidence || 0;
 
     // 号召投票目标对齐
-    sim.goalAlignment = wolfProb > PROB_THRESHOLD_HIGH ? 0.9 : 0.4;
-    sim.exposureRisk = socialContext.identityCrisis.isHigh ? 0.5 : 0.3;
+    sim.goalAlignment = wolfProb > PROB_THRESHOLD_HIGH ? SIMULATION_GOAL_ALIGNMENT_HIGH : SIMULATION_GOAL_ALIGNMENT_LOW;
+    sim.exposureRisk = socialContext.identityCrisis.isHigh ? SIMULATION_DEFAULT_EXPOSURE_RISK : SIMULATION_EXPOSURE_RISK_LOW;
 
     // 预期跟票人数
-    let expectedFollowers = 0;
+    let _expectedFollowers = 0;
     for (const [pid, view] of socialContext.relationNetwork.myView) {
       if (pid !== self.id && pid !== target) {
         if (view.trust > TRUST_THRESHOLD_MEDIUM) {
-          expectedFollowers++;
+          _expectedFollowers++;
           sim.expectedReactions.set(pid, {
             reaction: '可能跟票',
             confidence: SIMULATION_CONFIDENCE_MEDIUM,
@@ -237,8 +243,8 @@ export class MentalSimulator {
     }
 
     // 预期影响力 = 跟票人数 / 总人数
-    const totalOthers = socialContext.relationNetwork.myView.size;
-    sim.expectedPerceptionChange.set(target, -0.3); // 目标被更多怀疑
+    const _totalOthers = socialContext.relationNetwork.myView.size;
+    sim.expectedPerceptionChange.set(target, SIMULATION_PERCEPTION_NEGATIVE_LARGE);
   }
 
   private _simulateBlockVote(
@@ -246,20 +252,20 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
-    sim.exposureRisk = 0.6; // 阻止投票容易被怀疑
-    sim.goalAlignment = 0.4;
+    sim.exposureRisk = SIMULATION_EXPOSURE_RISK_MEDIUM;
+    sim.goalAlignment = SIMULATION_GOAL_ALIGNMENT_LOW;
 
-    for (const [pid, view] of socialContext.relationNetwork.myView) {
+    for (const [pid, _view] of socialContext.relationNetwork.myView) {
       if (pid !== self.id && pid !== target) {
         sim.expectedReactions.set(pid, {
           reaction: '可能怀疑我',
           confidence: SIMULATION_CONFIDENCE_LOW,
         });
-        sim.expectedPerceptionChange.set(pid, -0.1);
+        sim.expectedPerceptionChange.set(pid, SIMULATION_PERCEPTION_NEGATIVE_SMALL);
       }
     }
   }
@@ -268,13 +274,13 @@ export class MentalSimulator {
     sim: MentalSimulation,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
-    sim.exposureRisk = 0.5;
-    sim.goalAlignment = 0.6;
+    sim.exposureRisk = SIMULATION_DEFAULT_EXPOSURE_RISK;
+    sim.goalAlignment = SIMULATION_EXPOSURE_RISK_MEDIUM;
 
     // 搅浑水效果
-    for (const [pid, view] of socialContext.relationNetwork.myView) {
+    for (const [pid, _view] of socialContext.relationNetwork.myView) {
       if (pid !== self.id) {
         sim.expectedReactions.set(pid, {
           reaction: '可能混乱',
@@ -288,10 +294,10 @@ export class MentalSimulator {
     sim: MentalSimulation,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
-    sim.exposureRisk = 0.5;
-    sim.goalAlignment = self.role === 'prophet' ? 0.8 : 0.5;
+    sim.exposureRisk = SIMULATION_DEFAULT_EXPOSURE_RISK;
+    sim.goalAlignment = self.role === 'prophet' ? SIMULATION_GOAL_ALIGNMENT_MEDIUM : SIMULATION_DEFAULT_GOAL_ALIGNMENT;
 
     // 跳身份后，别人会怎么看我
     for (const [pid, view] of socialContext.relationNetwork.myView) {
@@ -301,13 +307,13 @@ export class MentalSimulator {
             reaction: '可能相信我',
             confidence: SIMULATION_CONFIDENCE_MEDIUM,
           });
-          sim.expectedPerceptionChange.set(pid, 0.2);
+          sim.expectedPerceptionChange.set(pid, SIMULATION_PERCEPTION_POSITIVE);
         } else {
           sim.expectedReactions.set(pid, {
             reaction: '可能怀疑我',
             confidence: SIMULATION_CONFIDENCE_LOW,
           });
-          sim.expectedPerceptionChange.set(pid, -0.1);
+          sim.expectedPerceptionChange.set(pid, SIMULATION_PERCEPTION_NEGATIVE_SMALL);
         }
       }
     }
@@ -318,15 +324,15 @@ export class MentalSimulator {
     target: string | null,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
     if (!target) return;
 
     const targetView = socialContext.relationNetwork.myView.get(target);
     const wolfProb = targetView?.confidence || 0;
 
-    sim.goalAlignment = wolfProb > 0.5 ? 0.8 : 0.4;
-    sim.exposureRisk = 0.3; // 怀疑比指认风险低
+    sim.goalAlignment = wolfProb > PROB_THRESHOLD_MEDIUM ? SIMULATION_GOAL_ALIGNMENT_MEDIUM : SIMULATION_GOAL_ALIGNMENT_LOW;
+    sim.exposureRisk = SIMULATION_EXPOSURE_RISK_LOW;
 
     sim.expectedReactions.set(target, {
       reaction: '可能反驳',
@@ -338,17 +344,17 @@ export class MentalSimulator {
     sim: MentalSimulation,
     socialContext: SocialContext,
     self: Player,
-    belief: BeliefSystem
+    _belief: BeliefSystem
   ): void {
-    sim.exposureRisk = 0.2;
-    sim.goalAlignment = 0.5;
+    sim.exposureRisk = SIMULATION_EXPOSURE_RISK_VERY_LOW;
+    sim.goalAlignment = SIMULATION_DEFAULT_GOAL_ALIGNMENT;
 
     // 沉默 = 不引起注意
-    for (const [pid, view] of socialContext.relationNetwork.myView) {
+    for (const [pid, _view] of socialContext.relationNetwork.myView) {
       if (pid !== self.id) {
         sim.expectedReactions.set(pid, {
           reaction: '可能忽略我',
-          confidence: 0.7,
+          confidence: SIMULATION_EXPOSURE_RISK_HIGH,
         });
       }
     }

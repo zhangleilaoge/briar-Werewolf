@@ -143,14 +143,14 @@ describe('PlayerStateBus', () => {
       const bus = new PlayerStateBus();
       bus.setPlayers([makePlayer('p1'), makePlayer('p2')]);
       bus.changeRelation('p1', 'p2', { favorDelta: 5 }, 'test');
-      expect(bus.getPlayer('p1')!.relations['p2'].favor).toBe(5);
+      expect(bus.getPlayer('p1')!.relations.p2.favor).toBe(5);
     });
 
     it('computes favor from trust+friendly', () => {
       const bus = new PlayerStateBus();
       bus.setPlayers([makePlayer('p1'), makePlayer('p2')]);
       bus.changeRelation('p1', 'p2', { trustDelta: 6, friendlyDelta: 4 }, 'test');
-      const rel = bus.getPlayer('p1')!.relations['p2'];
+      const rel = bus.getPlayer('p1')!.relations.p2;
       expect(rel.trust).toBe(6);
       expect(rel.friendly).toBe(4);
       expect(rel.favor).toBe(5); // (6+4)/2
@@ -213,8 +213,8 @@ describe('PlayerStateBus', () => {
       bus.setPlayers([makePlayer('p1'), makePlayer('p2')]);
       bus.changeRelation('p1', 'p2', { favorDelta: 5 });
       const copies = bus.getPublicPlayerStates();
-      copies[0].relations['p2'].favor = 999;
-      expect(bus.getPlayer('p1')!.relations['p2'].favor).toBe(5);
+      copies[0].relations.p2.favor = 999;
+      expect(bus.getPlayer('p1')!.relations.p2.favor).toBe(5);
     });
   });
 });

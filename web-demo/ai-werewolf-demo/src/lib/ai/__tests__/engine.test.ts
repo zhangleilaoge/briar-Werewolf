@@ -124,7 +124,7 @@ describe('DecisionEngine', () => {
       // 拦截的候选目标都是队友
       for (const b of blocked) {
         expect(b.candidate.target).toBe('w2');
-        expect(b.reason).toContain('wolf_no_attack_teammate');
+        expect(b.constraintId).toBe('wolf_no_attack_teammate');
       }
     });
 

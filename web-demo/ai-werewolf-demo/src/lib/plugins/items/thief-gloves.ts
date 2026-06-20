@@ -62,7 +62,7 @@ export class ThiefGlovesPlugin extends SingleUseItemPlugin {
       return { success: false, logs, stateChanges, events };
     }
     
-    if (!target || !target.alive) {
+    if (!target?.alive) {
       logs.push(createGameLog(context, 'action', `${actor.name} 尝试偷窃但目标无效`));
       return { success: false, logs, stateChanges, events };
     }

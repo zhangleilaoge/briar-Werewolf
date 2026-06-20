@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import type { DecisionProcess } from '@/types';
 import { ROLE_INFO } from '@/types';
 import type { Player } from '@/types';
 import { ACTION_NAMES } from '@/lib/constants/display-names';
+import { MIND_MULTIPLIER_BASE, MIND_MULTIPLIER_SCALE, MIND_MULTIPLIER_SOCIAL_BASE, MIND_MULTIPLIER_SOCIAL_SCALE } from '@/lib/constants/mind';
+import { TOP_CANDIDATES_COUNT, POPUP_OFFSET_PX, PERCENT_MULTIPLIER } from '@/lib/constants/ui-thresholds';
+import { PopOverlay, FactorTooltip } from '@/components/ui/PopOverlay';
 
 interface DecisionProcessViewProps {
   process: DecisionProcess;
@@ -23,57 +26,7 @@ const STAGE_LABELS: Record<string, string> = {
   social: '社交',
 };
 
-/** 分数来源映射 */
-const SCORE_SOURCE: Record<string, string> = {
-  intention: '意图系统 (IntentionManager)',
-  plugin: '插件系统 (PluginRegistry)',
-  duty: '策略引擎 - 职业义务',
-  survival: '策略引擎 - 生存',
-  information: '策略引擎 - 信息',
-  social: '策略引擎 - 社交',
-  unknown: '策略引擎',
-};
-
-/** 心智因子标签 */
-const MIND_FACTOR_LABELS: Record<string, string> = {
-  valueAlignment: '价值观',
-  timingScore: '时机',
-  simulationScore: '模拟',
-  crisisFactor: '危机',
-  relationFactor: '关系',
-  socialContextBonus: '社交情境',
-  capabilityFactor: '能力',
-};
-
 // ==================== 可复用组件 ====================
-
-/** 带 hover 提示的分数标签 */
-function ScoreLabel({ label, source, value }: { label: string; source?: string; value: number }) {
-  const [showTooltip, setShowTooltip] = useState(false);
-  if (!value) return null;
-
-  // 没有 source 时不显示下划线和 hover
-  if (!source) {
-    return <span>{value}({label})</span>;
-  }
-
-  return (
-    <span className="relative inline-block">
-      <span
-        className="border-b border-dotted border-gray-500 cursor-help"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-      >
-        {value}({label})
-      </span>
-      {showTooltip && (
-        <span className="absolute bottom-full left-0 mb-1 px-2 py-1 bg-gray-800 text-[10px] text-gray-300 rounded shadow-lg whitespace-nowrap z-50">
-          {source}
-        </span>
-      )}
-    </span>
-  );
-}
 
 /** 玩家名显示 */
 function PlayerName({ id, players }: { id: string | null; players: Player[] }) {
@@ -115,21 +68,21 @@ function ScoreLine({ candidate }: { candidate: DecisionProcess['candidates'][0] 
   return (
     <span className="text-gray-300">
       <span className="text-white font-bold">总分：{totalScore} = </span>
-      <ScoreLabel value={score} label="基础分" source={baseSource} />
+      <span>{score}(基础分)</span>
       {intentionDrivenBonus ? (
-        <span> + <ScoreLabel value={intentionDrivenBonus} label={intentionLabel} /></span>
+        <span> + {intentionDrivenBonus}({intentionLabel})</span>
       ) : null}
       {stageWeight ? (
         <span> + {stageWeight}({stageLabel})</span>
       ) : null}
       {modifiers.alignment ? (
-        <span> + <ScoreLabel value={modifiers.alignment} label="阵营修正" /></span>
+        <span> + {modifiers.alignment}(阵营修正)</span>
       ) : null}
       {modifiers.stress ? (
-        <span> + <ScoreLabel value={modifiers.stress} label="压力修正" /></span>
+        <span> + {modifiers.stress}(压力修正)</span>
       ) : null}
       {modifiers.relation ? (
-        <span> + <ScoreLabel value={modifiers.relation} label="关系修正" /></span>
+        <span> + {modifiers.relation}(关系修正)</span>
       ) : null}
     </span>
   );
@@ -166,38 +119,56 @@ function CandidateCard({
   );
 }
 
-/** 弹窗中的心智因子详细展开 */
-function MindFactorDetails({ mindData }: { mindData?: Record<string, unknown> }) {
+/** 心智因子公式行 — 每个因子 hover 弹出二级 Pop */
+function MindFactorFormula({ mindData }: { mindData?: Record<string, unknown> }) {
   if (!mindData) return null;
 
-  const factors = [
-    { key: 'valueAlignment', label: '价值观', transform: (v: number) => (0.5 + 0.5 * v).toFixed(2) },
-    { key: 'timingScore', label: '时机', transform: (v: number) => (0.5 + 0.5 * v).toFixed(2) },
-    { key: 'simulationScore', label: '模拟', transform: (v: number) => (0.5 + 0.5 * v).toFixed(2) },
-    { key: 'crisisFactor', label: '危机', transform: (v: number) => v.toFixed(2) },
-    { key: 'relationFactor', label: '关系', transform: (v: number) => v.toFixed(2) },
-    { key: 'socialContextBonus', label: '社交情境', transform: (v: number) => (0.8 + 0.2 * v).toFixed(2) },
-    { key: 'capabilityFactor', label: '能力', transform: (v: number) => v.toFixed(2) },
+  const factorDefs = [
+    { key: 'valueAlignment', detailKey: 'valueAlignmentDetail', label: '价值观', transform: (v: number) => (MIND_MULTIPLIER_BASE + MIND_MULTIPLIER_SCALE * v).toFixed(2) },
+    { key: 'timingScore', detailKey: 'timingDetail', label: '时机', transform: (v: number) => (MIND_MULTIPLIER_BASE + MIND_MULTIPLIER_SCALE * v).toFixed(2) },
+    { key: 'simulationScore', detailKey: 'simulationDetail', label: '模拟', transform: (v: number) => (MIND_MULTIPLIER_BASE + MIND_MULTIPLIER_SCALE * v).toFixed(2) },
+    { key: 'crisisFactor', detailKey: 'crisisDetail', label: '危机', transform: (v: number) => v.toFixed(2) },
+    { key: 'relationFactor', detailKey: 'relationDetail', label: '关系', transform: (v: number) => v.toFixed(2) },
+    { key: 'socialContextBonus', detailKey: 'socialContextDetail', label: '社交情境', transform: (v: number) => (MIND_MULTIPLIER_SOCIAL_BASE + MIND_MULTIPLIER_SOCIAL_SCALE * v).toFixed(2) },
+    { key: 'capabilityFactor', detailKey: 'capabilityDetail', label: '能力', transform: (v: number) => v.toFixed(2) },
   ];
-
-  const parts = factors
-    .map(({ key, label, transform }) => {
-      const raw = mindData[key] as number | undefined;
-      if (raw === undefined) return null;
-      return `${transform(raw)}(${label})`;
-    })
-    .filter(Boolean);
-
-  if (parts.length === 0) return null;
 
   const multiplier = mindData.mindMultiplier as number | undefined;
 
+  const parts = factorDefs.map(({ key, detailKey, label, transform }) => {
+    const raw = mindData[key] as number | undefined;
+    if (raw === undefined) return null;
+    const detail = mindData[detailKey] as { score: number; reason: string; breakdown?: { label: string; value: number; reason: string }[] } | undefined;
+    const display = transform(raw);
+
+    if (detail) {
+      return (
+        <span key={key}>
+          <FactorTooltip
+            label={label}
+            value={detail.score}
+            reason={detail.reason}
+            breakdown={detail.breakdown}
+          >
+            {display}({label})
+          </FactorTooltip>
+        </span>
+      );
+    }
+    return <span key={key}>{display}({label})</span>;
+  }).filter(Boolean);
+
   return (
-    <div className="text-[10px] text-gray-500 mt-0.5">
+    <div className="text-[10px] text-gray-500">
       <span className="text-gray-400">心智因子：</span>
-      {parts.join(' × ')}
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && ' × '}
+          {part}
+        </span>
+      ))}
       {multiplier !== undefined && (
-        <span className="text-gray-400"> = {multiplier.toFixed(2)}</span>
+        <span className="text-gray-400">= {multiplier.toFixed(2)}</span>
       )}
     </div>
   );
@@ -265,8 +236,8 @@ function CandidatePopupItem({
       {/* 基础分详细 */}
       <BaseScoreDetails candidate={candidate} />
 
-      {/* 心智因子详细 */}
-      {hasMindData && <MindFactorDetails mindData={candidate.mindData} />}
+      {/* 心智因子公式（每个因子可 hover 看详情） */}
+      {hasMindData && <MindFactorFormula mindData={candidate.mindData} />}
 
       {/* 汇总公式 */}
       <div className="text-[10px] text-gray-500">
@@ -305,6 +276,7 @@ function CandidatePopupItem({
 
 export default function DecisionProcessView({ process, players, logIdx }: DecisionProcessViewProps) {
   const [hoveredCandidates, setHoveredCandidates] = useState<number | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const allCandidates = process.candidates || [];
   const winnerActionStr = process.winner?.action || '';
@@ -313,7 +285,7 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
   const lines = shortlist.split('\n');
 
   // 计算 top3 候选的概率
-  const top3 = allCandidates.slice(0, 3);
+  const top3 = allCandidates.slice(0, TOP_CANDIDATES_COUNT);
   const totalWeight = top3.reduce((sum, c) => sum + Math.max(1, c.totalScore), 0);
 
   // 从 shortlist 中提取非候选行（意图状态、意图栈、最终选择等）
@@ -352,41 +324,47 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
       {/* 【可选行动】标题 + 更多候选按钮 */}
       <div className="text-gray-400 font-bold flex items-center gap-1">
         【可选行动】
-        {allCandidates.length > 3 && (
-          <span
-            className="relative"
+        {allCandidates.length > TOP_CANDIDATES_COUNT && (
+          <button
+            ref={triggerRef}
+            type="button"
+            className="relative inline-block p-0 border-0 bg-transparent"
             onMouseEnter={() => setHoveredCandidates(logIdx)}
             onMouseLeave={() => setHoveredCandidates(null)}
           >
             <MoreHorizontal size={12} className="text-gray-500 hover:text-gray-300 cursor-pointer" />
-            {hoveredCandidates === logIdx && (
-              <div className="absolute left-0 top-5 z-50 bg-gray-900 border border-gray-700 rounded-lg p-4 shadow-lg whitespace-nowrap min-w-[520px]">
-                <div className="text-xs font-bold text-gray-300 mb-3">所有候选行动（按分数排序）</div>
-                {allCandidates.map((c, ci) => {
-                  const isWinner = c.action === winnerActionStr && (
-                    (c.target === null && winnerTargetStr === '') || (c.target !== null && c.target === winnerTargetStr)
-                  );
-                  const probability = totalWeight > 0 ? (Math.max(1, c.totalScore) / totalWeight) * 100 : 0;
-                  return (
-                    <CandidatePopupItem
-                      key={ci}
-                      candidate={c}
-                      isWinner={isWinner}
-                      players={players}
-                      probability={probability}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </span>
+            <PopOverlay
+              triggerRef={triggerRef}
+              visible={hoveredCandidates === logIdx}
+              onClose={() => setHoveredCandidates(null)}
+              title="所有候选行动（按分数排序）"
+              zIndex={100}
+              width={520}
+            >
+              {allCandidates.map((c, ci) => {
+                const isWinner = c.action === winnerActionStr && (
+                  (c.target === null && winnerTargetStr === '') || (c.target !== null && c.target === winnerTargetStr)
+                );
+                const probability = totalWeight > 0 ? (Math.max(1, c.totalScore) / totalWeight) * PERCENT_MULTIPLIER : 0;
+                return (
+                  <CandidatePopupItem
+                    key={ci}
+                    candidate={c}
+                    isWinner={isWinner}
+                    players={players}
+                    probability={probability}
+                  />
+                );
+              })}
+            </PopOverlay>
+          </button>
         )}
       </div>
       {top3.map((candidate, i) => {
         const isSelected = candidate.action === winnerActionStr && (
           (candidate.target === null && winnerTargetStr === '') || (candidate.target !== null && candidate.target === winnerTargetStr)
         );
-        const probability = totalWeight > 0 ? (Math.max(1, candidate.totalScore) / totalWeight) * 100 : 0;
+        const probability = totalWeight > 0 ? (Math.max(1, candidate.totalScore) / totalWeight) * PERCENT_MULTIPLIER : 0;
         return (
           <CandidateCard
             key={`c-${i}`}

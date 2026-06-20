@@ -4,11 +4,8 @@ import { performCheck, hasItem, calculateModifierBreakdown, performOpposedCheck,
 import { ACTION, PLAN_PHASE, ROLE, LOG_ACTION } from '@/lib/constants/action-constants';
 import {
   STRESS_CHANGE_MINOR_POS, 
-  STRESS_CHANGE_MODERATE_POS, 
-  REL_CHANGE_MINOR_NEG, REL_CHANGE_MINOR_POS, REL_CHANGE_MODERATE_POS, REL_CHANGE_MAJOR_NEG, REL_CHANGE_MAJOR_POS,
-  DEFAULT_ATTRIBUTE_FALLBACK, DEFAULT_STRESS_FALLBACK, DEFAULT_ALIGNMENT_FALLBACK,
-  CHECK_DIFFICULTY_DEFEND, CHECK_DIFFICULTY_JOIN_SUSPECT, CHECK_DIFFICULTY_JOIN_DEFEND,
-  CHECK_DIFFICULTY_CALL_VOTE, CHECK_DIFFICULTY_BLOCK_VOTE, CHECK_DIFFICULTY_GUARANTEE, CHECK_DIFFICULTY_EXCLUDE_ALL,
+  REL_CHANGE_MINOR_NEG, 
+  DEFAULT_ATTRIBUTE_FALLBACK, DEFAULT_STRESS_FALLBACK, DEFAULT_ALIGNMENT_FALLBACK,CHECK_DIFFICULTY_EXCLUDE_ALL,
   ROLE_INFO,
 } from '@/types';
 import { log, getPublicPlayerStates, logAction, buildCheckLog } from './simulator-utils';
@@ -41,7 +38,7 @@ export function runDayAction(sim: GameSimulator, playerId: string) {
   // 检查今天是否已对目标执行过动作（同一人对同一人一天只能动作一次）
   if (decision.target) {
     const targets = sim.dayActionTargets.get(playerId);
-    if (targets && targets.has(decision.target)) {
+    if (targets?.has(decision.target)) {
       sim.consecutiveSilenceCount++;
       if (sim.consecutiveSilenceCount >= sim.getAliveCount()) {
         log(sim, 'phase', '全员连续沉默，进入投票阶段。');

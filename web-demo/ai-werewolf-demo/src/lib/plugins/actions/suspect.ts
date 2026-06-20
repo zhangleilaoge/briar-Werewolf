@@ -6,11 +6,12 @@
 
 import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
-import { calculateModifierBreakdown, performOpposedCheck } from '@/types';
+import { calculateModifierBreakdown, performOpposedCheck, BELIEF_HIGH_SUSPICION_THRESHOLD } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import { SCORE_HIGH_SUSPECT_SUSPECT, SCORE_DEFAULT_SUSPECT } from '@/types';
+import { CONFIDENCE_MEDIUM } from '@/lib/constants/mind';
 
 export class SuspectPlugin implements ActionProvider {
   id = 'suspect';
@@ -81,17 +82,17 @@ export class SuspectPlugin implements ActionProvider {
       const potentialTargets = allPlayers.filter(p => p.id !== self.id && p.alive && p.team !== self.team);
       potentialTargets.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
-        if (wolfProb < 0.5) {
+        if (wolfProb < BELIEF_HIGH_SUSPICION_THRESHOLD) {
           const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT, target.id);
           result.push({
             action: ACTION.SUSPECT,
             target: target.id,
             score: SCORE_HIGH_SUSPECT_SUSPECT + scoreDelta,
-            confidence: 0.6,
+            confidence: CONFIDENCE_MEDIUM,
             reason: `伪装怀疑${target.name}，狼嫌疑${(wolfProb * 100).toFixed(0)}%${reason}`,
             strategy: 'SuspectPlugin',
             rule: 'camouflage_suspect',
-            trigger: `wolfProb=${wolfProb.toFixed(2)} < 0.5`,
+            trigger: `wolfProb=${wolfProb.toFixed(2)} < ${BELIEF_HIGH_SUSPICION_THRESHOLD}`,
           });
         }
       });
@@ -99,7 +100,7 @@ export class SuspectPlugin implements ActionProvider {
 
     // 村民策略：怀疑高狼概率目标
     if (self.team === 'villager') {
-      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > 0.5);
+      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > BELIEF_HIGH_SUSPICION_THRESHOLD);
       suspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.SUSPECT, target.id);
@@ -111,7 +112,7 @@ export class SuspectPlugin implements ActionProvider {
           reason: `怀疑${target.name}，狼概率${(wolfProb * 100).toFixed(0)}%${reason}`,
           strategy: 'SuspectPlugin',
           rule: 'villager_suspect',
-          trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.5`,
+          trigger: `wolfProb=${wolfProb.toFixed(2)} > ${BELIEF_HIGH_SUSPICION_THRESHOLD}`,
         });
       });
     }

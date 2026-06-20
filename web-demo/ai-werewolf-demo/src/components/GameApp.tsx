@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useGameRunner } from '@/hooks/useGameRunner';
 import type { PlayerState } from '@/hooks/useGameRunner';
+import { PopProvider } from '@/hooks/usePopManager';
 import SetupPanel from './SetupPanel';
 import GameHeader from './game/GameHeader';
 import PlayerList from './game/PlayerList';
@@ -42,47 +43,49 @@ export default function GameApp() {
   const villagerCount = game.players.filter((p) => p.team !== 'werewolf' && p.alive).length;
 
   return (
-    <div className="h-screen flex flex-col">
-      <GameHeader
-        round={game.round}
-        werewolfCount={werewolfCount}
-        villagerCount={villagerCount}
-        isRunning={isRunning}
-        isEnded={isEnded}
-        winner={game.winner}
-        speed={game.speed}
-        setSpeed={game.setSpeed}
-        pauseGame={game.pauseGame}
-        resumeGame={game.resumeGame}
-        resetGame={game.resetGame}
-        exportLog={game.exportLog}
-        onOpenRules={() => setRulesOpen(true)}
-      />
-
-      <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
-
-      <div className="flex-1 flex overflow-hidden">
-        <PlayerList
-          players={game.players}
-          selectedPlayer={selectedPlayer}
-          onSelectPlayer={setSelectedPlayer}
+    <PopProvider>
+      <div className="h-screen flex flex-col">
+        <GameHeader
+          round={game.round}
+          werewolfCount={werewolfCount}
+          villagerCount={villagerCount}
+          isRunning={isRunning}
+          isEnded={isEnded}
+          winner={game.winner}
+          speed={game.speed}
+          setSpeed={game.setSpeed}
+          pauseGame={game.pauseGame}
+          resumeGame={game.resumeGame}
+          resetGame={game.resetGame}
+          exportLog={game.exportLog}
+          onOpenRules={() => setRulesOpen(true)}
         />
 
-        <LogPanel
-          logs={game.logs}
-          players={game.players}
-          expandedLogs={expandedLogs}
-          onToggleLog={toggleLog}
-        />
+        <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
 
-        <PlayerDrawer
-          selectedPlayer={selectedPlayer}
-          players={game.players}
-          drawerOpen={drawerOpen}
-          onToggleDrawer={handleToggleDrawer}
-          onClosePlayer={handleClosePlayer}
-        />
+        <div className="flex-1 flex overflow-hidden">
+          <PlayerList
+            players={game.players}
+            selectedPlayer={selectedPlayer}
+            onSelectPlayer={setSelectedPlayer}
+          />
+
+          <LogPanel
+            logs={game.logs}
+            players={game.players}
+            expandedLogs={expandedLogs}
+            onToggleLog={toggleLog}
+          />
+
+          <PlayerDrawer
+            selectedPlayer={selectedPlayer}
+            players={game.players}
+            drawerOpen={drawerOpen}
+            onToggleDrawer={handleToggleDrawer}
+            onClosePlayer={handleClosePlayer}
+          />
+        </div>
       </div>
-    </div>
+    </PopProvider>
   );
 }

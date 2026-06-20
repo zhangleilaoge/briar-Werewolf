@@ -2,7 +2,6 @@
 // Desire Engine — 从状态推导愿望
 // ============================================================
 
-import { ACTION } from '@/lib/constants/action-constants';
 import type { Player } from '@/types';
 import {
   INTENTION_MODE_ATTACK_DESPERATE,

@@ -3,7 +3,6 @@ import type { Player } from '@/types';
 import type {
   SocialContext,
   SituationAwareness,
-  DominantNarrative,
   RelationNetwork,
   PlayerView,
   InformationState,
@@ -27,10 +26,7 @@ import {
   CRISIS_THRESHOLD_CRITICAL,
   CRISIS_THRESHOLD_HIGH,
   CRISIS_THRESHOLD_LOW,
-  TENSION_THRESHOLD_HIGH,
-  TRUST_THRESHOLD_MEDIUM,
   ATTACK_COUNT_THRESHOLD,
-  INFORMATION_RICHNESS_HIGH,
   INFORMATION_RICHNESS_THRESHOLD,
 } from '@/lib/constants/mind';
 

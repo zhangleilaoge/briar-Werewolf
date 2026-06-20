@@ -178,7 +178,7 @@ export function useGameRunner() {
       // 立即开始，不等待
       timerRef.current = setTimeout(() => runNextStepRef.current?.(), 0);
     },
-    [runNextStep]
+    []
   );
 
   const pauseGame = useCallback(() => {
@@ -200,7 +200,7 @@ export function useGameRunner() {
     const delay = tickRate / speedRef.current;
     console.log(`[resumeGame] delay=${delay}ms tickRate=${tickRate}`);
     timerRef.current = setTimeout(() => runNextStepRef.current?.(), delay);
-  }, [runNextStep]);
+  }, []);
 
   const nextStep = useCallback(() => {
     console.log('[nextStep] manual');

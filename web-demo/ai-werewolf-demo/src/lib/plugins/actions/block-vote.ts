@@ -4,13 +4,14 @@
  * Protects a targeted player from being voted out
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
-import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_BLOCK_VOTE } from '@/types';
+import { calculateModifierBreakdown, performCheck, CHECK_DIFFICULTY_BLOCK_VOTE, BELIEF_VERY_LOW_SUSPICION_THRESHOLD } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import { SCORE_DEFAULT_BLOCK_VOTE } from '@/types';
+import { CONFIDENCE_VERY_HIGH } from '@/lib/constants/mind';
 
 export class BlockVotePlugin implements ActionProvider {
   id = 'block_vote';
@@ -71,7 +72,7 @@ export class BlockVotePlugin implements ActionProvider {
 
     // 村民策略：阻止投票给低狼概率目标
     if (self.team === 'villager') {
-      const lowSuspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) < 0.3);
+      const lowSuspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) < BELIEF_VERY_LOW_SUSPICION_THRESHOLD);
       lowSuspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.BLOCK_VOTE, target.id);
@@ -83,7 +84,7 @@ export class BlockVotePlugin implements ActionProvider {
           reason: `阻止投票给${target.name}，狼概率低${reason}`,
           strategy: 'BlockVotePlugin',
           rule: 'villager_block_vote',
-          trigger: `wolfProb=${wolfProb.toFixed(2)} < 0.3`,
+          trigger: `wolfProb=${wolfProb.toFixed(2)} < ${BELIEF_VERY_LOW_SUSPICION_THRESHOLD}`,
         });
       });
     }
@@ -97,7 +98,7 @@ export class BlockVotePlugin implements ActionProvider {
           action: ACTION.BLOCK_VOTE,
           target: target.id,
           score: SCORE_DEFAULT_BLOCK_VOTE + 50 + scoreDelta,
-          confidence: 0.9,
+          confidence: CONFIDENCE_VERY_HIGH,
           reason: `保护狼队友${target.name}${reason}`,
           strategy: 'BlockVotePlugin',
           rule: 'werewolf_protect_teammate',

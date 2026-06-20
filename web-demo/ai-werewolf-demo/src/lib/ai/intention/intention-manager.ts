@@ -76,7 +76,7 @@ export class IntentionManager {
 
     for (const intention of activeIntentions) {
       const step = PlanLibrary.getStepForPhase(intention.plan, phase);
-      if (!step || !step.action) continue;
+      if (!step?.action) continue;
 
       let targetId: string | null = null;
       if (step.targetRequired) {
@@ -98,7 +98,7 @@ export class IntentionManager {
         target: targetId,
         score: intention.priority,
         confidence: 0.6,
-        reason: `[意图${isTop ? '驱动' : '补充'}] ${typeNames[intention.type] || intention.type}${targetId ? '→' + targetName : ''}，计划步骤=${actionNames[step.action] || step.action}`,
+        reason: `[意图${isTop ? '驱动' : '补充'}] ${typeNames[intention.type] || intention.type}${targetId ? `→${targetName}` : ''}，计划步骤=${actionNames[step.action] || step.action}`,
         stage: 'intention',
         strategy: 'IntentionManager',
         rule: isTop ? 'top_intention_step' : 'secondary_intention_step',
@@ -185,7 +185,7 @@ export class IntentionManager {
       const stepInfo = i.plan[i.currentStepIndex]
         ? `${phaseNames[i.plan[i.currentStepIndex].phase] || i.plan[i.currentStepIndex].phase}:${actionNames[i.plan[i.currentStepIndex].action] || i.plan[i.currentStepIndex].action}`
         : '无';
-      return `  ${status} ${typeNames[i.type] || i.type}${i.targetId ? '→' + getName(i.targetId) : ''} (优先级${i.priority}, 意愿强度${commitmentNames[i.commitment] || i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
+      return `  ${status} ${typeNames[i.type] || i.type}${i.targetId ? `→${getName(i.targetId)}` : ''} (优先级${i.priority}, 意愿强度${commitmentNames[i.commitment] || i.commitment}, 来源${sourceNames[i.source] || i.source}) 计划:${stepInfo}`;
     });
     return lines.join('\n');
   }

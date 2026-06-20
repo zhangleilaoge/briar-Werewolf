@@ -7,6 +7,8 @@ import type { Player } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { calculateBehaviorScoreDelta } from '../behavior-modifiers';
 import type { Strategy } from './engine';
+import { CONFIDENCE_VERY_LOW, CONFIDENCE_MEDIUM } from '@/lib/constants/mind';
+import { BELIEF_DEFAULT_PROBABILITY } from '@/lib/constants/belief';
 
 // ---------- 查验确认投票（查验到狼人则高权重投） ----------
 export const CheckRevelationVoteStrategy: Strategy = {
@@ -31,7 +33,7 @@ export const CheckRevelationVoteStrategy: Strategy = {
             action: ACTION.VOTE,
             target: targetId,
             score,
-            confidence: 1.0,
+            confidence: CONFIDENCE_MEDIUM,
             reason: isTeammate
               ? `L2推断：${target.name}被查验身份危机，作为狼人我需避免投他${reason}`
               : `L0事实：查验到${target.name}是狼人，必须投票淘汰${reason}`,
@@ -65,7 +67,7 @@ export const AllyProtectionVoteStrategy: Strategy = {
         action: ACTION.VOTE,
         target: teammate.id,
         score: -SCORE_WEREWOLF_VOTE_DUTY + scoreDelta,
-        confidence: 0.0,
+        confidence: CONFIDENCE_VERY_LOW,
         reason: `L2推断：${teammate.name}是我的队友，狼人不能投票淘汰队友${reason}`,
         strategy: 'AllyProtectionVoteStrategy',
         rule: 'avoid_teammate',
@@ -102,7 +104,7 @@ export const MaxInfoVoteStrategy: Strategy = {
         action: ACTION.VOTE,
         target: target.id,
         score: baseScore + scoreDelta,
-        confidence: Math.abs(wolfProb - 0.5),
+        confidence: Math.abs(wolfProb - BELIEF_DEFAULT_PROBABILITY),
         reason: self.team === 'werewolf'
           ? `L2伪装：${target.name}嫌疑${(wolfProb * 100).toFixed(0)}%，投低嫌疑目标伪装好人${reason}`
           : wolfProb > 0.55
@@ -185,7 +187,7 @@ export const SocialTieBreakerStrategy: Strategy = {
         action: ACTION.VOTE,
         target: target.id,
         score: socialScore + scoreDelta,
-        confidence: 0.3,
+        confidence: CONFIDENCE_VERY_LOW,
         reason: `L3社交：与${target.name}好感度${relation.favor.toFixed(1)}${reason}`,
         strategy: 'SocialTieBreakerStrategy',
         rule: self.team === 'werewolf' ? 'wolf_deflect_social' : 'social_tiebreaker',
@@ -227,7 +229,7 @@ export const SurvivalVoteStrategy: Strategy = {
           action: ACTION.VOTE,
           target: target.id,
           score: SCORE_SURVIVAL_VOTE - myIdentityCrisis * SCORE_MAX_INFO_VOTE + scoreDelta,
-          confidence: 0.6,
+          confidence: CONFIDENCE_MEDIUM,
           reason: self.team === 'werewolf'
             ? `L2推断：自身被怀疑度${myIdentityCrisis.toFixed(2)}过高，投低嫌疑目标伪装好人${reason}`
             : `L2推断：自身被怀疑度${myIdentityCrisis.toFixed(2)}过高，需投高嫌疑目标证明立场${reason}`,

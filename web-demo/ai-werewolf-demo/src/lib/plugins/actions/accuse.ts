@@ -4,13 +4,14 @@
  * Stronger version of suspect with more stress/relation impact
  */
 
-import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, StateChange } from '@/lib/plugins/types';
+import type { ActionProvider, ActionDefinition, ActionContext, ActionExecutionParams, ActionResult, DecisionContext, } from '@/lib/plugins/types';
 import type { Player, CheckLog, DecisionCandidate } from '@/types';
-import { calculateModifierBreakdown, performOpposedCheck } from '@/types';
+import { calculateModifierBreakdown, performOpposedCheck, WEREWOLF_PROBABILITY_HIGH } from '@/types';
 import { ACTION } from '@/lib/constants/action-constants';
 import { createGameLog } from '../base';
 import { calculateBehaviorScoreDelta } from '@/lib/ai/behavior-modifiers';
 import { SCORE_HIGH_SUSPECT_ACCUSE, SCORE_DEFAULT_ACCUSE } from '@/types';
+import { STRATEGY_WOLF_PROB_CRITICAL } from '@/lib/constants/strategy-thresholds';
 
 export class AccusePlugin implements ActionProvider {
   id = 'accuse';
@@ -79,7 +80,7 @@ export class AccusePlugin implements ActionProvider {
 
     // 狼人策略：强烈指认高狼概率目标
     if (self.team === 'werewolf') {
-      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > 0.7);
+      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > STRATEGY_WOLF_PROB_CRITICAL);
       suspects.forEach(target => {
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE, target.id);
         result.push({
@@ -90,14 +91,14 @@ export class AccusePlugin implements ActionProvider {
           reason: `强烈怀疑${target.name}是狼人，狼概率${(belief.getWerewolfProbability(target.id) * 100).toFixed(0)}%${reason}`,
           strategy: 'AccusePlugin',
           rule: 'high_suspect_accuse',
-          trigger: `wolfProb=${belief.getWerewolfProbability(target.id).toFixed(2)} > 0.7`,
+          trigger: `wolfProb=${belief.getWerewolfProbability(target.id).toFixed(2)} > ${STRATEGY_WOLF_PROB_CRITICAL}`,
         });
       });
     }
 
     // 村民策略：强烈指认高狼概率目标
     if (self.team === 'villager') {
-      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > 0.6);
+      const suspects = allPlayers.filter(p => p.id !== self.id && p.alive && belief.getWerewolfProbability(p.id) > WEREWOLF_PROBABILITY_HIGH);
       suspects.forEach(target => {
         const wolfProb = belief.getWerewolfProbability(target.id);
         const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.ACCUSE, target.id);
@@ -109,7 +110,7 @@ export class AccusePlugin implements ActionProvider {
           reason: `强烈指认${target.name}，狼概率${(wolfProb * 100).toFixed(0)}%${reason}`,
           strategy: 'AccusePlugin',
           rule: 'villager_accuse',
-          trigger: `wolfProb=${wolfProb.toFixed(2)} > 0.6`,
+          trigger: `wolfProb=${wolfProb.toFixed(2)} > ${WEREWOLF_PROBABILITY_HIGH}`,
         });
       });
     }

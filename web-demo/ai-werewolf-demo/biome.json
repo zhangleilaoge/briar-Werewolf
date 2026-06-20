@@ -7,7 +7,7 @@
 			"correctness": {
 				"noUnusedImports": "error",
 				"noUnusedVariables": "error",
-				"noUnusedFunctionParameters": "off"
+				"noUnusedFunctionParameters": "error"
 			},
 			"style": {
 				"noNonNullAssertion": "off",
@@ -24,6 +24,18 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noMagicNumbers": "off"
+					}
+				}
+			}
+		}
+	],
 	"css": {
 		"parser": {
 			"cssModules": true,

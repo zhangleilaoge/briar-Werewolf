@@ -1,6 +1,5 @@
 // 心智驱动决策系统的类型定义
 
-import type { Player } from '@/types';
 
 // ========== 社交情境 ==========
 
@@ -120,6 +119,18 @@ export interface MentalSimulation {
 }
 
 // ========== 决策候选扩展 ==========
+
+export interface MindFactorBreakdown {
+  label: string;
+  value: number;
+  reason: string;
+}
+
+export interface MindFactorDetail {
+  score: number;
+  reason: string;
+  breakdown: MindFactorBreakdown[];
+}
 
 export interface MindEnrichedCandidate {
   valueAlignment: number;

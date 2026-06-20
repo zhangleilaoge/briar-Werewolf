@@ -29,7 +29,7 @@ export const JoinSuspectStrategy: Strategy = {
 
     const wolfProb = belief.getWerewolfProbability(target.id);
     if (wolfProb > WEREWOLF_PROBABILITY_MEDIUM || (self.team === 'werewolf' && target.team !== 'werewolf')) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_SUSPECT, originalTargetId);
+      const { scoreDelta, reason: _reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_SUSPECT, originalTargetId);
       const baseScore = Math.floor(wolfProb * SCORE_JOIN_SUSPECT_BASE);
       const wolfBonus = self.team === 'werewolf' ? SCORE_JOIN_SUSPECT_WOLF_BONUS : 0;
       const notJoinPenalty = -15; // 不做会失去与怀疑者的同盟关系
@@ -68,7 +68,7 @@ export const JoinDefendStrategy: Strategy = {
 
     const relation = belief.getRelation(target.id);
     if (relation.favor > RELATION_FRIENDLY_JOIN_DEFEND || (self.team === 'werewolf' && target.team === 'werewolf')) {
-      const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_DEFEND, originalTargetId);
+      const { scoreDelta, reason: _reason } = calculateBehaviorScoreDelta(self, ACTION.JOIN_DEFEND, originalTargetId);
       const baseScore = Math.floor(relation.favor * SCORE_JOIN_DEFEND_BASE);
       const wolfBonus = self.team === 'werewolf' && target.team === 'werewolf' ? SCORE_JOIN_DEFEND_WOLF_BONUS : 0;
       const notJoinPenalty = -10; // 不做会降低与被保护者的关系
@@ -107,7 +107,7 @@ export const RebutStrategy: Strategy = {
 
     // 计算反驳收益 vs 不反驳损失
     const baseScore = self.team === 'werewolf' ? SCORE_REBUT_WEREWOLF : SCORE_REBUT_VILLAGER;
-    const { scoreDelta, reason } = calculateBehaviorScoreDelta(self, ACTION.REBUT, originalActorId);
+    const { scoreDelta, reason: _reason } = calculateBehaviorScoreDelta(self, ACTION.REBUT, originalActorId);
     const myIdentityCrisis = belief.getIdentityCrisis();
     const notRebutPenalty = self.team === 'werewolf'
       ? (myIdentityCrisis > 0.5 ? -30 : -10)  // 狼人：不反驳损失较小（本来就要藏）

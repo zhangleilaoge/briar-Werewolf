@@ -10,6 +10,7 @@ export const INTENTION_BASE_SCORE_DEFAULT = 100;
 export const INTENTION_BASE_SCORE_DEFAULT_OBSERVE = 80;
 
 // ========== 信心值常量 ==========
+export const CONFIDENCE_VERY_HIGH = 0.9;
 export const CONFIDENCE_HIGH = 0.8;
 export const CONFIDENCE_MEDIUM_HIGH = 0.7;
 export const CONFIDENCE_MEDIUM = 0.6;
@@ -65,6 +66,17 @@ export const SIMULATION_GOAL_ALIGNMENT_VERY_LOW = 0.3;
 export const SIMULATION_CONFIDENCE_HIGH = 0.8;
 export const SIMULATION_CONFIDENCE_MEDIUM = 0.6;
 export const SIMULATION_CONFIDENCE_LOW = 0.5;
+
+// 心智模拟感知变化值
+export const SIMULATION_PERCEPTION_POSITIVE = 0.2;
+export const SIMULATION_PERCEPTION_POSITIVE_SMALL = 0.1;
+export const SIMULATION_PERCEPTION_NEGATIVE_SMALL = -0.1;
+export const SIMULATION_PERCEPTION_NEGATIVE = -0.15;
+export const SIMULATION_PERCEPTION_NEGATIVE_MEDIUM = -0.2;
+export const SIMULATION_PERCEPTION_NEGATIVE_LARGE = -0.3;
+
+// 心智模拟曝光风险（补充）
+export const SIMULATION_EXPOSURE_RISK_MODERATE = 0.4;
 
 // ========== 时机评估常量 ==========
 
