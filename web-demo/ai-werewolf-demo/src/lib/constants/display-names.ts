@@ -4,14 +4,16 @@
 
 // 意图类型
 export const INTENTION_TYPE_NAMES: Record<string, string> = {
-  attack: '攻击', recruit: '潜伏', protect: '保护', reveal: '揭示',
-  investigate: '调查', coordinate: '协同', survive: '生存',
+  attack: '攻击', defend: '保护', conceal: '隐藏', reveal: '揭示', investigate: '调查',
+  survive: '生存', recruit: '拉票', cut_loss: '切割', follow: '跟随', silence: '沉默',
+  coordinate: '协同', protect: '保护',
 };
 
 // 意图来源
 export const INTENTION_SOURCE_NAMES: Record<string, string> = {
-  team_duty: '阵营职责', personal_goal: '主意图', crisis: '危机',
-  strategic: '战略', external: '外部压力', role_duty: '职业职责', bus: '背锅',
+  role_duty: '职业职责', team_duty: '阵营职责', personal_goal: '主意图',
+  reaction: '反应', opportunity: '机会', crisis: '危机',
+  strategic: '战略', external: '外部压力', bus: '背锅',
 };
 
 // 计划阶段

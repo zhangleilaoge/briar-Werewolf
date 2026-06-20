@@ -325,9 +325,8 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
       <div className="text-gray-400 font-bold flex items-center gap-1">
         【可选行动】
         {allCandidates.length > TOP_CANDIDATES_COUNT && (
-          <button
+          <span
             ref={triggerRef}
-            type="button"
             className="relative inline-block p-0 border-0 bg-transparent"
             onMouseEnter={() => setHoveredCandidates(logIdx)}
           >
@@ -357,7 +356,7 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
                 );
               })}
             </PopOverlay>
-          </button>
+          </span>
         )}
       </div>
       {top3.map((candidate, i) => {

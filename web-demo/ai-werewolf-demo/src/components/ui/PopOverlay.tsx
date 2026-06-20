@@ -57,6 +57,10 @@ export function PopOverlay({
 	const pinnedRef = useRef(false);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+	// Drag state
+	const [dragging, setDragging] = useState(false);
+	const dragOffsetRef = useRef({ x: 0, y: 0 });
+
 	const visible =
 		externalVisible !== undefined ? externalVisible : internalVisible;
 
@@ -240,6 +244,39 @@ export function PopOverlay({
 		};
 	}, []);
 
+	// Drag handlers
+	const handleDragStart = useCallback((e: React.MouseEvent) => {
+		if (!pinnedRef.current) return;
+		setDragging(true);
+		dragOffsetRef.current = {
+			x: e.clientX - position.left,
+			y: e.clientY - position.top,
+		};
+	}, [position]);
+
+	const handleDragMove = useCallback((e: MouseEvent) => {
+		if (!dragging) return;
+		setPosition({
+			left: e.clientX - dragOffsetRef.current.x,
+			top: e.clientY - dragOffsetRef.current.y,
+		});
+	}, [dragging]);
+
+	const handleDragEnd = useCallback(() => {
+		setDragging(false);
+	}, []);
+
+	// Attach drag listeners
+	useEffect(() => {
+		if (!dragging) return;
+		window.addEventListener("mousemove", handleDragMove);
+		window.addEventListener("mouseup", handleDragEnd);
+		return () => {
+			window.removeEventListener("mousemove", handleDragMove);
+			window.removeEventListener("mouseup", handleDragEnd);
+		};
+	}, [dragging, handleDragMove, handleDragEnd]);
+
 	const handleMouseEnter = () => {
 		if (!overlay && hoverTrigger) show();
 		onMouseEnter?.();
@@ -291,7 +328,7 @@ export function PopOverlay({
 		);
 	}
 
-	// 普通 tooltip pop 模式
+	// 普通 tooltip pop 模式（已固定时可拖拽）
 	return (
 		<div
 			ref={popRef}
@@ -302,12 +339,27 @@ export function PopOverlay({
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}
 		>
-			{/* 顶部提示栏 */}
-			<div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-700 bg-gray-800/50 select-none">
+			{/* 顶部提示栏 — 拖拽把手 */}
+			<div
+				className={`flex items-center justify-between px-3 py-1.5 border-b border-gray-700 bg-gray-800/50 select-none ${
+					pinned ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+				}`}
+				onMouseDown={handleDragStart}
+			>
 				<span className="text-xs font-bold text-gray-300">{title}</span>
-				<span className="text-[10px] text-gray-500">
-					{pinned ? "已固定 (点击取消)" : "点击固定"}
-				</span>
+				<div className="flex items-center gap-2">
+					<span className="text-[10px] text-gray-500">
+						{pinned ? "已固定 (拖拽移动)" : "点击固定"}
+					</span>
+					<button
+						className="text-gray-400 hover:text-white text-sm leading-none transition-colors"
+						onClick={(e) => { e.stopPropagation(); close(); }}
+						type="button"
+						aria-label="关闭"
+					>
+						×
+					</button>
+				</div>
 			</div>
 			<div className="p-3 text-start">{children}</div>
 		</div>
@@ -392,7 +444,7 @@ export function FactorTooltip({
 			<PopOverlay
 				triggerRef={triggerRef}
 				visible={visible}
-				onClose={() => {}}
+				onClose={() => { setVisible(false); setPinned(false); pinnedRef.current = false; }}
 				onMouseEnter={show}
 				onMouseLeave={hide}
 				title={label}
@@ -401,7 +453,6 @@ export function FactorTooltip({
 				hoverTrigger={false}
 			>
 				<div className="text-xs text-gray-300">
-					<div className="mb-2 font-medium text-gray-200">{reason}</div>
 					{breakdown && breakdown.length > 0 && (
 						<div className="space-y-1">
 							{breakdown.map((b, i) => (
@@ -417,10 +468,10 @@ export function FactorTooltip({
 									<div className="text-gray-500 pl-2">→ {b.reason}</div>
 								</div>
 							))}
-						</div>
-					)}
-				</div>
-			</PopOverlay>
+							</div>
+						)}
+					</div>
+				</PopOverlay>
 		</>
 	);
 }
