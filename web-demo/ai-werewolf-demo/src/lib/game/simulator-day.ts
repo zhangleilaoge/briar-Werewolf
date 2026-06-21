@@ -1,5 +1,5 @@
 import type { GameSimulator, PublicActionRecord } from './simulator-core';
-import type { Player, DayActionType, ActionType, DecisionProcess } from '@/types';
+import type { Player, DayActionType, ActionType, DecisionProcess, Role } from '@/types';
 import { performCheck, hasItem, calculateModifierBreakdown, performOpposedCheck, type CheckLog, } from '@/types';
 import { ACTION, PLAN_PHASE, ROLE, LOG_ACTION } from '@/lib/constants/action-constants';
 import {
@@ -140,18 +140,52 @@ export function resolveDayAction(
     case ACTION.CLAIM_IDENTITY: {
       const claimedRoleKey = details.claimedRole as string || ROLE.VILLAGER;
       const claimedRoleName = ROLE_INFO[claimedRoleKey as keyof typeof ROLE_INFO]?.label || claimedRoleKey;
-      logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRoleName}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole: claimedRoleKey , process });
-      if (actor.role === ROLE.PROPHET && claimedRoleKey === ROLE.PROPHET) {
+      const isProphetClaiming = actor.role === ROLE.PROPHET && claimedRoleKey === ROLE.PROPHET;
+      
+      // 身份声称锁定：已声称过则不能再声称（但预言家可以继续公布查验）
+      if (actor.identityClaim?.hasClaimed) {
+        if (!isProphetClaiming) {
+          logAction(sim, 'action', `${actor.name} 尝试再次声称身份，但已被锁定（已于第${actor.identityClaim.claimedRound}回合声称）`, decisionReason, [], { actorId: actor.id, action: ACTION.SILENCE, process });
+          break;
+        }
+        // 预言家已声称过，继续执行（只公布查验）
+      } else {
+        // 首次声称，锁定身份
+        actor.identityClaim = { hasClaimed: true, claimedRound: sim.round, claimedRole: claimedRoleKey as Role };
+        logAction(sim, 'action', `${actor.name} 公布身份：「我是${claimedRoleName}」`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, claimedRole: claimedRoleKey , process });
+      }
+
+      if (isProphetClaiming) {
         sim.prophetClaims[actor.id] = true;
         const agent = sim._aiAgents[actor.id];
         if (agent) {
           const checks = agent.getCheckResults();
-          Object.entries(checks).forEach(([checkTargetId, result]) => {
+          // 找到第一个未公布的查验并公布（每次只公布一个）
+          const publicClaimedTargetIds = new Set(
+            sim.publicActions
+              .filter(a => a.actorId === actor.id && a.type === LOG_ACTION.CLAIM_CHECK_RESULT)
+              .map(a => a.targetId)
+              .filter((id): id is string => id !== undefined)
+          );
+          const unrevealedChecks = Object.entries(checks).filter(([targetId]) => !publicClaimedTargetIds.has(targetId));
+          const firstUnrevealed = unrevealedChecks[0];
+          if (firstUnrevealed) {
+            const [checkTargetId, result] = firstUnrevealed;
             const checkTarget = sim.players.find((p) => p.id === checkTargetId);
             if (checkTarget) {
-              logAction(sim, 'action', `${actor.name}（宣称预言家）公布查验：${checkTarget.name} 是 ${result === ROLE.WEREWOLF ? '狼人' : '村民'}`, decisionReason, [], { actorId: actor.id, action: LOG_ACTION.CLAIM_CHECK_RESULT, targetId: checkTargetId , process });
+              logAction(sim, 'action', `${actor.name}（预言家）公布查验：${checkTarget.name} 是 ${result === ROLE.WEREWOLF ? '狼人' : '村民'}`, decisionReason, [], { actorId: actor.id, action: LOG_ACTION.CLAIM_CHECK_RESULT, targetId: checkTargetId, process });
+              // 记录到 publicClaims 以便 belief 系统追踪
+              sim.publicActions.push({
+                actorId: actor.id,
+                type: LOG_ACTION.CLAIM_CHECK_RESULT,
+                targetId: checkTargetId,
+                details: { result, claimedRole: ROLE.PROPHET },
+                round: sim.round,
+              });
             }
-          });
+          } else {
+            logAction(sim, 'action', `${actor.name}（预言家）没有新的查验结果可公布`, decisionReason, [], { actorId: actor.id, action: ACTION.CLAIM_IDENTITY, process });
+          }
         }
       }
       if (actor.role === ROLE.PROPHET && claimedRoleKey !== ROLE.PROPHET && sim.prophetClaims[actor.id]) {

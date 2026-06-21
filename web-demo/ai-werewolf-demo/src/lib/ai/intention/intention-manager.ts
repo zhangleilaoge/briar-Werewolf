@@ -13,6 +13,8 @@ import {
   INTENTION_LIFETIME_DEFAULT,
 } from '@/types';
 
+import { MASK_COMPATIBILITY } from '../mask';
+import type { StrategyMask } from '../mask';
 import type { BeliefSystem } from '../belief-system';
 import {
   IntentionType, IntentionSource, CommitmentLevel,
@@ -65,7 +67,7 @@ export class IntentionManager {
   }
 
   /** 为指定阶段生成意图驱动的决策候选 */
-  generateCandidates(phase: string, allPlayers: Player[], self: Player): DecisionCandidate[] {
+  generateCandidates(phase: string, allPlayers: Player[], self: Player, mask?: string): DecisionCandidate[] {
     const candidates: DecisionCandidate[] = [];
     const typeNames = INTENTION_TYPE_NAMES;
     const actionNames = ACTION_NAMES;
@@ -93,17 +95,27 @@ export class IntentionManager {
       const isTop = intention === this.getTopIntention(phase);
       const targetName = targetId ? (allPlayers.find((p) => p.id === targetId)?.name || targetId) : '无';
 
+      // 面具适配度：如果提供了 mask，查找该行动的面具适配度
+      let maskCompatibility = 0.5;
+      if (mask) {
+        maskCompatibility = MASK_COMPATIBILITY[step.action]?.[mask] ?? 0.5;
+      }
+
+      const baseScore = intention.priority;
+      const adjustedScore = mask ? Math.round(baseScore * maskCompatibility) : baseScore;
+
       candidates.push({
         action: step.action,
         target: targetId,
-        score: intention.priority,
+        score: adjustedScore,
         confidence: 0.6,
-        reason: `[意图${isTop ? '驱动' : '补充'}] ${typeNames[intention.type] || intention.type}${targetId ? `→${targetName}` : ''}，计划步骤=${actionNames[step.action] || step.action}`,
+        reason: `[意图${isTop ? '驱动' : '补充'}] ${typeNames[intention.type] || intention.type}${targetId ? `→${targetName}` : ''}，计划步骤=${actionNames[step.action] || step.action}${mask ? `（面具适配度${maskCompatibility.toFixed(2)}）` : ''}`,
         stage: 'intention',
         strategy: 'IntentionManager',
         rule: isTop ? 'top_intention_step' : 'secondary_intention_step',
         trigger: `意图=${typeNames[intention.type] || intention.type}（优先级${intention.priority}，来源${intention.source}），计划=${step.phase}:${step.action}`,
         intentionDrivenBonus: isTop ? 200 : 50,
+        maskCompatibility,
       });
     }
 

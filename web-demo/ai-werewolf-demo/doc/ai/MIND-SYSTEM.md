@@ -1,11 +1,14 @@
 # 心智驱动决策系统 (Mind-Driven Decision System)
 
-> 本文档是 [DECISION-ARCHITECTURE.md](DECISION-ARCHITECTURE.md) 中**第二步（心智 enrich）**的详细展开。总览看 DECISION-ARCHITECTURE，接口和公式看本文档。
+> 本文档是 [DECISION-ARCHITECTURE.md](DECISION-ARCHITECTURE.md) 中**第三步（心智 enrich）**的详细展开。总览看 DECISION-ARCHITECTURE，面具系统看 [MASK-SYSTEM.md](MASK-SYSTEM.md)，接口和公式看本文档。
+>
+> **层顺序**：局势感知 → **策略面具** → 候选生成 → 人格 → 局势评估 → 模拟 → 行动。本文档描述的是候选生成之后的心智 enrich 部分（人格+评估+模拟）。
 
 ## 设计目标
 
 将 AI 从"规则驱动"升级为"心智驱动"：
 - 角色基于**对社交情境的理解**生成行动
+- 策略面具作为**局势到行动的桥梁**，决定"什么行动值得考虑"
 - 所有系统间数值**深度关联**（乘法而非加法）
 - 决策基于**概率分布**（Softmax 全分布），而非截断 Top 3
 
@@ -18,6 +21,12 @@
 │                      心智驱动决策系统                             │
 └─────────────────────────────────────────────────────────────────┘
 
+        ┌──────────────┐
+        │  策略面具层   │     ← 本文档不展开，见 MASK-SYSTEM.md
+        │  Mask System │        输出: StrategyMask
+        └──────┬───────┘
+               │
+               ▼
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
 │  社交情境层   │    │  价值观系统   │    │  时机评估层   │
 │ SocialContext│    │ ValueSystem  │    │TimingEvaluate│
@@ -35,10 +44,9 @@
                          │
                          ▼
               ┌──────────────────────┐
-              │   候选生成器          │
-              │  CandidateGenerator  │
-              │  基于配置表生成      │
-              │  候选行动集          │
+              │   候选生成器          │  ← 已含面具适配度
+              │  CandidateGenerator  │     见 MASK-SYSTEM.md
+              │  全行动遍历 + 面具缩放│
               └──────────┬───────────┘
                          │
                          ▼
@@ -259,35 +267,46 @@ function calculateSimulationScore(simulation: MentalSimulation): number {
 
 ## 5. 候选生成 (CandidateGenerator)
 
-基于配置表生成候选，替代原有的硬编码 if-else：
+CandidateGenerator 采用**全行动遍历**替代原有的硬编码 if-else 条件链：
 
 ```typescript
-// 示例：攻击规则配置表
-const attackRules = [
-  {
-    threshold: PROB_THRESHOLD_HIGH,  // 0.7
-    action: ACTION.ACCUSE,
-    score: INTENTION_BASE_SCORE_ATTACK,  // 400
-    confidence: CONFIDENCE_MEDIUM_HIGH,
-    reason: (name: string) => `${name}狼概率高，强烈指认`,
-  },
-  {
-    threshold: PROB_THRESHOLD_MEDIUM,  // 0.5
-    action: ACTION.SUSPECT,
-    score: 300,
-    confidence: CONFIDENCE_MEDIUM,
-    reason: (name: string) => `${name}有点可疑`,
-  },
+// 所有白天行动
+const ALL_DAY_ACTIONS = [
+  ACTION.SILENCE, ACTION.CLAIM_IDENTITY, ACTION.REVEAL_INFO,
+  ACTION.OBSERVE, ACTION.SUSPECT, ACTION.DEFEND,
+  ACTION.CALL_VOTE, ACTION.BLOCK_VOTE, ACTION.GUARANTEE,
+  ACTION.ACCUSE, ACTION.EXCLUDE_ALL,
 ];
+
+// 遍历所有可用行动
+for (const actionType of ALL_DAY_ACTIONS) {
+  // 1. 可用性判断（硬性条件，不受面具影响）
+  if (!isActionAvailable(actionType, ...)) continue;
+  
+  // 2. 基础分（由局势和身份决定）
+  const baseScore = getActionBaseScore(actionType, ...);
+  if (baseScore === null) continue; // 该行动在此局势下不应生成
+  
+  // 3. 面具适配度（由策略层决定）
+  const compatibility = MASK_COMPATIBILITY[actionType]?.[mask] ?? 0.5;
+  
+  // 4. 最终候选分数
+  const score = Math.round(baseScore * compatibility);
+}
 ```
 
-所有分数为纯基础分，不含价值观加法。价值观的影响完全通过 `mindMultiplier` 乘法实现。
+**关键变化**：
+- **从条件链到遍历**：所有行动都进入候选空间，分数由 `baseScore × maskCompatibility` 决定，而非 if-else 条件拦截。
+- **面具只缩放分数**：面具不改变行动是否可用（可用性由硬性条件决定），只改变行动的分数。
+- **目标选择也受面具影响**：`_selectProtectTarget`、`_selectBlockVoteTarget` 等按面具优先级排序。
+
+所有分数（已含面具缩放）为纯基础分，不含价值观加法。价值观的影响完全通过 `mindMultiplier` 乘法实现。
 
 ---
 
 ## 6. 决策引擎 (DecisionEngine)
 
-> 本节是 [DECISION-ARCHITECTURE.md](DECISION-ARCHITECTURE.md) 中“第 2~4 步”的代码级展开。总览看流程图，实现细节看本节。
+> 本节是 [DECISION-ARCHITECTURE.md](DECISION-ARCHITECTURE.md) 中“第 3~6 步”的代码级展开。总览看流程图，实现细节看本节。
 
 ### 6.1 完整流程
 
@@ -431,20 +450,20 @@ function calculateRelationFactor(
 
 ### 8.1 保留的部分
 - BeliefSystem 的 L0-L3 层（作为信息输入）
-- IntentionManager（作为高层目标输入，输出 intentionDrivenBonus）
+- IntentionManager（作为高层目标输入，输出 intentionDrivenBonus，**意图候选也乘以面具适配度**）
 - Hard Constraints（作为安全兜底，在 mind enrich 之后执行）
 - Plugin System（作为行动执行层）
 
 ### 8.2 已替换的部分
-- Strategy System 的硬编码 if-else → 配置表驱动的 CandidateGenerator
+- Strategy System 的硬编码 if-else → **全行动遍历 + 面具适配度**驱动的 CandidateGenerator
 - Top 3 截断 → Softmax 全分布选择
 - 简单加减分 → 乘法因子系统
 - 阶段权重 → 并入 baseScore，由 mindMultiplier 统一放大
 
 ### 8.3 新增的部分
+- **策略面具系统（Mask System）**：局势→离散策略标签，决定"什么行动值得考虑"
 - SocialContext 构建器（支持缓存）
 - ValueSystem 评估器
 - TimingEvaluation 评估器
 - MentalSimulation 模拟器
-- CandidateGenerator 配置表生成器
 - Softmax 选择器（温度基于分数差距动态调整）

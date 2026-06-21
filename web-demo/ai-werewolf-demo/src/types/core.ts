@@ -66,6 +66,8 @@ export interface Player {
   identityCrisis?: number; // 身份危机（0-1），由belief系统计算
   suspicionByOthers?: Record<string, number>; // 其他人对我的怀疑度
   identityCrisisLog?: { reason: string; delta: number; before: number; after: number; timestamp: number }[];
+  /** 身份声称状态：已声称则不可再次声称 */
+  identityClaim?: { hasClaimed: boolean; claimedRound?: number; claimedRole?: Role };
 }
 
 // ---------- Fake Identity System (伪装身份系统) ----------
@@ -112,6 +114,7 @@ export interface DecisionCandidate {
   details?: Record<string, unknown>; stageWeight?: number; stage?: string;
   strategy?: string; rule?: string; trigger?: string; random?: boolean;
   intentionDrivenBonus?: number; // 意图驱动评分调整加分（行为匹配+200，目标匹配+100）
+  maskCompatibility?: number; // 面具适配度（0-1），用于调试展示
 }
 
 export interface EnrichedCandidate extends DecisionCandidate {

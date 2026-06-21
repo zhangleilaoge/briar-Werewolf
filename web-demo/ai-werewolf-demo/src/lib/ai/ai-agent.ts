@@ -4,6 +4,8 @@ import { IntentionManager } from './intention-system';
 import type { Player, DecisionResult, LogEntry, Phase, Attributes } from '@/types';
 import type { PluginRegistry } from '../plugins';
 import { ACTION } from '@/lib/constants/action-constants';
+import { selectMask } from './mask';
+import { SocialContextBuilder } from './mind';
 
 export interface AgentEvent {
   type: 'death' | 'check_result' | 'public_claim' | 'relation_update' | 'observation' | 'inspection';
@@ -29,6 +31,7 @@ export class AIAgent {
   currentRound: number = 0;
   pluginRegistry?: PluginRegistry;
   identityCrisisLog: { reason: string; delta: number; before: number; after: number; timestamp: number }[] = [];
+  currentMask: string = 'conceal'; // 当前策略面具
 
   private _allPlayers: Player[];
   private _lastIdentityCrisis: number = 0;
@@ -103,8 +106,23 @@ export class AIAgent {
     // === 意图系统更新 ===
     this.intentionManager.update(this.player, this.belief, allPlayers, this.currentRound, publicActions || []);
     
-    const decision = this.engine.decide(this.belief, this.player, 'day', availableActions, allPlayers, [], publicActions, consecutiveSilence, aliveCount, 1, undefined, undefined, this.intentionManager);
-    this._log('day', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}`);
+    // === 面具选择 ===
+    const socialContextBuilder = new SocialContextBuilder();
+    const socialContext = socialContextBuilder.build(
+      this.belief,
+      this.player,
+      allPlayers,
+      publicActions || [],
+      this.currentRound,
+    );
+    const maskState = selectMask(this.player, this.belief, allPlayers, socialContext, this.currentRound);
+    this.currentMask = maskState.currentMask;
+    
+    const decision = this.engine.decide(
+      this.belief, this.player, 'day', availableActions, allPlayers, [], publicActions,
+      consecutiveSilence, aliveCount, 1, undefined, undefined, this.intentionManager, this.currentMask
+    );
+    this._log('day', `决策：${decision.action} → ${decision.target || '无目标'}，原因：${decision.reason}（面具=${this.currentMask}）`);
     this._advanceIntentionIfMatch(decision, 'day');
     return decision;
   }

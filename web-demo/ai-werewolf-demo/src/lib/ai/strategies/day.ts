@@ -7,6 +7,7 @@ import { ACTION } from '@/lib/constants/action-constants';
 import type { Strategy } from './engine';
 import type { Player } from '@/types';
 import { canUseItem } from '@/types';
+import type { StrategyMask } from '../mask';
 import { SocialContextBuilder, ValueSystemFactory, CandidateGenerator } from '../mind';
 import { CONFIDENCE_MEDIUM_HIGH, CONFIDENCE_VERY_LOW, CONFIDENCE_HIGH } from '@/lib/constants/mind';
 
@@ -122,6 +123,7 @@ export const VillagerDayStrategy: Strategy = {
       self,
       allPlayers,
       belief,
+      (context.mask as StrategyMask) || 'conceal',
       false,
     );
 
@@ -170,6 +172,7 @@ export const WerewolfCamouflageStrategy: Strategy = {
       self,
       allPlayers,
       belief,
+      (context.mask as StrategyMask) || 'conceal',
       true,
     );
 

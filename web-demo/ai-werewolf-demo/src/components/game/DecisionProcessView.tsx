@@ -338,7 +338,7 @@ export default function DecisionProcessView({ process, players, logIdx }: Decisi
               onMouseLeave={() => setHoveredCandidates(null)}
               title="所有候选行动（按分数排序）"
               zIndex={100}
-              width={520}
+              width={720}
             >
               {allCandidates.map((c, ci) => {
                 const isWinner = c.action === winnerActionStr && (

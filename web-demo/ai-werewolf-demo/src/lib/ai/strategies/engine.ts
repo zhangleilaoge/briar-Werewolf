@@ -45,6 +45,7 @@ export interface StrategyContext {
   aliveCount?: number;
   voteRound?: number;
   voteCandidates?: string[];
+  mask?: string; // 策略面具
 }
 
 export interface Strategy {
@@ -104,11 +105,16 @@ export class DecisionEngine {
     voteRound: number = 1,
     voteCandidates: string[] = [],
     pluginCandidates: DecisionCandidate[] = [],
-    intentionManager?: IntentionManager
+    intentionManager?: IntentionManager,
+    mask?: string
   ): DecisionResult {
+    // === 面具：使用传入的，未提供则用默认 'conceal' ===
+    const effectiveMask = mask || 'conceal';
+
     const context: StrategyContext = {
       belief, self, phase, availableActions, allPlayers,
       nightDecisions, publicActions, consecutiveSilence, aliveCount, voteRound, voteCandidates,
+      mask: effectiveMask,
     };
 
     const candidates: DecisionCandidate[] = [];
@@ -159,7 +165,7 @@ export class DecisionEngine {
 
     // === 意图驱动候选 ===
     if (intentionManager) {
-      const intentionCandidates = intentionManager.generateCandidates(phase, allPlayers, self);
+      const intentionCandidates = intentionManager.generateCandidates(phase, allPlayers, self, effectiveMask);
       intentionCandidates.forEach((c) => {
         candidates.push({ ...c, stageWeight: this._getStageWeight('social'), stage: 'intention' });
       });

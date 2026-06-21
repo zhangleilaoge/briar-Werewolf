@@ -76,22 +76,53 @@ export class DesireEngine {
 
     // === TEAM_DUTY: 团队义务 ===
     if (self.team === 'werewolf') {
-      // 狼人团队义务：淘汰村民阵营。强度受模式影响：normal=潜伏，dominant=积极，desperate=全力
+      // 狼人团队义务：淘汰对狼人威胁最大的村民
+      // 威胁度 = 友好度低（对狼人态度差）+ 领导力高（能带节奏）+ 被信任但非铁好人
+      const villagerTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
+      
+      const threatRanking = villagerTargets.map((target) => {
+        const relation = belief.getRelation(target.id);
+        
+        // 基础：友好度越低，威胁越大（-10~10 映射到 0~20）
+        let threat = -relation.friendly + 10;
+        
+        // 领导力：能带节奏的人威胁大（0~10 领导力 → 0~20 威胁）
+        threat += target.attributes.leadership * 2;
+        
+        // 信任度（个人视角）：言行与狼人策略一致度
+        // 注意：这是"我"对目标的个人判断，不是"众人对他的信任"
+        // trust > 6：言行高度与狼人策略一致（在帮狼人推波），威胁大幅降低，留着利用
+        // trust > 2：言行部分一致，威胁略有降低
+        if (relation.trust > 6) {
+          threat -= 15; // 高度一致：威胁大幅降低，优先留着利用
+        } else if (relation.trust > 2) {
+          threat -= relation.trust * 2; // 部分一致：威胁降低
+        }
+        
+        // 已被大量怀疑的人：威胁度降低（好人快把他淘汰了，不需要狼人浪费攻击）
+        const wolfProb = belief.getWerewolfProbability(target.id);
+        if (wolfProb > 0.6) {
+          threat -= 10;
+        }
+        
+        return { target, threat: Math.max(0, threat) };
+      }).filter((item) => item.threat > 0).sort((a, b) => b.threat - a.threat);
+      
+      // 只给威胁度最高的前3个村民生成攻击愿望
       const modeAttackBase = mode === 'desperate'
         ? INTENTION_MODE_ATTACK_DESPERATE
         : mode === 'dominant'
           ? INTENTION_MODE_ATTACK_DOMINANT
           : INTENTION_MODE_ATTACK_NORMAL;
-      const villagerTargets = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
-      for (const target of villagerTargets) {
-        const suspicion = belief.getWerewolfProbability(target.id);
+      
+      for (const { target, threat } of threatRanking.slice(0, 3)) {
         desires.push({
           type: IntentionType.ATTACK,
           targetId: target.id,
-          strength: modeAttackBase + Math.round(suspicion * INTENTION_STRENGTH_ATTACK_SUSPECT_FACTOR),
+          strength: modeAttackBase + Math.round(threat * 3), // threat 0~50 → strength 加成 0~150
           source: IntentionSource.TEAM_DUTY,
-          reason: `狼人团队义务：淘汰村民${target.name}`,
-          conditions: ['team=werewolf', 'target=villager'],
+          reason: `狼人团队义务：淘汰威胁村民${target.name}（威胁度${threat.toFixed(1)}）`,
+          conditions: ['team=werewolf', 'target=villager', 'threat_based'],
         });
       }
 
