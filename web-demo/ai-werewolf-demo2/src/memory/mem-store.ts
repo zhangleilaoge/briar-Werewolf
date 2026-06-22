@@ -4,14 +4,15 @@
 // ============================================================
 
 import type { MemoryEntry, MemorySource, MemoryEventType, Phase } from '@/types';
+import { IMPORTANCE, HARD_INFO_THRESHOLD, FORGETTING } from '@/constants';
 
 function getDefaultImportance(source: MemorySource): number {
   switch (source) {
-    case 'system': return 0.9;
-    case 'self': return 0.9;
-    case 'observe': return 0.5;
-    case 'speech': return 0.3;
-    default: return 0.3;
+    case 'system': return IMPORTANCE.SYSTEM;
+    case 'self': return IMPORTANCE.SELF;
+    case 'observe': return IMPORTANCE.OBSERVE;
+    case 'speech': return IMPORTANCE.SPEECH;
+    default: return IMPORTANCE.DEFAULT;
   }
 }
 
@@ -72,7 +73,7 @@ export class MemStore {
   }
 
   hardInfo(): MemoryEntry[] {
-    return this.getAll().filter((e) => e.credibility >= 1.0);
+    return this.getAll().filter((e) => e.credibility >= HARD_INFO_THRESHOLD);
   }
 
   hardInfoAboutPlayer(playerId: string): MemoryEntry[] {
@@ -111,8 +112,8 @@ export class MemStore {
    */
   applyForgetting(currentRound: number): { forgotten: MemoryEntry[]; retained: MemoryEntry[] } {
     const totalMemories = this.entries.size;
-    const memoryPressure = Math.min(0.5, totalMemories * 0.005);
-    const base = 0.2;
+    const memoryPressure = Math.min(FORGETTING.PRESSURE_CAP, totalMemories * FORGETTING.PRESSURE_PER_MEMORY);
+    const base = FORGETTING.BASE_RATE;
     const forgotten: MemoryEntry[] = [];
     const retained: MemoryEntry[] = [];
 
@@ -124,7 +125,7 @@ export class MemStore {
       }
 
       const roundsPassed = currentRound - entry.round;
-      const timeDecay = 1 - Math.exp(-roundsPassed * 0.3);
+      const timeDecay = 1 - Math.exp(-roundsPassed * FORGETTING.TIME_DECAY_RATE);
       const forgettingRate = base + memoryPressure + timeDecay * (1 - base - memoryPressure);
 
       if (forgettingRate > entry.importance) {

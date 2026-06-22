@@ -6,13 +6,9 @@
 // ============================================================
 
 import type { MemoryEntry, Relation } from '@/types';
+import { FRIENDLY_DELTA, FRIENDLY_RANGE } from '@/constants';
 
 // TODO: 后续可扩展为更复杂的权重表
-const FRIENDLY_DELTA: Record<string, number> = {
-  hear_accuse: -3,   // 被怀疑：友好度-3
-  vote: -2,          // 被投票：友好度-2
-  hear_defend: +2,   // 被辩护：友好度+2
-};
 
 export class RelationTracker {
   private relations: Map<string, Relation> = new Map();
@@ -22,7 +18,7 @@ export class RelationTracker {
     this.selfId = selfId;
     for (const id of allPlayerIds) {
       if (id !== selfId) {
-        this.relations.set(id, { friendly: 0 });
+        this.relations.set(id, { friendly: FRIENDLY_RANGE.INITIAL, memoryIds: [] });
       }
     }
   }
@@ -39,32 +35,33 @@ export class RelationTracker {
 
     const delta = FRIENDLY_DELTA[memory.eventType];
     if (delta !== undefined) {
-      this.adjustFriendly(memory.actorId, delta);
+      this.adjustFriendly(memory.actorId, delta, memory.id);
     }
   }
 
   /**
    * 调整对某人的友好度
    */
-  adjustFriendly(targetId: string, delta: number): void {
+  adjustFriendly(targetId: string, delta: number, memoryId?: string): void {
     const rel = this.relations.get(targetId);
     if (!rel) return;
-    rel.friendly = Math.max(-10, Math.min(10, rel.friendly + delta));
+    rel.friendly = Math.max(FRIENDLY_RANGE.MIN, Math.min(FRIENDLY_RANGE.MAX, rel.friendly + delta));
+    if (memoryId) rel.memoryIds.push(memoryId);
   }
 
   /**
    * 获取对某人的友好度
    */
   getFriendly(targetId: string): number {
-    return this.relations.get(targetId)?.friendly ?? 0;
+    return this.relations.get(targetId)?.friendly ?? FRIENDLY_RANGE.INITIAL;
   }
 
   /**
    * 获取所有关系（按友好度排序，从低到高）
    */
-  getAll(): { playerId: string; friendly: number }[] {
+  getAll(): { playerId: string; friendly: number; memoryIds: string[] }[] {
     return Array.from(this.relations.entries())
-      .map(([playerId, rel]) => ({ playerId, friendly: rel.friendly }))
+      .map(([playerId, rel]) => ({ playerId, friendly: rel.friendly, memoryIds: rel.memoryIds }))
       .sort((a, b) => a.friendly - b.friendly); // 从低到高（最不友好在前）
   }
 

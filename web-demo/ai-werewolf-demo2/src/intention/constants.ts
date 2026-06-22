@@ -1,0 +1,57 @@
+// ============================================================
+// 意图系统常量 — 已迁移至 @/constants/intention
+// 保留兼容导出，新代码请直接 import from '@/constants'
+// ============================================================
+
+export {
+  LONG_TERM_PRIORITY,
+  SHORT_TERM_WEIGHT,
+  PRESSURE,
+  CANDIDATE_BASE_SCORE,
+  BONUS,
+  BASE_SCORE_RANGE,
+  RANDOMNESS_DEFAULT,
+  PROFICIENCY,
+  ATTRIBUTE_MAX,
+  PROFICIENCY_MAP,
+  CRISIS_PROTECT_THRESHOLD,
+  LEADERSHIP_WEIGHT,
+} from '@/constants';
+
+// 兼容旧导入名（旧代码用 XXX_BASE 后缀）
+export const LONG_TERM_PRIORITY_SURVIVE_BASE = 0.9;
+export const LONG_TERM_PRIORITY_FIND_WOLF_BASE = 0.8;
+export const LONG_TERM_PRIORITY_PROTECT_VILLAGER_BASE = 0.6;
+export const LONG_TERM_PRIORITY_LEAD_BASE = 0.4;
+export const LONG_TERM_PRIORITY_HIDE_IDENTITY_BASE = 0.8;
+export const LONG_TERM_PRIORITY_MISLEAD_BASE = 0.7;
+export const LONG_TERM_PRIORITY_PROTECT_TEAMMATE_BASE = 0.6;
+export const LONG_TERM_PRIORITY_ELIMINATE_THREAT_BASE = 0.5;
+export const SHORT_TERM_WEIGHT_FACTOR = 1.0;
+export const SHORT_TERM_OBSERVE_FACTOR = 0.6;
+export const SHORT_TERM_LEAD_FACTOR = 0.8;
+export const SHORT_TERM_HIDE_OBSERVE_FACTOR = 0.5;
+export const PRESSURE_HIGH_THRESHOLD = 12;
+export const PRESSURE_MEDIUM_THRESHOLD = 8;
+export const PRESSURE_HIGH_AGGRESSIVE_MULTIPLIER = 1.5;
+export const PRESSURE_HIGH_DEFENSIVE_MULTIPLIER = 0.6;
+export const PRESSURE_MEDIUM_AGGRESSIVE_MULTIPLIER = 1.2;
+export const PRESSURE_HIGH_SILENCE_MULTIPLIER = 1.5;
+export const PRESSURE_GENERAL_REDUCTION = 0.9;
+export const CANDIDATE_BASE_SCORE_SILENCE = 40;
+export const CANDIDATE_BASE_SCORE_SLEEP = 50;
+export const CANDIDATE_BASE_SCORE_CLAIM_IDENTITY = 50;
+export const CANDIDATE_BASE_SCORE_REPORT_CHECK = 90;
+export const CANDIDATE_BASE_SCORE_SUSPECT = 50;
+export const CANDIDATE_BASE_SCORE_DEFEND = 60;
+export const CANDIDATE_BASE_SCORE_OBSERVE = 40;
+export const CANDIDATE_BASE_SCORE_CHAT = 35;
+export const CANDIDATE_BASE_SCORE_TARGET_MATCH_BONUS = 20;
+export const CANDIDATE_BASE_SCORE_OBSERVE_TARGET_MATCH = 15;
+export const CANDIDATE_BASE_SCORE_DEFEND_TARGET_MATCH = 20;
+export const BONUS_MIN = 0.5;
+export const BONUS_MAX = 2.0;
+export const PROFICIENCY_BASE = 0.5;
+export const PROFICIENCY_MULTIPLIER = 1.5;
+export const PROFICIENCY_MAX = 2.0;
+export const PROFICIENCY_MIN = 0.5;

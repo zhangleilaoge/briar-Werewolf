@@ -6,6 +6,7 @@
 
 import type { MemoryEntry, Player } from '@/types';
 import type { MemStore } from '@/memory';
+import { BELIEF_DEFAULT, CLAIM_WEIGHT_FACTOR, OBSERVE_WEIGHT, CRISIS_WEIGHT, HARD_INFO_THRESHOLD } from '@/constants';
 
 export interface RoleInference {
   playerId: string;
@@ -103,7 +104,7 @@ export class InferenceEngine {
 
     // 1. 硬信息直接覆盖
     for (const mem of memories) {
-      if (mem.credibility >= 1.0) {
+      if (mem.credibility >= HARD_INFO_THRESHOLD) {
         if (mem.eventType === 'check_result' && mem.targetId === playerId) {
           const result = mem.content.result as string;
           if (result === 'werewolf') {
@@ -132,7 +133,7 @@ export class InferenceEngine {
     for (const mem of memories) {
       if (mem.eventType === 'hear_claim' && mem.targetId === playerId) {
         const claimedResult = mem.content.claimedResult as string;
-        const weight = mem.credibility * 0.5; // 声称的权重低
+        const weight = mem.credibility * CLAIM_WEIGHT_FACTOR; // 声称的权重低
         if (claimedResult === 'werewolf') {
           wolfWeight += weight;
           basis.push(mem.id);
@@ -149,24 +150,24 @@ export class InferenceEngine {
       if (mem.eventType === 'observe_pattern') {
         const content = mem.content as { inferredIntention?: string; intentionTarget?: string; confidence?: number };
         const intention = content.inferredIntention;
-        const confidence = content.confidence ?? 0.5;
+        const confidence = content.confidence ?? OBSERVE_WEIGHT.DEFAULT_CONFIDENCE;
         const weight = mem.credibility * confidence;
 
         // 如果观察到某人的意图是攻击"我"或指向"我"的目标
         if (intention === 'attack' && content.intentionTarget === playerId) {
-          wolfWeight += weight * 0.8; // 攻击我的人可能是狼
+          wolfWeight += weight * OBSERVE_WEIGHT.ATTACK_WOLF; // 攻击我的人可能是狼
           basis.push(mem.id);
           totalWeight += weight;
         }
         // 如果观察到某人的意图是保护"我"或指向"我"的目标
         if (intention === 'protect' && content.intentionTarget === playerId) {
-          villagerWeight += weight * 0.6; // 保护我的人可能是村民
+          villagerWeight += weight * OBSERVE_WEIGHT.PROTECT_VILLAGER; // 保护我的人可能是村民
           basis.push(mem.id);
           totalWeight += weight;
         }
         // 如果观察到某人意图隐藏（可能是狼人隐藏身份）
         if (intention === 'hide') {
-          wolfWeight += weight * 0.3;
+          wolfWeight += weight * OBSERVE_WEIGHT.HIDE_WOLF;
           basis.push(mem.id);
           totalWeight += weight;
         }
@@ -175,17 +176,17 @@ export class InferenceEngine {
 
     // 归一化
     if (totalWeight === 0) {
-      return { playerId, werewolfProb: 0.3, villagerProb: 0.7, basis: [] };
+      return { playerId, werewolfProb: BELIEF_DEFAULT.WEREWOLF_PROB, villagerProb: BELIEF_DEFAULT.VILLAGER_PROB, basis: [] };
     }
 
-    const wolfProb = totalWeight > 0 ? wolfWeight / totalWeight : 0.3;
-    const villagerProb = totalWeight > 0 ? villagerWeight / totalWeight : 0.7;
+    const wolfProb = totalWeight > 0 ? wolfWeight / totalWeight : BELIEF_DEFAULT.WEREWOLF_PROB;
+    const villagerProb = totalWeight > 0 ? villagerWeight / totalWeight : BELIEF_DEFAULT.VILLAGER_PROB;
     const sum = wolfProb + villagerProb;
 
     return {
       playerId,
-      werewolfProb: sum > 0 ? wolfProb / sum : 0.3,
-      villagerProb: sum > 0 ? villagerProb / sum : 0.7,
+      werewolfProb: sum > 0 ? wolfProb / sum : BELIEF_DEFAULT.WEREWOLF_PROB,
+      villagerProb: sum > 0 ? villagerProb / sum : BELIEF_DEFAULT.VILLAGER_PROB,
       basis,
     };
   }
@@ -231,11 +232,11 @@ export class InferenceEngine {
 
     // 权重：投票(+3) > 声称查杀(+4) > 指控(+2) > 观察(+1) > 辩护(-2)
     const score =
-      factors.accuseCount * 2 +
-      factors.voteCount * 3 +
-      factors.observeCount * 1 +
-      factors.claimWolfCount * 4 -
-      factors.defendCount * 2;
+      factors.accuseCount * CRISIS_WEIGHT.ACCUSE +
+      factors.voteCount * CRISIS_WEIGHT.VOTE +
+      factors.observeCount * CRISIS_WEIGHT.OBSERVE +
+      factors.claimWolfCount * CRISIS_WEIGHT.CLAIM_WOLF -
+      factors.defendCount * Math.abs(CRISIS_WEIGHT.DEFEND);
 
     return {
       playerId,

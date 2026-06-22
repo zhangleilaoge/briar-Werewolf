@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { MemoryEntry, MemorySource, MemoryEventType, MemoryTrigger } from '@/types';
-import { CREDIBILITY } from '@/types';
+import { CREDIBILITY, CREDIBILITY_DEFAULT, IMPORTANCE } from '@/constants';
 
 function getDefaultCredibility(source: MemorySource): number {
   switch (source) {
@@ -11,17 +11,17 @@ function getDefaultCredibility(source: MemorySource): number {
     case 'self': return CREDIBILITY.SELF;
     case 'speech': return CREDIBILITY.SPEECH;
     case 'observe': return CREDIBILITY.OBSERVE;
-    default: return 0.5;
+    default: return CREDIBILITY_DEFAULT;
   }
 }
 
 function getDefaultImportance(source: MemorySource): number {
   switch (source) {
-    case 'system': return 0.9;
-    case 'self': return 0.9;
-    case 'observe': return 0.5;
-    case 'speech': return 0.3;
-    default: return 0.3;
+    case 'system': return IMPORTANCE.SYSTEM;
+    case 'self': return IMPORTANCE.SELF;
+    case 'observe': return IMPORTANCE.OBSERVE;
+    case 'speech': return IMPORTANCE.SPEECH;
+    default: return IMPORTANCE.DEFAULT;
   }
 }
 

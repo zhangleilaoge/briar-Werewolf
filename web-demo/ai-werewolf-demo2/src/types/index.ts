@@ -31,7 +31,7 @@ export interface Player {
 // ---------- 关系系统 ----------
 export interface Relation {
   friendly: number; // 友好度，-10 ~ 10，初始 0。纯粹的关系，和推理无关。
-  // 后续可扩展：trust, threat, etc.
+  memoryIds: string[]; // 支撑记忆ID
 }
 
 // ---------- 记忆系统 ----------
@@ -121,18 +121,9 @@ export interface ActionCandidate {
 }
 */
 
-// ---------- 常量 ----------
-export const CREDIBILITY = {
-  SYSTEM: 1.0,      // 系统事件或系统告知
-  SELF: 1.0,        // 自己的行动
-  SPEECH: 0.4,      // 他人发言，默认不可信
-  OBSERVE: 0.7,     // 自己的观察
-} as const;
+// 常量已迁移至 @/constants/credibility
+// 保留兼容导出
+export { CREDIBILITY } from '@/constants/credibility';
 
-// 信念默认值（暂不实现）
-/*
-export const BELIEF_DEFAULT = {
-  WEREWOLF_PROB: 0.3,   // 默认狼人概率（假设3狼8村）
-  VILLAGER_PROB: 0.7,
-} as const;
-*/
+// ---------- 新增决策系统类型 ----------
+export * from './decision';
