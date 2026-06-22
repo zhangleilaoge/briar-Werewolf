@@ -1,6 +1,5 @@
 // ============================================================
 // 意图系统常量
-// 按 INTENTION.md 文档提取，消除魔法值
 // ============================================================
 
 // ---------- 长期意图优先级基准 ----------
@@ -11,8 +10,6 @@ export const LONG_TERM_PRIORITY = {
   LEAD: 0.4,
   HIDE_IDENTITY: 0.8,
   MISLEAD: 0.7,
-  PROTECT_TEAMMATE: 0.6,
-  ELIMINATE_THREAT: 0.5,
   REPORT_CHECK: 0.95,
 } as const;
 
@@ -31,7 +28,6 @@ export const PRESSURE = {
   HIGH_AGGRESSIVE_MULTIPLIER: 1.5,
   HIGH_DEFENSIVE_MULTIPLIER: 0.6,
   MEDIUM_AGGRESSIVE_MULTIPLIER: 1.2,
-  HIGH_SILENCE_MULTIPLIER: 1.5,
   GENERAL_REDUCTION: 0.9,
 } as const;
 
@@ -56,8 +52,6 @@ export const BONUS = {
   MAX: 2.0,
 } as const;
 
-export const BASE_SCORE_RANGE = { min: 0, max: 100 } as const;
-
 // ---------- 随机选择 ----------
 export const RANDOMNESS_DEFAULT = 0.15;
 
@@ -65,8 +59,6 @@ export const RANDOMNESS_DEFAULT = 0.15;
 export const PROFICIENCY = {
   BASE: 0.5,
   MULTIPLIER: 1.5,
-  MAX: 2.0,
-  MIN: 0.5,
 } as const;
 
 // ---------- 属性最大值 ----------

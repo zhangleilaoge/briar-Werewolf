@@ -11,7 +11,6 @@ interface MemoryTooltipProps {
 export function MemoryTooltip({ title, content, children, className }: MemoryTooltipProps) {
   const triggerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [_pinned, setPinned] = useState(false);
   const pinnedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -28,7 +27,8 @@ export function MemoryTooltip({ title, content, children, className }: MemoryToo
 
   const togglePin = useCallback(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    setPinned(prev => { const next = !prev; pinnedRef.current = next; if (next) setVisible(true); return next; });
+    pinnedRef.current = !pinnedRef.current;
+    if (pinnedRef.current) setVisible(true);
   }, []);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function MemoryTooltip({ title, content, children, className }: MemoryToo
       <PopOverlay
         triggerRef={triggerRef}
         visible={visible}
-        onClose={() => { setVisible(false); setPinned(false); pinnedRef.current = false; }}
+        onClose={() => { setVisible(false); pinnedRef.current = false; }}
         onMouseEnter={show}
         onMouseLeave={hide}
         title={title}

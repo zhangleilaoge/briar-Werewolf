@@ -20,7 +20,6 @@ interface CrisisFactors {
   voteCount: number;      // 被投票次数
   defendCount: number;     // 被辩护次数
   observeCount: number;    // 被观察次数
-  claimWolfCount: number;  // 被声称查杀次数
 }
 
 export interface PlayerCrisis {
@@ -208,7 +207,6 @@ export class InferenceEngine {
       voteCount: 0,
       defendCount: 0,
       observeCount: 0,
-      claimWolfCount: 0,
     };
 
     for (const mem of memories) {
@@ -226,16 +224,14 @@ export class InferenceEngine {
         case 'observe_pattern':
           factors.observeCount++;
           break;
-        // TODO: hear_claim 声称某人是狼人（需要扩展支持 targetId）
       }
     }
 
-    // 权重：投票(+3) > 声称查杀(+4) > 指控(+2) > 观察(+1) > 辩护(-2)
+    // 权重：投票(+3) > 指控(+2) > 观察(+1) > 辩护(-2)
     const score =
       factors.accuseCount * CRISIS_WEIGHT.ACCUSE +
       factors.voteCount * CRISIS_WEIGHT.VOTE +
-      factors.observeCount * CRISIS_WEIGHT.OBSERVE +
-      factors.claimWolfCount * CRISIS_WEIGHT.CLAIM_WOLF -
+      factors.observeCount * CRISIS_WEIGHT.OBSERVE -
       factors.defendCount * Math.abs(CRISIS_WEIGHT.DEFEND);
 
     return {

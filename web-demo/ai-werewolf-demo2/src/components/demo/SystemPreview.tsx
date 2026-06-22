@@ -5,6 +5,7 @@ import { IntentionEngine } from '@/intention/intention-engine';
 import { RelationTracker } from '@/relation';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { PERSONALITIES } from '@/intention/personalities';
+import { getPlayerEmoji } from './game-runner-constants';
 import type { IntentionState, LongTermIntention, ShortTermIntention, ActionCandidate } from '@/types/decision';
 import type { RoleInference, PlayerCrisis } from '@/inference/inference-engine';
 
@@ -35,12 +36,6 @@ export default function SystemPreview() {
     }
     return { store, inferences, crisisResult, selfCrisis, relations, intentionState };
   }, [scenarioId, selectedPlayer]);
-
-  const getRoleEmoji = (id: string) => {
-    const p = DEMO_PLAYERS.find((p) => p.id === id);
-    if (!p) return '';
-    return p.role === 'werewolf' ? '🐺' : p.role === 'prophet' ? '🔮' : '👤';
-  };
 
   const sortedInferences = useMemo(() => {
     return Array.from(inferences.entries()).sort((a, b) => b[1].werewolfProb - a[1].werewolfProb);
@@ -79,7 +74,7 @@ export default function SystemPreview() {
                 {DEMO_PLAYERS.map((p) => (
                   <button key={p.id} onClick={() => setSelectedPlayer(p.id)}
                     className={`px-3 py-1 rounded text-xs transition ${selectedPlayer === p.id ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                    {getRoleEmoji(p.id)} {p.id}
+                    {getPlayerEmoji(p.id, DEMO_PLAYERS)} {p.id}
                   </button>
                 ))}
               </div>
@@ -143,7 +138,7 @@ export default function SystemPreview() {
                     else if (wp < 0.3) borderColor = 'border-green-500';
                     return (
                       <div key={playerId} className={`bg-slate-900 rounded-lg p-3 border-l-4 ${borderColor}`}>
-                        <div className="font-semibold text-sm">{getRoleEmoji(playerId)} {playerId}</div>
+                        <div className="font-semibold text-sm">{getPlayerEmoji(playerId, DEMO_PLAYERS)} {playerId}</div>
                         <div className="h-4 rounded overflow-hidden flex mt-2 bg-slate-800">
                           <div className="bg-red-700 h-full transition-all" style={{ width: `${wolfPct}%` }} />
                           <div className="bg-green-700 h-full transition-all" style={{ width: `${100 - wolfPct}%` }} />

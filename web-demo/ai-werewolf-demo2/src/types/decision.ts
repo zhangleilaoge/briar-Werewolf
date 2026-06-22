@@ -56,12 +56,5 @@ export interface PersonalityPlugin {
   name: string;
   description: string;
   disabledActions: ActionType[];
-  actionWeightMods: Record<string, number>; // 使用 string 避免 ActionType 严格限制
-}
-
-// ---------- 压力系统 ----------
-export interface PressureState {
-  current: number;     // 当前压力值，0~20
-  max: number;        // 压力上限
-  burstCount: number; // 已满次数
+  actionWeightMods: Record<string, number>;
 }

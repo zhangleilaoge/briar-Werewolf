@@ -4,17 +4,7 @@
 // ============================================================
 
 import type { MemoryEntry, MemorySource, MemoryEventType, Phase } from '@/types';
-import { IMPORTANCE, HARD_INFO_THRESHOLD, FORGETTING } from '@/constants';
-
-function getDefaultImportance(source: MemorySource): number {
-  switch (source) {
-    case 'system': return IMPORTANCE.SYSTEM;
-    case 'self': return IMPORTANCE.SELF;
-    case 'observe': return IMPORTANCE.OBSERVE;
-    case 'speech': return IMPORTANCE.SPEECH;
-    default: return IMPORTANCE.DEFAULT;
-  }
-}
+import { getDefaultImportance, HARD_INFO_THRESHOLD, FORGETTING } from '@/constants';
 
 export class MemStore {
   private entries: Map<string, MemoryEntry> = new Map();

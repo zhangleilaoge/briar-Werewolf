@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MemStore } from '@/memory';
 import { InferenceEngine } from '@/inference/inference-engine';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
+import { getPlayerEmoji } from './game-runner-constants';
 import type { RoleInference, PlayerCrisis } from '@/inference/inference-engine';
 import type { Scenario } from '@/data/scenarios';
 
@@ -24,12 +25,7 @@ export default function InferenceDemo() {
     return Array.from(inferences.entries()).sort((a, b) => b[1].werewolfProb - a[1].werewolfProb);
   }, [inferences]);
 
-  const getRoleEmoji = (id: string) => {
-    const p = DEMO_PLAYERS.find((p) => p.id === id);
-    if (!p) return '';
-    if (!showTruth) return '';
-    return p.role === 'werewolf' ? '🐺' : p.role === 'prophet' ? '🔮' : '👤';
-  };
+  const roleEmoji = (id: string) => showTruth ? getPlayerEmoji(id, DEMO_PLAYERS) : '';
 
   const getRoleText = (id: string) => {
     const p = DEMO_PLAYERS.find((p) => p.id === id);
@@ -85,7 +81,7 @@ export default function InferenceDemo() {
                 return (
                   <div key={playerId} className={`bg-slate-900 rounded-lg p-3 border-l-4 ${borderColor}`}>
                     <div className="font-semibold text-sm">
-                      {getRoleEmoji(playerId)} {playerId}
+                      {roleEmoji(playerId)} {playerId}
                       {showTruth && <span className="text-slate-500 text-xs ml-1">({getRoleText(playerId)})</span>}
                     </div>
                     <div className="h-5 rounded overflow-hidden flex mt-2 bg-slate-800">
@@ -115,14 +111,13 @@ export default function InferenceDemo() {
                   <div key={c.playerId} className="bg-slate-900 rounded-lg p-3 flex justify-between items-center">
                     <div>
                       <div className="font-semibold text-sm">
-                        {getRoleEmoji(c.playerId)} {c.playerId}
+                        {roleEmoji(c.playerId)} {c.playerId}
                         {showTruth && <span className="text-slate-500 text-xs ml-1">({getRoleText(c.playerId)})</span>}
                       </div>
                       <div className="flex flex-wrap gap-2 mt-1 text-xs text-slate-400">
                         <span className="bg-slate-800 px-2 py-0.5 rounded">指控:{c.factors.accuseCount}</span>
                         <span className="bg-slate-800 px-2 py-0.5 rounded">投票:{c.factors.voteCount}</span>
                         <span className="bg-slate-800 px-2 py-0.5 rounded">辩护:{c.factors.defendCount}</span>
-                        <span className="bg-slate-800 px-2 py-0.5 rounded">查杀:{c.factors.claimWolfCount}</span>
                       </div>
                     </div>
                     <div className={`text-2xl font-bold ${scoreColor}`}>{c.score}</div>

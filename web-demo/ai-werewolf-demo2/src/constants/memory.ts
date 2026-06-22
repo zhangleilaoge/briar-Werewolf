@@ -2,6 +2,8 @@
 // 记忆系统常量
 // ============================================================
 
+import type { MemorySource } from '@/types';
+
 // ---------- 重要度默认值（按来源） ----------
 export const IMPORTANCE = {
   SYSTEM: 0.9,
@@ -10,6 +12,17 @@ export const IMPORTANCE = {
   SPEECH: 0.3,
   DEFAULT: 0.3,
 } as const;
+
+/** 根据来源获取默认重要度 */
+export function getDefaultImportance(source: MemorySource): number {
+  switch (source) {
+    case 'system': return IMPORTANCE.SYSTEM;
+    case 'self': return IMPORTANCE.SELF;
+    case 'observe': return IMPORTANCE.OBSERVE;
+    case 'speech': return IMPORTANCE.SPEECH;
+    default: return IMPORTANCE.DEFAULT;
+  }
+}
 
 // ---------- 遗忘机制参数 ----------
 export const FORGETTING = {
@@ -22,6 +35,3 @@ export const FORGETTING = {
   /** 时间衰减速率（指数衰减系数） */
   TIME_DECAY_RATE: 0.3,
 } as const;
-
-// ---------- 观察默认置信度 ----------
-export const OBSERVE_CONFIDENCE_DEFAULT = 0.5;

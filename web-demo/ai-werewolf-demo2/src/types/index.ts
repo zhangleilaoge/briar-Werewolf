@@ -81,49 +81,5 @@ export interface MemoryEntry {
   notes?: string;           // AI备注
 }
 
-// ---------- 信念系统（暂不实现）----------
-/*
-export interface RoleBelief {
-  werewolf: number;  // 0~1，认为是狼人的概率
-  villager: number;  // 0~1，认为是村民的概率
-}
-
-export interface PlayerBelief {
-  playerId: string;
-  roleBelief: RoleBelief;      // 角色概率分布
-  trust: number;               // 对这个人的信任度（-10~10，初始0）
-  threat: number;              // 对我的威胁度（0~100）
-  isTeammate: boolean;          // 是否确定是队友（100%可信时才为true）
-  isHardInfo: boolean;         // 是否有硬信息（我亲眼确认的）
-  memoryIds: string[];         // 支撑这条信念的记忆条目ID
-}
-*/
-
-// ---------- 决策系统（暂不实现）----------
-/*
-export type ActionType =
-  | 'silence'          // 沉默：跳过本回合
-  | 'claim_identity'   // 公布身份：声明一个本局可能出现的身份（可能真可能假）
-  | 'observe'          // 观察：暗中观察目标，获取信息
-  | 'suspect'          // 怀疑：公开表达对某玩家的怀疑
-  | 'defend';          // 袒护：公开为某玩家辩护
-
-export type NightActionType =
-  | 'check'            // 预言家：查验目标
-  | 'kill';            // 狼人：投票杀人
-
-export interface ActionCandidate {
-  action: ActionType | NightActionType;
-  targetId?: string;
-  score: number;           // 综合评分
-  reason: string;          // 为什么选这个
-  supportingMemories: string[]; // 支撑这个决策的记忆ID
-}
-*/
-
-// 常量已迁移至 @/constants/credibility
-// 保留兼容导出
-export { CREDIBILITY } from '@/constants/credibility';
-
-// ---------- 新增决策系统类型 ----------
+// ---------- 决策系统类型 ----------
 export * from './decision';

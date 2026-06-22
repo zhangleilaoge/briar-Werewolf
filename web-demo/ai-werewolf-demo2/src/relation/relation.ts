@@ -8,8 +8,6 @@
 import type { MemoryEntry, Relation } from '@/types';
 import { FRIENDLY_DELTA, FRIENDLY_RANGE } from '@/constants';
 
-// TODO: 后续可扩展为更复杂的权重表
-
 export class RelationTracker {
   private relations: Map<string, Relation> = new Map();
   private selfId: string;
@@ -63,21 +61,5 @@ export class RelationTracker {
     return Array.from(this.relations.entries())
       .map(([playerId, rel]) => ({ playerId, friendly: rel.friendly, memoryIds: rel.memoryIds }))
       .sort((a, b) => a.friendly - b.friendly); // 从低到高（最不友好在前）
-  }
-
-  /**
-   * 获取最友好的人（排除队友）
-   */
-  getMostFriendly(excludeIds?: string[]): { playerId: string; friendly: number } | undefined {
-    const entries = this.getAll().filter((e) => !excludeIds?.includes(e.playerId));
-    return entries.length > 0 ? entries[entries.length - 1] : undefined;
-  }
-
-  /**
-   * 获取最不友好的人
-   */
-  getLeastFriendly(excludeIds?: string[]): { playerId: string; friendly: number } | undefined {
-    const entries = this.getAll().filter((e) => !excludeIds?.includes(e.playerId));
-    return entries.length > 0 ? entries[0] : undefined;
   }
 }

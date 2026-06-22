@@ -1,5 +1,6 @@
 import { PERSONALITIES } from '@/intention/personalities';
 import type { Player, MemoryEntry } from '@/types';
+import { ATTRIBUTE_RANGE, PLAYER_INITIAL, PLAYER_ID_BASE_CHAR_CODE } from '@/constants';
 import { ROLE_NAMES } from './game-runner-constants';
 import type { GameConfig } from './game-runner-types';
 
@@ -25,13 +26,21 @@ export function generatePlayers(config: GameConfig): Player[] {
   const PERSONALITY_IDS = Object.keys(PERSONALITIES);
   let id = 0;
   const temp: Player[] = [];
+  const attrs = () => ({
+    leadership: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+    eloquence: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+    observation: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+    cunning: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+    affinity: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+    logic: randInt(ATTRIBUTE_RANGE.MIN, ATTRIBUTE_RANGE.MAX),
+  });
   for (let i = 0; i < config.werewolfCount; i++)
-    temp.push({ id: String.fromCharCode(65 + id++), name: `狼人${i + 1}`, role: 'werewolf', team: 'werewolf', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: 0, burstCount: 0, traits: [], attributes: { leadership: randInt(1, 10), eloquence: randInt(1, 10), observation: randInt(1, 10), cunning: randInt(1, 10), affinity: randInt(1, 10), logic: randInt(1, 10) } });
+    temp.push({ id: String.fromCharCode(PLAYER_ID_BASE_CHAR_CODE + id++), name: `狼人${i + 1}`, role: 'werewolf', team: 'werewolf', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: PLAYER_INITIAL.PRESSURE, burstCount: PLAYER_INITIAL.BURST_COUNT, traits: [...PLAYER_INITIAL.TRAITS], attributes: attrs() });
   for (let i = 0; i < config.prophetCount; i++)
-    temp.push({ id: String.fromCharCode(65 + id++), name: `预言家${i + 1}`, role: 'prophet', team: 'villager', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: 0, burstCount: 0, traits: [], attributes: { leadership: randInt(1, 10), eloquence: randInt(1, 10), observation: randInt(1, 10), cunning: randInt(1, 10), affinity: randInt(1, 10), logic: randInt(1, 10) } });
+    temp.push({ id: String.fromCharCode(PLAYER_ID_BASE_CHAR_CODE + id++), name: `预言家${i + 1}`, role: 'prophet', team: 'villager', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: PLAYER_INITIAL.PRESSURE, burstCount: PLAYER_INITIAL.BURST_COUNT, traits: [...PLAYER_INITIAL.TRAITS], attributes: attrs() });
   for (let i = 0; i < config.villagerCount; i++)
-    temp.push({ id: String.fromCharCode(65 + id++), name: `村民${i + 1}`, role: 'villager', team: 'villager', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: 0, burstCount: 0, traits: [], attributes: { leadership: randInt(1, 10), eloquence: randInt(1, 10), observation: randInt(1, 10), cunning: randInt(1, 10), affinity: randInt(1, 10), logic: randInt(1, 10) } });
-  return shuffle(temp).map((p, i) => ({ ...p, id: String.fromCharCode(65 + i) }));
+    temp.push({ id: String.fromCharCode(PLAYER_ID_BASE_CHAR_CODE + id++), name: `村民${i + 1}`, role: 'villager', team: 'villager', alive: true, personality: PERSONALITY_IDS[randInt(0, PERSONALITY_IDS.length - 1)], pressure: PLAYER_INITIAL.PRESSURE, burstCount: PLAYER_INITIAL.BURST_COUNT, traits: [...PLAYER_INITIAL.TRAITS], attributes: attrs() });
+  return shuffle(temp).map((p, i) => ({ ...p, id: String.fromCharCode(PLAYER_ID_BASE_CHAR_CODE + i) }));
 }
 
 export function getPlayerDisplay(playerId: string, players: Player[]): string {

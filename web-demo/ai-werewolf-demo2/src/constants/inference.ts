@@ -28,6 +28,5 @@ export const CRISIS_WEIGHT = {
   ACCUSE: 2,
   VOTE: 3,
   OBSERVE: 1,
-  CLAIM_WOLF: 4,
   DEFEND: -2,
 } as const;

@@ -168,7 +168,7 @@ export class IntentionEngine {
 			const baseBasis = st.basis ?? [];
 
 			if (st.id === 'survive' || st.id === 'hide') {
-				if (phase === 'day') candidates.push({ action: 'silence', score: CANDIDATE_BASE_SCORE_SILENCE, reason: '隐藏', supportingMemories: baseBasis });
+				if (phase === 'day') candidates.push({ action: 'silence', score: CANDIDATE_BASE_SCORE.SILENCE, reason: '隐藏', supportingMemories: baseBasis });
 				else candidates.push({ action: 'sleep', score: CANDIDATE_BASE_SCORE.SLEEP, reason: '隐藏', supportingMemories: baseBasis });
 			} else if (st.id === 'lead') {
 				candidates.push({ action: 'claim_identity', score: CANDIDATE_BASE_SCORE.CLAIM_IDENTITY, reason: '带队', supportingMemories: baseBasis });
@@ -229,20 +229,20 @@ export class IntentionEngine {
 
 	// ==================== 完整流程 ====================
 
-	generateDayAction(): IntentionState {
+	generateAction(phase: 'day' | 'night'): IntentionState {
 		const longTerm = this.evaluateLongTermIntentions();
 		const shortTerm = this.generateShortTermIntentions(longTerm);
-		const candidates = this.generateCandidates(shortTerm, 'day');
+		const candidates = this.generateCandidates(shortTerm, phase);
 		const selected = this.selectAction(candidates);
 		return { longTerm, shortTerm, candidates, selected };
 	}
 
+	generateDayAction(): IntentionState {
+		return this.generateAction('day');
+	}
+
 	generateNightAction(): IntentionState {
-		const longTerm = this.evaluateLongTermIntentions();
-		const shortTerm = this.generateShortTermIntentions(longTerm);
-		const candidates = this.generateCandidates(shortTerm, 'night');
-		const selected = this.selectAction(candidates);
-		return { longTerm, shortTerm, candidates, selected };
+		return this.generateAction('night');
 	}
 
 	// ==================== 内部方法 ====================
@@ -262,7 +262,7 @@ export class IntentionEngine {
 		let roleBonus = 1.0;
 		if (!this.config.reasoningDisabled && candidate.targetId && roleInferences.has(candidate.targetId)) {
 			const inf = roleInferences.get(candidate.targetId)!;
-			if (candidate.action === 'suspect' || candidate.action === 'kill') {
+			if (candidate.action === 'suspect') {
 				roleBonus = 0.5 + inf.werewolfProb * 1.5; // 狼人概率越高，攻击得分越高
 			} else if (candidate.action === 'defend') {
 				roleBonus = 0.5 + (1 - inf.werewolfProb) * 1.5; // 狼人概率越低，辩护得分越高

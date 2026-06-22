@@ -4,6 +4,7 @@ import { InferenceEngine } from '@/inference/inference-engine';
 import { IntentionEngine } from '@/intention/intention-engine';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { PERSONALITIES } from '@/intention/personalities';
+import { getPlayerEmoji } from './game-runner-constants';
 import type { IntentionState, LongTermIntention, ShortTermIntention, ActionCandidate } from '@/types/decision';
 
 export default function IntentionDemo() {
@@ -23,12 +24,6 @@ export default function IntentionDemo() {
     const engine = new IntentionEngine(store, inference, playerWithPersonality, DEMO_PLAYERS);
     return engine.generateDayAction();
   }, [scenarioId, personalityId, selectedPlayer]);
-
-  const getRoleEmoji = (id: string) => {
-    const p = DEMO_PLAYERS.find((p) => p.id === id);
-    if (!p) return '';
-    return p.role === 'werewolf' ? '🐺' : p.role === 'prophet' ? '🔮' : '👤';
-  };
 
   const selectedPlayerInfo = DEMO_PLAYERS.find((p) => p.id === selectedPlayer);
 
@@ -74,7 +69,7 @@ export default function IntentionDemo() {
           {DEMO_PLAYERS.map((p) => (
             <button key={p.id} onClick={() => setSelectedPlayer(p.id)}
               className={`px-3 py-1 rounded-lg text-sm transition ${selectedPlayer === p.id ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-              {getRoleEmoji(p.id)} {p.id}
+              {getPlayerEmoji(p.id, DEMO_PLAYERS)} {p.id}
             </button>
           ))}
         </div>
@@ -82,7 +77,7 @@ export default function IntentionDemo() {
         {selectedPlayerInfo && (
           <div className="bg-slate-800 rounded-xl p-4 mb-4 border border-slate-700 flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">{getRoleEmoji(selectedPlayerInfo.id)}</span>
+              <span className="text-2xl">{getPlayerEmoji(selectedPlayerInfo.id, DEMO_PLAYERS)}</span>
               <div>
                 <div className="font-bold text-slate-200">{selectedPlayerInfo.id} ({selectedPlayerInfo.name})</div>
                 <div className="text-xs text-slate-400">真实身份：<span className={selectedPlayerInfo.role === 'werewolf' ? 'text-red-400' : selectedPlayerInfo.role === 'prophet' ? 'text-purple-400' : 'text-green-400'}>{selectedPlayerInfo.role}</span> | 阵营：{selectedPlayerInfo.team}</div>
