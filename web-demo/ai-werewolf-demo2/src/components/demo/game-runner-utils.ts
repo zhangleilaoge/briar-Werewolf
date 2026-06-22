@@ -77,6 +77,14 @@ export function getMemoryDescription(mem: MemoryEntry, selfId: string, players: 
       return `${actor} 为 ${target} 辩护`;
     case 'hear_chat':
       return `${actor} 和 ${target} 闲聊`;
+    case 'hear_silence':
+      return `${actor} 保持沉默`;
+    case 'morning': {
+      const cause = mem.content.cause === 'vote' ? '被投票放逐' : '被狼人杀害';
+      return `天亮了，${target} ${cause}`;
+    }
+    case 'peaceful_night':
+      return '昨晚是平安夜';
     case 'vote':
       return `${actor} 投票给 ${target}`;
     case 'vote_result':
@@ -87,6 +95,13 @@ export function getMemoryDescription(mem: MemoryEntry, selfId: string, players: 
       return `${actor} 发生了 ${mem.eventType}`;
   }
 }
+
+export function formatRoundDisplay(round: number, dayRound: unknown): string {
+  if (round === 0) return '初始';
+  const dr = dayRound as number | undefined;
+  return dr ? `第${round}天第${dr}轮` : `第${round}天`;
+}
+
 
 export function getMemoryTooltip(memoryIds: string[], memories: MemoryEntry[], selfId: string, players: Player[]): string {
   if (memoryIds.length === 0) return '无支撑记忆';

@@ -127,6 +127,8 @@ export function PopOverlay({
   useLayoutEffect(() => {
     if (overlay || !visible || !triggerRef?.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const popEl = popRef.current;
+    const popHeight = popEl?.offsetHeight || POP_HEIGHT_ESTIMATE;
 
     let top = rect.bottom + POP_OFFSET_Y;
     let left = rect.left;
@@ -139,8 +141,8 @@ export function PopOverlay({
       );
     }
 
-    if (top + POP_HEIGHT_ESTIMATE > window.innerHeight - VIEWPORT_MARGIN) {
-      top = Math.max(MIN_POSITION, rect.top - POP_HEIGHT_ESTIMATE);
+    if (top + popHeight > window.innerHeight - VIEWPORT_MARGIN) {
+      top = Math.max(MIN_POSITION, rect.top - popHeight - POP_OFFSET_Y);
     }
 
     setPosition({ top, left });

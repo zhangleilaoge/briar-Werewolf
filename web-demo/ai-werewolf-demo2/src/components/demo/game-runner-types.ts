@@ -28,4 +28,5 @@ export interface PlayerResult {
   relations: { playerId: string; friendly: number; memoryIds: string[] }[];
   inferences: Map<string, { werewolfProb: number; villagerProb: number; basis: string[] }>;
   memories: MemoryEntry[];
+  forgottenMemories: MemoryEntry[];
 }

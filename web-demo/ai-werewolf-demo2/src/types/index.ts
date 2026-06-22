@@ -60,7 +60,7 @@ export type MemoryEventType =
   | 'hear_claim'        // 听到别人声称（speech触发）
   | 'hear_accuse'       // 听到别人指控（speech触发）
   | 'hear_defend'       // 听到别人辩护（speech触发）
-  | 'hear_chat'       // 听到别人闲聊（speech触发）
+  | 'hear_silence'    // 保持沉默（speech触发）
   | 'vote'              // 投票行为（vote触发）
   | 'vote_result'       // 投票结果（vote_result触发）
   | 'observe_pattern'   // 观察到的行为模式（day_start触发）
@@ -79,6 +79,7 @@ export interface MemoryEntry {
   isForgotten: boolean;     // 是否已遗忘（不删除，只标记）
   createdAt: number;        // 时间戳
   notes?: string;           // AI备注
+  viewerId?: string;        // 这条记忆给谁看（不设=所有人可见）
 }
 
 // ---------- 决策系统类型 ----------

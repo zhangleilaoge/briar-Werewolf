@@ -12,21 +12,18 @@ export function MemoryTooltip({ title, content, children, className }: MemoryToo
   const triggerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const pinnedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = useCallback(() => {
     if (pinnedRef.current) return;
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     setVisible(true);
   }, []);
 
   const hide = useCallback(() => {
     if (pinnedRef.current) return;
-    timerRef.current = setTimeout(() => setVisible(false), 200);
+    setVisible(false);
   }, []);
 
   const togglePin = useCallback(() => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     pinnedRef.current = !pinnedRef.current;
     if (pinnedRef.current) setVisible(true);
   }, []);
@@ -59,7 +56,7 @@ export function MemoryTooltip({ title, content, children, className }: MemoryToo
         onMouseLeave={hide}
         title={title}
         zIndex={101}
-        width={400}
+        width={300}
         hoverTrigger={false}
       >
         <div className="text-xs text-slate-300 space-y-1">

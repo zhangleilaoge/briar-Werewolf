@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* macOS 风格滚动条：默认不占宽度，hover 时显示 */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+  }
+
+  *:hover::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+  }
+
+  *:hover::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: none;
+  }
+
+  *:hover {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+}

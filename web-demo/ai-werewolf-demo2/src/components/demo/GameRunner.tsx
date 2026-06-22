@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PERSONALITIES } from '@/intention/personalities';
-import type { Player, MemoryEntry } from '@/types';
+import type { Player } from '@/types';
 import { ROLE_EMOJIS, ROLE_NAMES, ROLE_SKILLS, ATTRIBUTE_NAMES, ACTION_NAMES, LONG_TERM_NAMES, SHORT_TERM_NAMES, MEMORY_SOURCE_NAMES } from './game-runner-constants';
-import { getPlayerDisplay, getMemoryTooltip, getMemoryDescription } from './game-runner-utils';
-import { generateGameLogs } from './game-runner-log';
+import { getPlayerDisplay, getMemoryTooltip, getMemoryDescription, formatRoundDisplay } from './game-runner-utils';
+import { GameEngine } from './game-runner-engine';
 import { MemoryTooltip } from './MemoryTooltip';
-import type { GameConfig, GameLog, RoundResult } from './game-runner-types';
+import type { GameConfig, GameLog } from './game-runner-types';
 
 // ============================================================
 // Main Component
@@ -13,10 +13,10 @@ import type { GameConfig, GameLog, RoundResult } from './game-runner-types';
 export default function GameRunner() {
   const [phase, setPhase] = useState<'setup' | 'playing'>('setup');
   const [config, setConfig] = useState<GameConfig>({ werewolfCount: 1, prophetCount: 1, villagerCount: 5 });
+  const [engine, setEngine] = useState<GameEngine | null>(null);
   const [logs, setLogs] = useState<GameLog[]>([]);
-  const [roundResults, setRoundResults] = useState<RoundResult[]>([]);
-  const [initialPlayers, setInitialPlayers] = useState<Player[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [allPlayerResults, setAllPlayerResults] = useState<Map<string, ReturnType<GameEngine['_calcAllPlayerResults']> extends Map<string, infer V> ? V : never>>(new Map());
+  const [isGameOver, setIsGameOver] = useState(false);
   const [mode, setMode] = useState<'auto' | 'step'>('auto');
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<1 | 2>(1);
@@ -26,50 +26,64 @@ export default function GameRunner() {
   const logRef = useRef<HTMLDivElement>(null);
   const totalPlayers = config.werewolfCount + config.prophetCount + config.villagerCount;
 
-  const displayedLogs = logs.slice(0, currentStep);
-  const currentLog = currentStep > 0 ? logs[currentStep - 1] : null;
+  const currentLog = logs.length > 0 ? logs[logs.length - 1] : null;
   const activeRound = currentLog ? currentLog.round : 1;
-  const activeRoundResult = roundResults.find((r) => r.round === activeRound);
-  const lastPlayerLog = currentStep > 0 ? logs.slice(0, currentStep).reverse().find((l) => l.playerId) : null;
+  const lastPlayerLog = logs.length > 0 ? [...logs].reverse().find((l) => l.playerId) : null;
   const activePlayerId = selectedPlayer || currentLog?.playerId || lastPlayerLog?.playerId;
-  let activeResult = activePlayerId && activeRoundResult ? activeRoundResult.playerResults.get(activePlayerId) : null;
-  if (!activeResult && activePlayerId) {
-    for (let r = activeRound - 1; r >= 1; r--) {
-      const rr = roundResults.find((res) => res.round === r);
-      if (rr?.playerResults.has(activePlayerId)) { activeResult = rr.playerResults.get(activePlayerId)!; break; }
-    }
-  }
-  const activePlayerObj = activePlayerId ? initialPlayers.find((p) => p.id === activePlayerId) : null;
+  const activeResult = activePlayerId ? allPlayerResults.get(activePlayerId) || null : null;
+  const activePlayerObj = activePlayerId ? engine?.players.find((p) => p.id === activePlayerId) : null;
 
   const deadPlayers = new Set<string>();
-  for (const log of displayedLogs) { if (log.deathEvent) deadPlayers.add(log.deathEvent.playerId); }
+  for (const log of logs) { if (log.deathEvent) deadPlayers.add(log.deathEvent.playerId); }
 
   // Timer (only in auto mode)
   useEffect(() => {
-    if (mode !== 'auto' || !isPlaying || currentStep >= logs.length) { if (currentStep >= logs.length) setIsPlaying(false); return; }
+    if (mode !== 'auto' || !isPlaying || isGameOver) { if (isGameOver) setIsPlaying(false); return; }
     const delay = speed === 1 ? 1000 : 500;
-    const timer = setTimeout(() => setCurrentStep((s) => s + 1), delay);
+    const timer = setTimeout(() => doStep(), delay);
     return () => clearTimeout(timer);
-  }, [mode, isPlaying, currentStep, logs.length, speed]);
+  }, [mode, isPlaying, isGameOver, speed, logs.length]);
 
   // Auto-scroll
-  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [currentStep]);
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [logs.length]);
+
+  const doStep = useCallback(() => {
+    if (!engine || isGameOver) return;
+    const result = engine.step();
+    if (!result) {
+      setIsGameOver(true);
+      setIsPlaying(false);
+      return;
+    }
+    setLogs((prev) => [...prev, result.log]);
+    setAllPlayerResults((prev) => {
+      const next = new Map(prev);
+      for (const [k, v] of result.playerResults.entries()) {
+        next.set(k, v);
+      }
+      return next;
+    });
+    if (engine.winner) {
+      setIsGameOver(true);
+      setIsPlaying(false);
+    }
+  }, [engine, isGameOver]);
 
   const startGame = useCallback(() => {
-    const { logs, roundResults, initialPlayers } = generateGameLogs(config);
-    setLogs(logs);
-    setRoundResults(roundResults);
-    setInitialPlayers(initialPlayers);
-    setCurrentStep(0);
+    const newEngine = new GameEngine(config);
+    setEngine(newEngine);
+    setLogs([]);
+    setAllPlayerResults(new Map());
+    setIsGameOver(false);
     setIsPlaying(true);
     setSelectedPlayer(null);
     setPhase('playing');
   }, [config]);
 
   const reset = useCallback(() => {
-    setPhase('setup'); setLogs([]); setRoundResults([]); setInitialPlayers([]); setCurrentStep(0); setIsPlaying(false); setSpeed(1); setSelectedPlayer(null);
+    setPhase('setup'); setEngine(null); setLogs([]); setAllPlayerResults(new Map()); setIsGameOver(false); setIsPlaying(false); setSpeed(1); setSelectedPlayer(null);
   }, []);
-  const togglePlay = useCallback(() => { if (currentStep >= logs.length) { setCurrentStep(0); setIsPlaying(true); } else { setIsPlaying((p) => !p); } }, [currentStep, logs.length]);
+  const togglePlay = useCallback(() => { if (isGameOver) { startGame(); } else { setIsPlaying((p) => !p); } }, [isGameOver, startGame]);
   const toggleSpeed = useCallback(() => setSpeed((s) => (s === 1 ? 2 : 1)), []);
   const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => {
@@ -79,8 +93,9 @@ export default function GameRunner() {
     });
   }, []);
 
-  const revealedPlayerIds = new Set(displayedLogs.filter((l) => l.playerId && l.subPhase === 'day').map((l) => l.playerId!));
-  const lastPlayerId = currentStep > 0 ? displayedLogs.slice().reverse().find((l) => l.playerId && l.subPhase === 'day')?.playerId : null;
+  const initialPlayers = engine?.players || [];
+  const revealedPlayerIds = new Set(logs.filter((l) => l.playerId && l.subPhase === 'day').map((l) => l.playerId!));
+  const lastPlayerId = logs.length > 0 ? [...logs].reverse().find((l) => l.playerId && l.subPhase === 'day')?.playerId : null;
 
   // ==================== SETUP ====================
   if (phase === 'setup') {
@@ -132,10 +147,10 @@ export default function GameRunner() {
         <div className="flex items-center gap-2">
           <button onClick={() => setMode((m) => (m === 'auto' ? 'step' : 'auto'))} className={`px-3 py-1.5 rounded-lg text-sm transition ${mode === 'auto' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white'}`}>{mode === 'auto' ? '🔄 自动模式' : '🦶 步进模式'}</button>
           {mode === 'step' && (
-            <button onClick={() => { if (currentStep < logs.length) setCurrentStep((s) => s + 1); }} disabled={currentStep >= logs.length} className={`px-3 py-1.5 rounded-lg text-sm transition ${currentStep >= logs.length ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white'}`}>⏩ 下一步</button>
+            <button onClick={doStep} disabled={isGameOver} className={`px-3 py-1.5 rounded-lg text-sm transition ${isGameOver ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white'}`}>⏩ 下一步</button>
           )}
           {mode === 'auto' && (
-            <button onClick={togglePlay} className={`px-3 py-1.5 rounded-lg text-sm transition ${isPlaying ? 'bg-amber-600 hover:bg-amber-500' : (currentStep >= logs.length ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500')}`}>{isPlaying ? '⏸ 暂停' : (currentStep >= logs.length ? '↺ 重播' : '▶ 继续')}</button>
+            <button onClick={togglePlay} className={`px-3 py-1.5 rounded-lg text-sm transition ${isPlaying ? 'bg-amber-600 hover:bg-amber-500' : (isGameOver ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500')}`}>{isPlaying ? '⏸ 暂停' : (isGameOver ? '↺ 重播' : '▶ 继续')}</button>
           )}
           <button onClick={reset} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm border border-slate-700 transition">↺ 重置</button>
         </div>
@@ -150,11 +165,9 @@ export default function GameRunner() {
             {initialPlayers.map((p) => {
               const isDead = deadPlayers.has(p.id);
               const isSelected = selectedPlayer === p.id;
-              const isRevealed = revealedPlayerIds.has(p.id);
               const isCurrent = lastPlayerId === p.id;
               const borderColor = p.team === 'werewolf' ? 'border-red-800/60' : 'border-green-800/40';
               const bgColor = isSelected ? (p.team === 'werewolf' ? 'bg-red-900/20' : 'bg-green-900/20') : isCurrent ? 'bg-slate-700/50' : 'bg-slate-800/50';
-              const result = activeRoundResult?.playerResults.get(p.id);
               return (
                 <div key={p.id} onClick={() => setSelectedPlayer(p.id)} className={`p-3 rounded-lg border cursor-pointer transition ${borderColor} ${bgColor} ${isSelected ? 'ring-1 ring-amber-500/30' : 'hover:bg-slate-800'} ${isCurrent ? 'ring-1 ring-blue-500/30' : ''} ${isDead ? 'opacity-50' : ''}`}>
                   <div className="flex items-center justify-between">
@@ -174,15 +187,15 @@ export default function GameRunner() {
         {/* Middle: Timeline */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-slate-700">
           <div className="flex-1 overflow-y-auto p-4 space-y-2" ref={logRef}>
-            {displayedLogs.map((log, i) => (
+            {logs.map((log, i) => (
               <div key={i} className="flex gap-2 text-sm">
                 <span className="text-slate-500 shrink-0 font-mono text-xs">{log.time}</span>
                 <span className={log.isSystem ? 'text-amber-400 font-bold' : 'text-slate-300'}>{log.content}</span>
               </div>
             ))}
-            {isPlaying && currentStep < logs.length && (
+            {isPlaying && !isGameOver && (
               <div className="flex gap-2 text-sm animate-pulse">
-                <span className="text-slate-500 shrink-0 font-mono text-xs">{logs[currentStep]?.time}</span>
+                <span className="text-slate-500 shrink-0 font-mono text-xs">...</span>
                 <span className="text-slate-500">正在执行...</span>
               </div>
             )}
@@ -196,7 +209,7 @@ export default function GameRunner() {
               点击左侧角色查看详情
             </div>
           ) : (
-            <div className="p-3 space-y-2">
+            <div key={`${activePlayerId}-${logs.length}`} className="p-3 space-y-2">
               {/* Header */}
               <div className="flex items-center gap-3 pb-2 border-b border-slate-700">
                 <span className="text-3xl">{ROLE_EMOJIS[activePlayerObj?.role || 'villager']}</span>
@@ -244,14 +257,13 @@ export default function GameRunner() {
                   <Drawer id="memories" title={`记忆 (${activeResult.memories.length})`} openSections={openSections} toggleSection={toggleSection}>
                     <div className="space-y-1 max-h-72 overflow-y-auto">
                       {activeResult.memories.length === 0 && <div className="text-xs text-slate-500">暂无记忆</div>}
-                      {activeResult.memories.map((mem) => {
-                        const credColor = mem.credibility >= 1.0 ? 'border-green-500' : mem.credibility >= 0.7 ? 'border-yellow-500' : 'border-slate-600';
+                      {activeResult.memories.slice().reverse().map((mem) => {
                         const forgottenClass = mem.isForgotten ? 'opacity-40 line-through' : '';
                         return (
-                          <div key={mem.id} className={`bg-slate-800 rounded px-2 py-1.5 text-xs border-l-2 ${credColor} ${forgottenClass}`}>
+                          <div key={mem.id} className={`bg-slate-800 rounded px-2 py-1.5 text-xs ${forgottenClass}`}>
                             <div className="text-slate-200 font-medium">{getMemoryDescription(mem, activePlayerId!, initialPlayers)}</div>
                             <div className="flex flex-wrap gap-x-2 mt-1 text-[10px] text-slate-500">
-                              <span>时间：{mem.round === 0 ? '初始' : `第${mem.round}轮`}</span>
+                              <span>时间：{formatRoundDisplay(mem.round, mem.content.dayRound)}</span>
                               <span>来源：{MEMORY_SOURCE_NAMES[mem.source] || mem.source}</span>
                               <span>可信度：{Math.round(mem.credibility * 100)}%</span>
                             </div>
@@ -261,6 +273,23 @@ export default function GameRunner() {
                       })}
                     </div>
                   </Drawer>
+
+                  {/* Forgotten Memories */}
+                  {activeResult.forgottenMemories.length > 0 && (
+                    <Drawer id="forgotten" title={`已遗忘 (${activeResult.forgottenMemories.length})`} openSections={openSections} toggleSection={toggleSection}>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {activeResult.forgottenMemories.slice().reverse().map((mem) => (
+                          <div key={mem.id} className="bg-slate-800 rounded px-2 py-1.5 text-xs opacity-50 line-through">
+                            <div className="text-slate-200 font-medium">{getMemoryDescription(mem, activePlayerId!, initialPlayers)}</div>
+                            <div className="flex flex-wrap gap-x-2 mt-1 text-[10px] text-slate-500">
+                              <span>时间：{formatRoundDisplay(mem.round, mem.content.dayRound)}</span>
+                              <span>来源：{MEMORY_SOURCE_NAMES[mem.source] || mem.source}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Drawer>
+                  )}
                 </div>
               )}
 
