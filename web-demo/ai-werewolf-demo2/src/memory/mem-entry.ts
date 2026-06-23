@@ -33,6 +33,7 @@ export function createMemory(
     ...params,
     credibility: params.credibility ?? getDefaultCredibility(params.source),
     importance: params.importance ?? getDefaultImportance(params.source),
+    isForgotten: false,
   };
 }
 

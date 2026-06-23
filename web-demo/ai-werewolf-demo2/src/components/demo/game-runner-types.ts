@@ -13,7 +13,7 @@ export interface GameLog {
   isSystem?: boolean;
   round: number;
   subPhase: 'init' | 'morning' | 'day' | 'vote' | 'result' | 'night' | 'victory';
-  content: React.ReactNode;
+  content: string; // plain text, rendered by UI layer
   deathEvent?: { playerId: string; cause: 'vote' | 'werewolf' };
 }
 
@@ -24,9 +24,9 @@ export interface RoundResult {
 
 export interface PlayerResult {
   intentionState: IntentionState;
-  selfCrisis: { score: number; factors: Record<string, number>; basis: string[] };
-  relations: { playerId: string; friendly: number; memoryIds: string[] }[];
-  inferences: Map<string, { werewolfProb: number; villagerProb: number; basis: string[] }>;
+  selfCrisis: { score: number; factors: Record<string, number>; basis: string[]; trace?: import('@/types/trace').CrisisTrace };
+  relations: import('@/relation').RelationDetail[];
+  inferences: Map<string, { werewolfProb: number; villagerProb: number; basis: string[]; trace?: import('@/types/trace').RoleInferenceTrace }>;
   memories: MemoryEntry[];
   forgottenMemories: MemoryEntry[];
 }

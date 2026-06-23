@@ -57,4 +57,36 @@ describe('InferenceEngine', () => {
     const field = engine.inferFieldCrisis(makePlayers());
     expect(field.mostAtRisk.playerId).toBe('A');
   });
+
+  it('inferPlayerWithTrace includes trace with impacts and steps', () => {
+    const store = new MemStore();
+    store.add({ round: 1, triggerAt: 'night_action', eventType: 'check_result', actorId: 'C', targetId: 'B', content: { result: 'werewolf' }, source: 'self', credibility: CREDIBILITY.SELF });
+    const engine = new InferenceEngine(store, 'C');
+    const result = engine.inferPlayerWithTrace('B');
+    expect(result.werewolfProb).toBe(1.0);
+    expect(result.trace).toBeDefined();
+    expect(result.trace!.impacts.length).toBeGreaterThan(0);
+    expect(result.trace!.calculationSteps.length).toBeGreaterThan(0);
+    expect(result.trace!.hardInfoOverride).toBe(true);
+  });
+
+  it('inferCrisisWithTrace includes trace with factors', () => {
+    const store = new MemStore();
+    store.add({ round: 1, triggerAt: 'speech', eventType: 'hear_accuse', actorId: 'B', targetId: 'A', content: {}, source: 'speech' });
+    const engine = new InferenceEngine(store, 'A');
+    const crisis = engine.inferCrisisWithTrace('A');
+    expect(crisis.trace).toBeDefined();
+    expect(crisis.trace!.factors.accuseCount).toBeGreaterThan(0);
+    expect(crisis.trace!.impacts.length).toBeGreaterThan(0);
+    expect(crisis.trace!.calculationSteps.length).toBeGreaterThan(0);
+  });
+
+  it('claimWolfCount increases hear_claim crisis', () => {
+    const store = new MemStore();
+    store.add({ round: 1, triggerAt: 'speech', eventType: 'hear_claim', actorId: 'B', targetId: 'A', content: { claimedResult: 'werewolf' }, source: 'speech' });
+    const engine = new InferenceEngine(store, 'A');
+    const crisis = engine.inferSelfCrisis();
+    expect(crisis.factors.claimWolfCount).toBeGreaterThan(0);
+    expect(crisis.score).toBeGreaterThan(0);
+  });
 });

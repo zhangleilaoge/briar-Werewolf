@@ -23,10 +23,30 @@ export const OBSERVE_WEIGHT = {
   HIDE_WOLF: 0.3,
 } as const;
 
+export const ACCUSER_SPAM_WEIGHT = {
+  /** 频繁指控不同人 → 该指控者狼人概率上升权重 */
+  BASE_PENALTY: 0.05,
+  /** 每多指控一个不同目标，额外惩罚 */
+  PER_TARGET_PENALTY: 0.03,
+  /** 同一目标多次指控的衰减：第二次起权重递减 */
+  REPEAT_DECAY: 0.5,
+} as const;
+
+/** 投票参与角色推理的权重 */
+export const VOTE_ROLE_WEIGHT = {
+  /** 投票给被大众怀疑的人（跟票）→ 投票者可能是村民 */
+  FOLLOW_VOTE_VILLAGER: 0.3,
+  /** 投票给被辩护的人（抗推）→ 投票者可能是狼人 */
+  ANTI_PUSH_WOLF: 0.4,
+  /** 投票与之前声称不一致（声称A是狼但投票给B）→ 投票者可疑 */
+  INCONSISTENCY_PENALTY: 0.5,
+} as const;
+
 // ---------- 危机度权重 ----------
 export const CRISIS_WEIGHT = {
   ACCUSE: 2,
   VOTE: 3,
   OBSERVE: 1,
   DEFEND: -2,
+  CLAIM_WOLF: 4, // 被声称查杀
 } as const;

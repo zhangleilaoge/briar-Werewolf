@@ -188,7 +188,7 @@ export default function GameRunner() {
         <div className="flex-1 flex flex-col min-w-0 border-r border-slate-700">
           <div className="flex-1 overflow-y-auto p-4 space-y-2" ref={logRef}>
             {logs.map((log, i) => (
-              <div key={i} className="flex gap-2 text-sm">
+              <div key={i} className="flex gap-2 text-sm items-center">
                 <span className="text-slate-500 shrink-0 font-mono text-xs">{log.time}</span>
                 <span className={log.isSystem ? 'text-amber-400 font-bold' : 'text-slate-300'}>{log.content}</span>
               </div>
@@ -255,7 +255,7 @@ export default function GameRunner() {
 
                   {/* Memories */}
                   <Drawer id="memories" title={`记忆 (${activeResult.memories.length})`} openSections={openSections} toggleSection={toggleSection}>
-                    <div className="space-y-1 max-h-72 overflow-y-auto">
+                    <div className="space-y-1 max-h-[calc(100vh-360px)] overflow-y-scroll">
                       {activeResult.memories.length === 0 && <div className="text-xs text-slate-500">暂无记忆</div>}
                       {activeResult.memories.slice().reverse().map((mem) => {
                         const forgottenClass = mem.isForgotten ? 'opacity-40 line-through' : '';
@@ -301,7 +301,7 @@ export default function GameRunner() {
                       {activeResult.relations.map((rel) => {
                         const displayName = getPlayerDisplay(rel.playerId, initialPlayers);
                         return (
-                          <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} className="inline-block">
+                          <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} impacts={[...rel.directImpacts, ...rel.bystanderImpacts]} className="inline-block">
                             <span className={`text-xs px-2 py-1 rounded ${rel.friendly > 0 ? 'bg-green-900/30 text-green-400' : rel.friendly < 0 ? 'bg-red-900/30 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                               {displayName} {rel.friendly > 0 ? '+' : ''}{rel.friendly}
                             </span>
@@ -318,7 +318,7 @@ export default function GameRunner() {
                         const wp = Math.round(inf.werewolfProb * 100);
                         const displayName = getPlayerDisplay(pid, initialPlayers);
                         return (
-                          <MemoryTooltip key={pid} title="支撑记忆" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} className="inline-block">
+                          <MemoryTooltip key={pid} title="支撑记忆" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={inf.trace?.impacts} className="inline-block">
                             <span className={`text-xs px-2 py-1 rounded ${wp >= 50 ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
                               {displayName} 🐺{wp}%
                             </span>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { MemStore } from '@/memory';
 import { InferenceEngine } from '@/inference/inference-engine';
 import { IntentionEngine } from '@/intention/intention-engine';
@@ -34,7 +33,7 @@ export class GameEngine {
   private stepQueue: Array<() => GameLog>;
   private queueLabels: Array<{ subPhase: SubPhase; playerId?: string; label: string }>;
   dayRound: number; // 全局行动计数器（显示用）
-  roundCycle: number; // 白天轮次（判断本轮是否结束）
+  consecutiveSkip: number; // 连续沉默/观察计数
   todayActions: Map<string, Array<{ action: string; targetId?: string }>>;
   voteTargets: Record<string, string>;
 
@@ -49,7 +48,7 @@ export class GameEngine {
     this.stepQueue = [];
     this.queueLabels = [];
     this.dayRound = 1;
-    this.roundCycle = 1;
+    this.consecutiveSkip = 0;
     this.todayActions = new Map();
     this.voteTargets = {};
 
@@ -73,6 +72,8 @@ export class GameEngine {
 
   // 填充一轮的队列
   private _fillRoundQueue() {
+    this.voteTargets = {};
+    this.store.applyForgetting(this.round);
     const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
     const r = this.round;
 
@@ -131,18 +132,23 @@ export class GameEngine {
     return formatTime(this.base + this.logIdx++ * 1000);
   }
 
-  private _roundTitle(r: number): React.ReactNode {
-    return <span className="text-amber-400 font-bold">🌙 === 第 {r} 轮 ===</span>;
+  private _roundTitle(r: number): string {
+    return `🌙 === 第 ${r} 轮 ===`;
   }
-  private _dayHeader(): React.ReactNode { return <span className="text-slate-400">💬 白天：所有人发言</span>; }
-  private _voteHeader(): React.ReactNode { return <span className="text-slate-400">🗳️ 投票阶段</span>; }
-  private _nightHeader(): React.ReactNode { return <span className="text-slate-400">🌙 夜晚降临...</span>; }
+  private _dayHeader(): string { return '💬 白天：所有人发言'; }
+  private _voteHeader(): string { return '🗳️ 投票阶段'; }
+  private _nightHeader(): string { return '🌙 夜晚降临...'; }
 
   // 执行一步
   step(): StepResult | null {
     if (this.winner || this.round > MAX_ROUNDS) return null;
     if (this.stepQueue.length === 0) {
-      this._fillVoteQueue();
+      const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
+      if (this.consecutiveSkip >= alive.length) {
+        this._fillVoteQueue();
+      } else {
+        this._pushDayRoundActions(alive);
+      }
       if (this.stepQueue.length === 0) return null;
     }
 
@@ -160,7 +166,7 @@ export class GameEngine {
       if (log.subPhase === 'victory') {
         this.round++;
         this.dayRound = 1;
-        this.roundCycle = 1;
+        this.consecutiveSkip = 0;
         this.todayActions.clear();
         this.voteTargets = {};
         this._fillRoundQueue();
@@ -173,7 +179,8 @@ export class GameEngine {
   private _executeDayAction(self: Player, alive: Player[]): GameLog {
     const store2 = this._getVisibleStore(self.id);
     const inference = new InferenceEngine(store2, self.id);
-    const engine = new IntentionEngine(store2, inference, self, alive);
+    const relation = new RelationTracker(self.id, alive.map((p) => p.id));
+    const engine = new IntentionEngine(inference, relation, self, alive);
     const intentionState = engine.generateDayAction();
     let selected = intentionState.selected;
 
@@ -183,14 +190,14 @@ export class GameEngine {
       const isDuplicate = today.some((a) => a.action === selected!.action && a.targetId === selected!.targetId);
       if (isDuplicate) {
         // 改为 silence
-        selected = { action: 'silence', targetId: undefined, score: 0, reason: '重复行动，改为沉默' };
+        selected = { action: 'silence', targetId: undefined, score: 0, reason: '重复行动，改为沉默', supportingMemories: [] };
         // 如果 silence 被性格禁用，改为 observe 随机目标
         const personality = PERSONALITIES[self.personality];
         if (personality && personality.disabledActions.includes('silence')) {
           const others = alive.filter((p) => p.id !== self.id);
           if (others.length > 0) {
             const target = others[randInt(0, others.length - 1)];
-            selected = { action: 'observe', targetId: target.id, score: 0, reason: '重复行动，改为观察' };
+            selected = { action: 'observe', targetId: target.id, score: 0, reason: '重复行动，改为观察', supportingMemories: [] };
           }
         }
       }
@@ -229,50 +236,31 @@ export class GameEngine {
       }
     }
 
-    // 检查是否所有存活玩家都已完成当前 roundCycle 的行动
-    const allDone = alive.every((p) => {
-      const actions = this.todayActions.get(p.id) || [];
-      return actions.length >= this.roundCycle;
-    });
-
-    if (allDone) {
-      this._checkDayRoundEnd(alive);
+    // 更新连续计数器
+    if (selected && (selected.action === 'silence' || selected.action === 'observe')) {
+      this.consecutiveSkip++;
+    } else {
+      this.consecutiveSkip = 0;
     }
 
     // 生成日志
     const targetName = selected?.targetId ? this.players.find((p) => p.id === selected.targetId)?.name || selected.targetId : '';
-    let content: React.ReactNode;
+    let content: string;
     if (!selected) {
-      content = <span><span className="text-amber-400 font-bold">{self.name}</span> 没有行动</span>;
+      content = `[${self.name}] 没有行动`;
     } else {
       switch (selected.action) {
-        case 'claim_identity': content = <span>📢 <span className="text-amber-400 font-bold">{self.name}</span> 公布身份：<span className="text-yellow-300">「我是预言家」</span></span>; break;
-        case 'suspect': content = <span>⚔️ <span className="text-amber-400 font-bold">{self.name}</span> 号召投票给 <span className="text-yellow-300">{targetName}</span>：<span className="text-yellow-300">「大家今天投 {targetName}！」</span></span>; break;
-        case 'defend': content = <span>🛡️ <span className="text-amber-400 font-bold">{self.name}</span> 为 <span className="text-yellow-300">{targetName}</span> 辩护：<span className="text-yellow-300">「{targetName} 不像狼人」</span></span>; break;
-        case 'observe': content = <span>🔍 <span className="text-amber-400 font-bold">{self.name}</span> 暗中观察 <span className="text-yellow-300">{targetName}</span></span>; break;
-        case 'silence': content = <span>🤫 <span className="text-amber-400 font-bold">{self.name}</span> 保持沉默</span>; break;
-        case 'chat': content = <span>💬 <span className="text-amber-400 font-bold">{self.name}</span> 和 <span className="text-yellow-300">{targetName}</span> 闲聊</span>; break;
-        default: content = <span><span className="text-amber-400 font-bold">{self.name}</span> {selected.action}</span>;
+        case 'claim_identity': content = `📢 [${self.name}] 公布身份：「我是预言家」`; break;
+        case 'suspect': content = `⚔️ [${self.name}] 号召投票给 ${targetName}：「大家今天投 ${targetName}！」`; break;
+        case 'defend': content = `🛡️ [${self.name}] 为 ${targetName} 辩护：「${targetName} 不像狼人」`; break;
+        case 'observe': content = `🔍 [${self.name}] 暗中观察 ${targetName}`; break;
+        case 'silence': content = `🤫 [${self.name}] 保持沉默`; break;
+        case 'chat': content = `💬 [${self.name}] 和 ${targetName} 闲聊`; break;
+        default: content = `[${self.name}] ${selected.action}`;
       }
     }
 
     return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'day', content };
-  }
-
-  private _checkDayRoundEnd(alive: Player[]) {
-    const currentDayActions = alive.map((p) => {
-      const actions = this.todayActions.get(p.id) || [];
-      return actions[this.roundCycle - 1];
-    });
-
-    const allSkip = currentDayActions.every((a) => a && (a.action === 'observe' || a.action === 'silence'));
-
-    if (allSkip) {
-      this._fillVoteQueue();
-    } else {
-      this.roundCycle++;
-      this._pushDayRoundActions(alive);
-    }
   }
 
   private _executeVote(self: Player, alive: Player[], voteTargets: Record<string, string>): GameLog {
@@ -294,9 +282,9 @@ export class GameEngine {
       voteTargets[self.id] = bestTarget;
       this.store.add({ round: this.round, triggerAt: 'vote', eventType: 'vote', actorId: self.id, targetId: bestTarget, content: {}, source: 'system', credibility: CREDIBILITY.SYSTEM });
       const targetName = this.players.find((x) => x.id === bestTarget)?.name || bestTarget;
-      return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: <span>🗳️ <span className="text-amber-400 font-bold">{self.name}</span> 投票给 <span className="text-yellow-300">{targetName}</span></span> };
+      return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: `🗳️ [${self.name}] 投票给 ${targetName}` };
     }
-    return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: <span>🗳️ <span className="text-amber-400 font-bold">{self.name}</span> 弃权</span> };
+    return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: `🗳️ [${self.name}] 弃权` };
   }
 
   private _executeVoteResult(voteTargets: Record<string, string>, round: number): GameLog {
@@ -312,43 +300,69 @@ export class GameEngine {
       const victim = this.players.find((p) => p.id === voteTarget)!;
       this.deadPlayerIds.add(voteTarget);
       this.store.add({ round, triggerAt: 'vote_result', eventType: 'death', actorId: 'system', targetId: voteTarget, content: { cause: 'vote', votes: counts }, source: 'system', credibility: CREDIBILITY.SYSTEM });
-      return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', deathEvent: { playerId: voteTarget, cause: 'vote' }, content: <span className="text-red-400">🗳️ {victim.name} 得票最多（{maxVotes} 票），被放逐</span> };
+      return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', deathEvent: { playerId: voteTarget, cause: 'vote' }, content: `🗳️ ${victim.name} 得票最多（${maxVotes} 票），被放逐` };
     }
-    return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', content: <span className="text-slate-400">🗳️ 无人被放逐</span> };
+    return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', content: '🗳️ 无人被放逐' };
   }
 
   private _executeProphetCheck(p: Player, alive: Player[]): GameLog {
     const others = alive.filter((x) => x.id !== p.id);
     if (others.length === 0) {
-      return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: <span>🔮 <span className="text-amber-400 font-bold">{p.name}</span> 没有查验目标</span> };
+      return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 没有查验目标` };
     }
-    const target = others[randInt(0, others.length - 1)];
-    this.store.add({ round: this.round, triggerAt: 'night_action', eventType: 'check_result', actorId: p.id, targetId: target.id, content: { result: target.role === 'werewolf' ? 'werewolf' : 'villager' }, source: 'self', credibility: CREDIBILITY.SELF, viewerId: p.id });
-    const result = target.role === 'werewolf' ? '狼人' : '村民';
-    return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: <span>🔮 <span className="text-amber-400 font-bold">{p.name}</span> 查验 <span className="text-yellow-300">{target.name}</span>：{result}</span> };
+    const store2 = this._getVisibleStore(p.id);
+    const inference = new InferenceEngine(store2, p.id);
+    const relation = new RelationTracker(p.id, alive.map((x) => x.id));
+    for (const m of store2.getAll()) relation.onMemoryAdded(m);
+    const engine = new IntentionEngine(inference, relation, p, alive);
+    const intentionState = engine.generateNightAction();
+    const selected = intentionState.selected;
+
+    if (selected && selected.action === 'check' && selected.targetId) {
+      const target = this.players.find((x) => x.id === selected.targetId);
+      if (target) {
+        this.store.add({ round: this.round, triggerAt: 'night_action', eventType: 'check_result', actorId: p.id, targetId: target.id, content: { result: target.role === 'werewolf' ? 'werewolf' : 'villager' }, source: 'self', credibility: CREDIBILITY.SELF, viewerId: p.id });
+        const result = target.role === 'werewolf' ? '狼人' : '村民';
+        return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 查验 ${target.name}：${result}` };
+      }
+    }
+    return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 没有查验目标` };
   }
 
   private _executeWerewolfKill(alive: Player[]): GameLog {
     const aliveWolves = alive.filter((p) => p.role === 'werewolf');
     if (aliveWolves.length === 0) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: <span className="text-slate-400">🌙 狼人没有行动</span> };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有行动' };
     }
     const nonWolves = alive.filter((p) => p.role !== 'werewolf');
     if (nonWolves.length === 0) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: <span className="text-slate-400">🌙 狼人没有目标</span> };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有目标' };
     }
     const votes: Record<string, number> = {};
     for (const w of aliveWolves) {
-      const target = nonWolves[randInt(0, nonWolves.length - 1)];
-      votes[target.id] = (votes[target.id] || 0) + 1;
+      const store2 = this._getVisibleStore(w.id);
+      const inference = new InferenceEngine(store2, w.id);
+      const relation = new RelationTracker(w.id, alive.map((x) => x.id));
+      for (const m of store2.getAll()) relation.onMemoryAdded(m);
+      const engine = new IntentionEngine(inference, relation, w, alive);
+      const intentionState = engine.generateNightAction();
+      const selected = intentionState.selected;
+      if (selected && selected.action === 'kill' && selected.targetId) {
+        votes[selected.targetId] = (votes[selected.targetId] || 0) + 1;
+      } else {
+        const fallback = nonWolves[randInt(0, nonWolves.length - 1)];
+        votes[fallback.id] = (votes[fallback.id] || 0) + 1;
+      }
     }
-    const maxW = Math.max(...Object.values(votes));
+    const maxW = Math.max(0, ...Object.values(votes));
     const candidates = Object.entries(votes).filter(([_, v]) => v === maxW).map(([k]) => k);
-    const nightKill = candidates[randInt(0, candidates.length - 1)];
-    // 狼人投票只记录到 store，不在此标记死亡（死亡在早晨公布时才生效）
-    this.store.add({ round: this.round, triggerAt: 'night_end', eventType: 'death', actorId: 'system', targetId: nightKill, content: { cause: 'werewolf' }, source: 'system', credibility: CREDIBILITY.SYSTEM });
-    const victimName = this.players.find((x) => x.id === nightKill)?.name || nightKill;
-    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: <span>🐺 <span className="text-red-400">狼人袭击了 {victimName}</span></span> };
+    const nightKill = candidates.length > 0 ? candidates[randInt(0, candidates.length - 1)] : undefined;
+    if (nightKill) {
+      this.store.add({ round: this.round, triggerAt: 'night_end', eventType: 'death', actorId: 'system', targetId: nightKill, content: { cause: 'werewolf' }, source: 'system', credibility: CREDIBILITY.SYSTEM });
+      const victimName = this.players.find((x) => x.id === nightKill)?.name || nightKill;
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: `🐺 狼人袭击了 ${victimName}` };
+    }
+    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有行动' };
   }
 
   private _executeMorning(round: number): GameLog {
@@ -359,32 +373,29 @@ export class GameEngine {
       // 早晨公布死亡时才真正标记死亡
       this.deadPlayerIds.add(lastKill.targetId!);
       this._broadcastMemory({ round, triggerAt: 'morning', eventType: 'morning', actorId: 'system', targetId: lastKill.targetId, content: { cause: 'werewolf' }, source: 'system', credibility: CREDIBILITY.SYSTEM });
-      return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', deathEvent: { playerId: lastKill.targetId!, cause: 'werewolf' }, content: <span className="text-red-400">☀️ 天亮了，{victim?.name || lastKill.targetId} 被狼人杀害了</span> };
+      return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', deathEvent: { playerId: lastKill.targetId!, cause: 'werewolf' }, content: `☀️ 天亮了，${victim?.name || lastKill.targetId} 被狼人杀害了` };
     }
     this._broadcastMemory({ round, triggerAt: 'morning', eventType: 'peaceful_night', actorId: 'system', content: {}, source: 'system', credibility: CREDIBILITY.SYSTEM });
-    return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', content: <span className="text-slate-400">☀️ 天亮了，昨晚是平安夜</span> };
+    return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', content: '☀️ 天亮了，昨晚是平安夜' };
   }
 
   private _checkVictory(): GameLog {
     const aW = this.players.filter((p) => p.team === 'werewolf' && !this.deadPlayerIds.has(p.id)).length;
     const aV = this.players.filter((p) => p.team !== 'werewolf' && !this.deadPlayerIds.has(p.id)).length;
-    if (aW === 0) {
+    if (aW === 0 && aV > 0) {
       this.winner = 'villager';
     } else if (aW >= aV) {
       this.winner = 'werewolf';
     }
     if (this.winner) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: <span className="text-amber-400 font-bold text-lg">🏆 {this.winner === 'werewolf' ? '狼人阵营' : '村民阵营'} 胜利！</span> };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: `🏆 ${this.winner === 'werewolf' ? '狼人阵营' : '村民阵营'} 胜利！` };
     }
-    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: <span className="text-slate-400">游戏继续</span> };
+    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: '游戏继续' };
   }
 
-  // 广播记忆：所有存活角色收到
+  // 广播记忆：单条共享，所有存活角色可见（通过 _getVisibleStore 过滤）
   private _broadcastMemory(opts: Omit<Parameters<MemStore['add']>[0], 'viewerId'> & { viewerId?: never }) {
-    const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
-    for (const p of alive) {
-      this.store.add({ ...opts, viewerId: p.id });
-    }
+    this.store.add({ ...opts });
   }
 
   // 写入单条记忆
@@ -398,7 +409,7 @@ export class GameEngine {
     for (const m of this.store.getAll()) {
       if (m.isForgotten) continue;
       if (m.viewerId && m.viewerId !== selfId) continue;
-      store2.add(m);
+      store2.import(m);
     }
     return store2;
   }
@@ -424,15 +435,13 @@ export class GameEngine {
         if (m.viewerId && m.viewerId !== self.id) return false;
         return true;
       });
-      const store2Engine = this._getVisibleStore(self.id);
-      const inferenceEngine = new InferenceEngine(store2Engine, self.id);
-      const intentionEngine = new IntentionEngine(store2Engine, inferenceEngine, self, alive);
+      const intentionEngine = new IntentionEngine(inference, relations, self, alive);
       const intentionState = intentionEngine.generateDayAction();
       results.set(self.id, {
         intentionState,
-        selfCrisis: { score: selfCrisis.score, factors: selfCrisis.factors as Record<string, number>, basis: selfCrisis.basis },
+        selfCrisis: { score: selfCrisis.score, factors: selfCrisis.factors as unknown as Record<string, number>, basis: selfCrisis.basis, trace: selfCrisis.trace },
         relations: relations.getAll(),
-        inferences: new Map(Array.from(inferences.entries()).map(([k, v]) => [k, { werewolfProb: v.werewolfProb, villagerProb: v.villagerProb, basis: v.basis }])),
+        inferences: new Map(Array.from(inferences.entries()).map(([k, v]) => [k, { werewolfProb: v.werewolfProb, villagerProb: v.villagerProb, basis: v.basis, trace: v.trace }])),
         memories: visibleMemories,
         forgottenMemories,
       });

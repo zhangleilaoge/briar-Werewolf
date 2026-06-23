@@ -63,4 +63,18 @@ describe('RelationTracker', () => {
     expect(all[0].playerId).toBe('B');
     expect(all[1].playerId).toBe('C');
   });
+
+  it('bystander impact: observing others attack affects relation to actor', () => {
+    const tracker = new RelationTracker('A', ['A', 'B', 'C']);
+    // B attacks C (A observes, target is not A)
+    tracker.onMemoryAdded(makeMem('hear_accuse', 'B', 'C'));
+    // A's relation to B should decrease (bystander decay applied)
+    expect(tracker.getFriendly('B')).toBeLessThan(0);
+  });
+
+  it('bystander impact: observing vote affects relation to actor', () => {
+    const tracker = new RelationTracker('A', ['A', 'B', 'C']);
+    tracker.onMemoryAdded({ ...makeMem('vote', 'B', 'C'), source: 'system', credibility: 1.0 });
+    expect(tracker.getFriendly('B')).toBeLessThan(0);
+  });
 });

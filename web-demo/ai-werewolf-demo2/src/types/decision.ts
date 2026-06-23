@@ -9,7 +9,8 @@ export type DayActionType =
   | 'observe'          // 观察
   | 'suspect'          // 怀疑
   | 'defend'           // 袒护
-  | 'chat';            // 闲聊
+  | 'chat'             // 闲聊
+  | 'sleep';           // 夜晚睡觉（不行动）
 
 export type NightActionType =
   | 'check'            // 预言家查验
@@ -23,6 +24,7 @@ export interface ActionCandidate {
   score: number;           // 综合评分
   reason: string;          // 为什么选这个
   supportingMemories: string[]; // 支撑这个决策的记忆ID
+  traces?: import('./trace').IntentionTrace[];
 }
 
 // ---------- 意图系统 ----------
@@ -32,6 +34,7 @@ export interface LongTermIntention {
   targetPlayer?: string;   // 指向性目标
   description: string;     // 意图描述
   basis: string[];         // 支撑记忆ID
+  traces?: import('./trace').IntentionTrace[];
 }
 
 export interface ShortTermIntention {
@@ -41,6 +44,7 @@ export interface ShortTermIntention {
   weight: number;                  // 当前权重
   description: string;
   basis: string[];                  // 支撑记忆ID
+  traces?: import('./trace').IntentionTrace[];
 }
 
 export interface IntentionState {
@@ -56,5 +60,5 @@ export interface PersonalityPlugin {
   name: string;
   description: string;
   disabledActions: ActionType[];
-  actionWeightMods: Record<string, number>;
+  actionWeightMods: Partial<Record<ActionType, number>>;
 }

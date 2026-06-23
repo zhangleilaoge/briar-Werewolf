@@ -4,7 +4,7 @@
 // ============================================================
 
 import type { MemoryEntry, MemorySource, MemoryEventType, Phase } from '@/types';
-import { getDefaultImportance, HARD_INFO_THRESHOLD, FORGETTING } from '@/constants';
+import { getDefaultImportance, HARD_INFO_THRESHOLD, FORGETTING, CREDIBILITY, CREDIBILITY_DEFAULT } from '@/constants';
 
 export class MemStore {
   private entries: Map<string, MemoryEntry> = new Map();
@@ -12,18 +12,32 @@ export class MemStore {
 
   // ---- 核心操作 ----
 
-  add(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'importance' | 'isForgotten'> & { importance?: number }): MemoryEntry {
+  // ---- 辅助方法 ----
+
+  private _safeCredibilityLookup(source: MemorySource): number {
+    const map = CREDIBILITY as unknown as Record<string, number>;
+    return Object.hasOwn(map, source) ? map[source] : CREDIBILITY_DEFAULT;
+  }
+
+  add(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'importance' | 'isForgotten' | 'credibility'> & { importance?: number; credibility?: number }): MemoryEntry {
     const id = `mem_${++this._idCounter}_${Date.now()}`;
     const importance = entry.importance ?? getDefaultImportance(entry.source);
+    const credibility = entry.credibility ?? this._safeCredibilityLookup(entry.source);
     const fullEntry: MemoryEntry = {
       ...entry,
       id,
+      credibility,
       importance,
       isForgotten: false,
       createdAt: Date.now(),
     };
     this.entries.set(id, fullEntry);
     return fullEntry;
+  }
+
+  /** 直接导入已有记忆（保留原始ID，不生成新ID） */
+  import(entry: MemoryEntry): void {
+    this.entries.set(entry.id, entry);
   }
 
   get(id: string): MemoryEntry | undefined {

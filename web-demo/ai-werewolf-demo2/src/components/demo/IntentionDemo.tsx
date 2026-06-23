@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MemStore } from '@/memory';
 import { InferenceEngine } from '@/inference/inference-engine';
+import { RelationTracker } from '@/relation';
 import { IntentionEngine } from '@/intention/intention-engine';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { PERSONALITIES } from '@/intention/personalities';
@@ -21,7 +22,8 @@ export default function IntentionDemo() {
     const player = DEMO_PLAYERS.find((p) => p.id === selectedPlayer);
     if (!player) return null;
     const playerWithPersonality = { ...player, personality: personalityId };
-    const engine = new IntentionEngine(store, inference, playerWithPersonality, DEMO_PLAYERS);
+    const relation = new RelationTracker(selectedPlayer, DEMO_PLAYERS.map((p) => p.id));
+    const engine = new IntentionEngine(inference, relation, playerWithPersonality, DEMO_PLAYERS);
     return engine.generateDayAction();
   }, [scenarioId, personalityId, selectedPlayer]);
 

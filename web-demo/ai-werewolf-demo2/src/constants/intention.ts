@@ -41,6 +41,8 @@ export const CANDIDATE_BASE_SCORE = {
   DEFEND: 60,
   OBSERVE: 40,
   CHAT: 35,
+  CHECK: 80,
+  KILL: 70,
   TARGET_MATCH_BONUS: 20,
   OBSERVE_TARGET_MATCH: 15,
   DEFEND_TARGET_MATCH: 20,
@@ -62,7 +64,6 @@ export const PROFICIENCY = {
 } as const;
 
 // ---------- 属性最大值 ----------
-export const ATTRIBUTE_MAX = 10;
 
 // ---------- 危机度阈值（触发保护意图） ----------
 export const CRISIS_PROTECT_THRESHOLD = 4;
@@ -71,10 +72,12 @@ export const CRISIS_PROTECT_THRESHOLD = 4;
 export const LEADERSHIP_WEIGHT = 0.05;
 
 // ---------- 行动-属性映射 ----------
+import type { Player } from '@/types';
+
 export interface ProficiencyMapEntry {
   action: string;
-  primaryAttr: string;
-  secondaryAttr?: string;
+  primaryAttr: keyof Player['attributes'];
+  secondaryAttr?: keyof Player['attributes'];
   description: string;
 }
 
