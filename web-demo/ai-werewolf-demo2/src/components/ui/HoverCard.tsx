@@ -77,7 +77,7 @@ export function HoverCard({ title, subtitle, trace, intentionTraces, children, c
                 <div key={i} className="bg-slate-800/50 rounded px-2 py-1">
                   <div className="flex justify-between">
                     <span className="text-slate-400">{step.step}</span>
-                    <span className="font-mono text-amber-300">{typeof step.result === 'number' ? step.result.toFixed(3) : step.result}</span>
+                    <span className="font-mono text-amber-300">{typeof step.result === 'number' ? step.result.toFixed(1) : step.result}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{step.formula}</div>
                 </div>
@@ -130,21 +130,18 @@ function ImpactRow({ impact }: { impact: MemoryImpact }) {
   const color = impact.deltaScore > 0 ? 'text-green-400' : impact.deltaScore < 0 ? 'text-red-400' : 'text-slate-400';
   const badgeColor = impact.impactType === 'direct' ? 'bg-green-900/50 text-green-300' : impact.impactType === 'indirect' ? 'bg-amber-900/50 text-amber-300' : 'bg-purple-900/50 text-purple-300';
   
+  const typeLabel = { direct: '对我', indirect: '旁观', cascade: '连锁' }[impact.impactType] || impact.impactType;
   return (
     <div className="bg-slate-800 rounded px-2 py-1 text-[11px]">
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className={`px-1 py-0.5 rounded text-[9px] ${badgeColor}`}>{impact.impactType}</span>
+            <span className={`px-1 py-0.5 rounded text-[9px] ${badgeColor}`}>{typeLabel}</span>
             <span className="text-slate-300 truncate">{impact.description}</span>
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">
-            {impact.memoryId && <span className="font-mono text-slate-600 mr-1">{impact.memoryId.slice(0, 12)}</span>}
-            {impact.actorId} → {impact.targetId || 'self'}
           </div>
         </div>
         <div className={`font-mono font-bold ${color} ml-2 shrink-0`}>
-          {impact.deltaScore > 0 ? '+' : ''}{impact.deltaScore.toFixed(3)}
+          {impact.deltaScore > 0 ? '+' : ''}{impact.deltaScore.toFixed(1)}
         </div>
       </div>
     </div>

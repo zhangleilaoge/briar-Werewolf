@@ -162,8 +162,8 @@ export default function SystemPreview() {
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
                           基于 {inference.basis.length} 条证据
-                          {traced?.trace?.accuserSpamPenalty ? ` | 搅屎棍惩罚 +${traced.trace.accuserSpamPenalty.toFixed(3)}` : ''}
-                          {traced?.trace?.voteConsistencyBonus ? ` | 投票一致 +${traced.trace.voteConsistencyBonus.toFixed(3)}` : ''}
+                          {traced?.trace?.accuserSpamPenalty ? ` | 搅屎棍惩罚 +${traced.trace.accuserSpamPenalty.toFixed(1)}` : ''}
+                          {traced?.trace?.voteConsistencyBonus ? ` | 投票一致 +${traced.trace.voteConsistencyBonus.toFixed(1)}` : ''}
                         </div>
                       </div>
                     );
@@ -194,10 +194,10 @@ export default function SystemPreview() {
                         </div>
                         <HoverCard
                           title={`⚠️ ${c.playerId} 危机度溯源`}
-                          subtitle={`危机度 ${c.score}`}
+                          subtitle={`危机度 ${c.score.toFixed(1)}`}
                           trace={traced?.trace}
                         >
-                          <div className={`text-2xl font-bold ${scoreColor} cursor-help`}>{c.score}</div>
+                          <div className={`text-2xl font-bold ${scoreColor} cursor-help`}>{c.score.toFixed(1)}</div>
                         </HoverCard>
                       </div>
                     );

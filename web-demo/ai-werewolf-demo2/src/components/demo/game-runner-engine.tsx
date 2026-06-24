@@ -3,7 +3,7 @@ import { InferenceEngine } from '@/inference/inference-engine';
 import { IntentionEngine } from '@/intention/intention-engine';
 import { RelationTracker } from '@/relation';
 import type { Player } from '@/types';
-import { CREDIBILITY, MAX_ROUNDS } from '@/constants';
+import { PHASE_HEADERS, LOG_TEMPLATES, CREDIBILITY, MAX_ROUNDS } from '@/constants';
 import { PERSONALITIES } from '@/intention/personalities';
 import { generatePlayers, randInt, formatTime } from './game-runner-utils';
 import type { GameConfig, GameLog, PlayerResult } from './game-runner-types';
@@ -133,11 +133,11 @@ export class GameEngine {
   }
 
   private _roundTitle(r: number): string {
-    return `🌙 === 第 ${r} 轮 ===`;
+    return PHASE_HEADERS.ROUND_TITLE(r);
   }
-  private _dayHeader(): string { return '💬 白天：所有人发言'; }
-  private _voteHeader(): string { return '🗳️ 投票阶段'; }
-  private _nightHeader(): string { return '🌙 夜晚降临...'; }
+  private _dayHeader(): string { return PHASE_HEADERS.DAY; }
+  private _voteHeader(): string { return PHASE_HEADERS.VOTE; }
+  private _nightHeader(): string { return PHASE_HEADERS.NIGHT; }
 
   // 执行一步
   step(): StepResult | null {
@@ -180,6 +180,7 @@ export class GameEngine {
     const store2 = this._getVisibleStore(self.id);
     const inference = new InferenceEngine(store2, self.id);
     const relation = new RelationTracker(self.id, alive.map((p) => p.id));
+    for (const m of store2.getAll()) relation.onMemoryAdded(m);
     const engine = new IntentionEngine(inference, relation, self, alive);
     const intentionState = engine.generateDayAction();
     let selected = intentionState.selected;
@@ -247,15 +248,15 @@ export class GameEngine {
     const targetName = selected?.targetId ? this.players.find((p) => p.id === selected.targetId)?.name || selected.targetId : '';
     let content: string;
     if (!selected) {
-      content = `[${self.name}] 没有行动`;
+      content = LOG_TEMPLATES.NO_ACTION(self.name);
     } else {
       switch (selected.action) {
-        case 'claim_identity': content = `📢 [${self.name}] 公布身份：「我是预言家」`; break;
-        case 'suspect': content = `⚔️ [${self.name}] 号召投票给 ${targetName}：「大家今天投 ${targetName}！」`; break;
-        case 'defend': content = `🛡️ [${self.name}] 为 ${targetName} 辩护：「${targetName} 不像狼人」`; break;
-        case 'observe': content = `🔍 [${self.name}] 暗中观察 ${targetName}`; break;
-        case 'silence': content = `🤫 [${self.name}] 保持沉默`; break;
-        case 'chat': content = `💬 [${self.name}] 和 ${targetName} 闲聊`; break;
+        case 'claim_identity': content = LOG_TEMPLATES.CLAIM_IDENTITY(self.name); break;
+        case 'suspect': content = LOG_TEMPLATES.SUSPECT(self.name, targetName); break;
+        case 'defend': content = LOG_TEMPLATES.DEFEND(self.name, targetName); break;
+        case 'observe': content = LOG_TEMPLATES.OBSERVE(self.name, targetName); break;
+        case 'silence': content = LOG_TEMPLATES.SILENCE(self.name); break;
+        case 'chat': content = LOG_TEMPLATES.CHAT(self.name, targetName); break;
         default: content = `[${self.name}] ${selected.action}`;
       }
     }
@@ -282,9 +283,9 @@ export class GameEngine {
       voteTargets[self.id] = bestTarget;
       this.store.add({ round: this.round, triggerAt: 'vote', eventType: 'vote', actorId: self.id, targetId: bestTarget, content: {}, source: 'system', credibility: CREDIBILITY.SYSTEM });
       const targetName = this.players.find((x) => x.id === bestTarget)?.name || bestTarget;
-      return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: `🗳️ [${self.name}] 投票给 ${targetName}` };
+      return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: LOG_TEMPLATES.VOTE(self.name, targetName) };
     }
-    return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: `🗳️ [${self.name}] 弃权` };
+    return { time: this._nextTime(), playerId: self.id, round: this.round, subPhase: 'vote', content: LOG_TEMPLATES.ABSTAIN(self.name) };
   }
 
   private _executeVoteResult(voteTargets: Record<string, string>, round: number): GameLog {
@@ -300,15 +301,15 @@ export class GameEngine {
       const victim = this.players.find((p) => p.id === voteTarget)!;
       this.deadPlayerIds.add(voteTarget);
       this.store.add({ round, triggerAt: 'vote_result', eventType: 'death', actorId: 'system', targetId: voteTarget, content: { cause: 'vote', votes: counts }, source: 'system', credibility: CREDIBILITY.SYSTEM });
-      return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', deathEvent: { playerId: voteTarget, cause: 'vote' }, content: `🗳️ ${victim.name} 得票最多（${maxVotes} 票），被放逐` };
+      return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', deathEvent: { playerId: voteTarget, cause: 'vote' }, content: LOG_TEMPLATES.EXILE_RESULT(victim.name, maxVotes) };
     }
-    return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', content: '🗳️ 无人被放逐' };
+    return { time: this._nextTime(), isSystem: true, round, subPhase: 'result', content: LOG_TEMPLATES.NO_EXILE };
   }
 
   private _executeProphetCheck(p: Player, alive: Player[]): GameLog {
     const others = alive.filter((x) => x.id !== p.id);
     if (others.length === 0) {
-      return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 没有查验目标` };
+      return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.PROPHET_NO_TARGET(p.name) };
     }
     const store2 = this._getVisibleStore(p.id);
     const inference = new InferenceEngine(store2, p.id);
@@ -323,20 +324,20 @@ export class GameEngine {
       if (target) {
         this.store.add({ round: this.round, triggerAt: 'night_action', eventType: 'check_result', actorId: p.id, targetId: target.id, content: { result: target.role === 'werewolf' ? 'werewolf' : 'villager' }, source: 'self', credibility: CREDIBILITY.SELF, viewerId: p.id });
         const result = target.role === 'werewolf' ? '狼人' : '村民';
-        return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 查验 ${target.name}：${result}` };
+        return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.PROPHET_CHECK(p.name, target.name, result) };
       }
     }
-    return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: `🔮 [${p.name}] 没有查验目标` };
+    return { time: this._nextTime(), playerId: p.id, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.PROPHET_NO_TARGET(p.name) };
   }
 
   private _executeWerewolfKill(alive: Player[]): GameLog {
     const aliveWolves = alive.filter((p) => p.role === 'werewolf');
     if (aliveWolves.length === 0) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有行动' };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.WEREWOLF_NO_ACTION };
     }
     const nonWolves = alive.filter((p) => p.role !== 'werewolf');
     if (nonWolves.length === 0) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有目标' };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.WEREWOLF_NO_TARGET };
     }
     const votes: Record<string, number> = {};
     for (const w of aliveWolves) {
@@ -360,9 +361,9 @@ export class GameEngine {
     if (nightKill) {
       this.store.add({ round: this.round, triggerAt: 'night_end', eventType: 'death', actorId: 'system', targetId: nightKill, content: { cause: 'werewolf' }, source: 'system', credibility: CREDIBILITY.SYSTEM });
       const victimName = this.players.find((x) => x.id === nightKill)?.name || nightKill;
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: `🐺 狼人袭击了 ${victimName}` };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.WEREWOLF_KILL(victimName) };
     }
-    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: '🌙 狼人没有行动' };
+    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'night', content: LOG_TEMPLATES.WEREWOLF_NO_ACTION };
   }
 
   private _executeMorning(round: number): GameLog {
@@ -373,10 +374,10 @@ export class GameEngine {
       // 早晨公布死亡时才真正标记死亡
       this.deadPlayerIds.add(lastKill.targetId!);
       this._broadcastMemory({ round, triggerAt: 'morning', eventType: 'morning', actorId: 'system', targetId: lastKill.targetId, content: { cause: 'werewolf' }, source: 'system', credibility: CREDIBILITY.SYSTEM });
-      return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', deathEvent: { playerId: lastKill.targetId!, cause: 'werewolf' }, content: `☀️ 天亮了，${victim?.name || lastKill.targetId} 被狼人杀害了` };
+      return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', deathEvent: { playerId: lastKill.targetId!, cause: 'werewolf' }, content: PHASE_HEADERS.MORNING_DEATH(victim?.name || lastKill.targetId || '') };
     }
     this._broadcastMemory({ round, triggerAt: 'morning', eventType: 'peaceful_night', actorId: 'system', content: {}, source: 'system', credibility: CREDIBILITY.SYSTEM });
-    return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', content: '☀️ 天亮了，昨晚是平安夜' };
+    return { time: this._nextTime(), isSystem: true, round, subPhase: 'morning', content: PHASE_HEADERS.MORNING_PEACEFUL };
   }
 
   private _checkVictory(): GameLog {
@@ -388,9 +389,9 @@ export class GameEngine {
       this.winner = 'werewolf';
     }
     if (this.winner) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: `🏆 ${this.winner === 'werewolf' ? '狼人阵营' : '村民阵营'} 胜利！` };
+      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: PHASE_HEADERS.VICTORY(this.winner) };
     }
-    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: '游戏继续' };
+    return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: PHASE_HEADERS.GAME_CONTINUE };
   }
 
   // 广播记忆：单条共享，所有存活角色可见（通过 _getVisibleStore 过滤）
@@ -439,7 +440,7 @@ export class GameEngine {
       const intentionState = intentionEngine.generateDayAction();
       results.set(self.id, {
         intentionState,
-        selfCrisis: { score: selfCrisis.score, factors: selfCrisis.factors as unknown as Record<string, number>, basis: selfCrisis.basis, trace: selfCrisis.trace },
+        selfCrisis: { score: selfCrisis.score, factors: selfCrisis.factors, basis: selfCrisis.basis, trace: selfCrisis.trace },
         relations: relations.getAll(),
         inferences: new Map(Array.from(inferences.entries()).map(([k, v]) => [k, { werewolfProb: v.werewolfProb, villagerProb: v.villagerProb, basis: v.basis, trace: v.trace }])),
         memories: visibleMemories,

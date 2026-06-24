@@ -66,6 +66,7 @@ export const MEMORY_IMPACT_REGISTRY: Partial<MemoryImpactRegistry> = {
 		{ target: 'relation', field: 'friendly', operation: 'add', value: -1, condition: 'content.success === false && targetId === selfId', description: '闲聊失败，对发起者友好度 -1', direction: 'direct' },
 		{ target: 'relation', field: 'friendly', operation: 'add', value: +0.1, condition: 'content.success === true && targetId !== selfId', description: '观察到闲聊成功，对发起者友好度 +0.1（旁观衰减）', direction: 'indirect' },
 		{ target: 'relation', field: 'friendly', operation: 'add', value: -0.1, condition: 'content.success === false && targetId !== selfId', description: '观察到闲聊失败，对发起者友好度 -0.1（旁观衰减）', direction: 'indirect' },
+		{ target: 'intention', field: 'shortTerm', operation: 'trigger', value: 'chat', condition: 'content.success === true', description: '闲聊成功触发社交意图', direction: 'indirect' },
 	],
 	hear_silence: [
 		{ target: 'role', field: 'werewolfProb', operation: 'add', value: 0, description: '沉默本身不直接改变概率，但可结合 observe_pattern 的 hide 意图', direction: 'indirect' },

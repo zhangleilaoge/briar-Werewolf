@@ -120,7 +120,7 @@ export default function InferenceDemo() {
                         <span className="bg-slate-800 px-2 py-0.5 rounded">辩护:{c.factors.defendCount}</span>
                       </div>
                     </div>
-                    <div className={`text-2xl font-bold ${scoreColor}`}>{c.score}</div>
+                    <div className={`text-2xl font-bold ${scoreColor}`}>{c.score.toFixed(1)}</div>
                   </div>
                 );
               })}

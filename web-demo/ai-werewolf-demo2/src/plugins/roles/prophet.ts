@@ -15,7 +15,7 @@ export const prophetPlugin: RolePlugin = {
 		const longTerm = [];
 		longTerm.push({
 			id: 'survive',
-			priority: 0.8,
+			priority: LONG_TERM_PRIORITY.SURVIVE,
 			description: '活着',
 			basis: [],
 			traces: [],
@@ -23,7 +23,7 @@ export const prophetPlugin: RolePlugin = {
 		// 预言家特有：带队报查验
 		longTerm.push({
 			id: 'lead',
-			priority: 0.85,
+			priority: LONG_TERM_PRIORITY.LEAD,
 			description: '带队',
 			basis: [],
 			traces: [],

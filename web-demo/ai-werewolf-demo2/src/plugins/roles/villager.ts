@@ -16,7 +16,7 @@ export const villagerPlugin: RolePlugin = {
 		// 所有角色通用的生存意图
 		longTerm.push({
 			id: 'survive',
-			priority: 0.8,
+			priority: LONG_TERM_PRIORITY.SURVIVE,
 			description: '活着',
 			basis: [],
 			traces: [],

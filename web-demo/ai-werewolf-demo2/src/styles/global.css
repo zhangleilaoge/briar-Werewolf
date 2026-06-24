@@ -2,39 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* macOS 风格滚动条：默认不占宽度，hover 时显示 */
+/* 滚动条：悬浮在内容上方，不占用布局宽度（仅 Chrome/Safari） */
 @layer base {
   ::-webkit-scrollbar {
-    width: 0px;
-    height: 0px;
+    width: 4px;
+    height: 4px;
     background: transparent;
   }
 
-  *:hover::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  *:hover::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  *:hover::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
   }
 
-  *:hover::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
   }
 
-  /* Firefox */
+  /* Firefox：细滚动条，最小宽度 */
   * {
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
 
-  *:hover {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  /* 滚动容器使用 overlay 模式（悬浮，不占用宽度） */
+  .overflow-y-auto,
+  .overflow-y-scroll,
+  .overflow-auto,
+  .overflow-scroll {
+    overflow-y: overlay;
+  }
+
+  /* Firefox 不支持 overlay，退回到 auto */
+  @supports not (overflow: overlay) {
+    .overflow-y-auto,
+    .overflow-y-scroll,
+    .overflow-auto,
+    .overflow-scroll {
+      overflow-y: auto;
+    }
   }
 }

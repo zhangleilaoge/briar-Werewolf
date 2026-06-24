@@ -15,7 +15,7 @@ export const werewolfPlugin: RolePlugin = {
 		const longTerm = [];
 		longTerm.push({
 			id: 'survive',
-			priority: 0.8,
+			priority: LONG_TERM_PRIORITY.SURVIVE,
 			description: '活着',
 			basis: [],
 			traces: [],
@@ -23,7 +23,7 @@ export const werewolfPlugin: RolePlugin = {
 		// 狼人特有：隐藏身份
 		longTerm.push({
 			id: 'hide_identity',
-			priority: 0.95,
+			priority: LONG_TERM_PRIORITY.HIDE_IDENTITY,
 			description: '隐藏身份',
 			basis: [],
 			traces: [],

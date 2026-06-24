@@ -9,3 +9,4 @@ export * from './inference';
 export * from './relation';
 export * from './intention';
 export * from './game';
+export * from './memory-impacts';

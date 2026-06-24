@@ -6,6 +6,7 @@
 import type { MemoryEntry, MemoryEventType, Player } from '@/types';
 import { getString, getNumber } from '@/types/guards';
 import type { MemStore } from '@/memory';
+import { getImpactRules } from '@/constants';
 import type { RoleInferenceTrace, MemoryImpact, CalculationStep } from '@/types/trace';
 import {
 	BELIEF_DEFAULT,
@@ -13,7 +14,6 @@ import {
 	OBSERVE_WEIGHT,
 	HARD_INFO_THRESHOLD,
 	ACCUSER_SPAM_WEIGHT,
-	VOTE_ROLE_WEIGHT,
 } from '@/constants';
 
 export interface RoleInference {
@@ -159,7 +159,7 @@ export function inferPlayer(
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `${mem.actorId} 声称 ${playerId} 是狼，可信度 ${mem.credibility} × 0.5 = +${weight.toFixed(3)} 狼人权重`,
+						description: `${mem.actorId} 声称 ${playerId} 是狼，可信度 ${mem.credibility} × 0.5 = +${weight.toFixed(1)} 狼人权重`,
 						deltaScore: weight,
 						beforeScore: stepBeforeWolf,
 						afterScore: stepBeforeWolf + weight,
@@ -177,7 +177,7 @@ export function inferPlayer(
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `${mem.actorId} 声称 ${playerId} 是村民，可信度 ${mem.credibility} × 0.5 = +${weight.toFixed(3)} 村民权重`,
+						description: `${mem.actorId} 声称 ${playerId} 是村民，可信度 ${mem.credibility} × 0.5 = +${weight.toFixed(1)} 村民权重`,
 						deltaScore: weight,
 						beforeScore: stepBeforeVillager,
 						afterScore: stepBeforeVillager + weight,
@@ -191,7 +191,7 @@ export function inferPlayer(
 	if (withTrace && claimContributions.length > 0) {
 		steps.push({
 			step: '声称加权',
-			formula: `Σ(可信度 × ${CLAIM_WEIGHT_FACTOR}) = ${totalWeight.toFixed(3)}`,
+			formula: `Σ(可信度 × ${CLAIM_WEIGHT_FACTOR}) = ${totalWeight.toFixed(1)}`,
 			result: totalWeight,
 			basis: claimContributions.map((c) => c.memoryId),
 		});
@@ -218,7 +218,7 @@ export function inferPlayer(
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `观察到 ${mem.actorId} 攻击 ${playerId}，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 攻击权重 ${OBSERVE_WEIGHT.ATTACK_WOLF} = +${delta.toFixed(3)} 狼人权重`,
+						description: `观察到 ${mem.actorId} 攻击 ${playerId}，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 攻击权重 ${OBSERVE_WEIGHT.ATTACK_WOLF} = +${delta.toFixed(1)} 狼人权重`,
 						deltaScore: delta,
 						beforeScore: stepBeforeWolf,
 						afterScore: stepBeforeWolf + delta,
@@ -239,7 +239,7 @@ export function inferPlayer(
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `观察到 ${mem.actorId} 保护 ${playerId}，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 保护权重 ${OBSERVE_WEIGHT.PROTECT_VILLAGER} = +${delta.toFixed(3)} 村民权重`,
+						description: `观察到 ${mem.actorId} 保护 ${playerId}，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 保护权重 ${OBSERVE_WEIGHT.PROTECT_VILLAGER} = +${delta.toFixed(1)} 村民权重`,
 						deltaScore: delta,
 						beforeScore: stepBeforeVillager,
 						afterScore: stepBeforeVillager + delta,
@@ -260,7 +260,7 @@ export function inferPlayer(
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `观察到 ${mem.actorId} 隐藏意图，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 隐藏权重 ${OBSERVE_WEIGHT.HIDE_WOLF} = +${delta.toFixed(3)} 狼人权重`,
+						description: `观察到 ${mem.actorId} 隐藏意图，可信度 ${mem.credibility} × 置信度 ${confidenceValue} × 隐藏权重 ${OBSERVE_WEIGHT.HIDE_WOLF} = +${delta.toFixed(1)} 狼人权重`,
 						deltaScore: delta,
 						beforeScore: stepBeforeWolf,
 						afterScore: stepBeforeWolf + delta,
@@ -306,14 +306,14 @@ export function inferPlayer(
 					actorId: playerId,
 					targetId: playerId,
 					impactType: 'indirect',
-					description: `搅屎棍检测：${playerId} 指控了 ${targetCount} 个不同目标，额外 +${penalty.toFixed(3)} 狼人权重`,
+					description: `搅屎棍检测：${playerId} 指控了 ${targetCount} 个不同目标，额外 +${penalty.toFixed(1)} 狼人权重`,
 					deltaScore: penalty,
 					beforeScore: stepBeforeWolf,
 					afterScore: stepBeforeWolf + penalty,
 				});
 				steps.push({
 					step: '搅屎棍检测',
-					formula: `${targetCount} 个不同目标 → +${penalty.toFixed(3)} 狼人权重`,
+					formula: `${targetCount} 个不同目标 → +${penalty.toFixed(1)} 狼人权重`,
 					result: penalty,
 					basis: [],
 				});
@@ -323,12 +323,15 @@ export function inferPlayer(
 	}
 
 	// 2d. 【新增】投票参与角色推理
+	// 从 MEMORY_IMPACT_REGISTRY 读取 vote → role 的权重，替代硬编码 VOTE_ROLE_WEIGHT
+	const voteRoleRules = getImpactRules('vote', 'role');
+	const baseVoteWeight = voteRoleRules.length > 0 ? (voteRoleRules[0].value as number) : 0.4;
 	// 如果某人投票给 playerId，且该投票是 system 来源（1.0 可信度），这比声称更可信
 	for (const mem of store.getAll().filter((m) => !m.isForgotten && m.eventType === 'vote' && m.targetId === playerId)) {
 		const voterId = mem.actorId;
 		// 投票者投给 playerId，说明 voterId 认为 playerId 可疑
 		// 这增加 playerId 的狼人权重（间接，通过投票者的判断）
-		const voteWeight = mem.credibility * VOTE_ROLE_WEIGHT.ANTI_PUSH_WOLF;
+		const voteWeight = mem.credibility * baseVoteWeight;
 		wolfWeight += voteWeight;
 		basis.push(mem.id);
 		totalWeight += voteWeight;
@@ -339,14 +342,14 @@ export function inferPlayer(
 				actorId: voterId,
 				targetId: playerId,
 				impactType: 'indirect',
-				description: `${voterId} 投票给 ${playerId}，可信度 ${mem.credibility} × 抗推权重 ${VOTE_ROLE_WEIGHT.ANTI_PUSH_WOLF} = +${voteWeight.toFixed(3)} 狼人权重`,
+				description: `${voterId} 投票给 ${playerId}，可信度 ${mem.credibility} × 抗推权重 ${baseVoteWeight} = +${voteWeight.toFixed(1)} 狼人权重`,
 				deltaScore: voteWeight,
 				beforeScore: stepBeforeWolf,
 				afterScore: stepBeforeWolf + voteWeight,
 			});
 			steps.push({
 				step: '投票角色推理',
-				formula: `${voterId} 投票 → +${voteWeight.toFixed(3)} 狼人权重`,
+				formula: `${voterId} 投票 → +${voteWeight.toFixed(1)} 狼人权重`,
 				result: voteWeight,
 				basis: [mem.id],
 			});
@@ -397,7 +400,7 @@ export function inferPlayer(
 	if (withTrace) {
 		steps.push({
 			step: '归一化',
-			formula: `狼人权重 ${wolfWeight.toFixed(3)} / 总权重 ${totalWeight.toFixed(3)} = ${finalWolfProb.toFixed(3)}`,
+			formula: `狼人权重 ${wolfWeight.toFixed(1)} / 总权重 ${totalWeight.toFixed(1)} = ${finalWolfProb.toFixed(1)}`,
 			result: finalWolfProb,
 			basis: [...basis],
 		});

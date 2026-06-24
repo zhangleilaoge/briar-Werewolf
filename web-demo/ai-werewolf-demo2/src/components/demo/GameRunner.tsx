@@ -166,18 +166,18 @@ export default function GameRunner() {
               const isDead = deadPlayers.has(p.id);
               const isSelected = selectedPlayer === p.id;
               const isCurrent = lastPlayerId === p.id;
-              const borderColor = p.team === 'werewolf' ? 'border-red-800/60' : 'border-green-800/40';
-              const bgColor = isSelected ? (p.team === 'werewolf' ? 'bg-red-900/20' : 'bg-green-900/20') : isCurrent ? 'bg-slate-700/50' : 'bg-slate-800/50';
+              const borderClass = isSelected ? 'border border-blue-500/60' : isCurrent ? 'border border-blue-500/60 animate-pulse' : 'border border-slate-700/60';
+              const bgClass = isSelected ? 'bg-slate-800/90' : isCurrent ? 'bg-slate-700/50' : 'bg-slate-800/50';
               return (
-                <div key={p.id} onClick={() => setSelectedPlayer(p.id)} className={`p-3 rounded-lg border cursor-pointer transition ${borderColor} ${bgColor} ${isSelected ? 'ring-1 ring-amber-500/30' : 'hover:bg-slate-800'} ${isCurrent ? 'ring-1 ring-blue-500/30' : ''} ${isDead ? 'opacity-50' : ''}`}>
+                <div key={p.id} onClick={() => setSelectedPlayer(p.id)} className={`p-3 rounded-lg cursor-pointer transition ${borderClass} ${bgClass} ${isDead ? 'opacity-50' : 'hover:bg-slate-700/50'}`}>
                   <div className="flex items-center justify-between">
                     <span className={`font-bold text-sm ${isDead ? 'line-through text-slate-500' : ''}`}>{p.name}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${isDead ? 'bg-red-900/40 text-red-400' : 'bg-green-900/40 text-green-400'}`}>{isDead ? '死亡' : '存活'}</span>
                   </div>
-                  <div className={`text-xs mt-1 ${p.team === 'werewolf' ? 'text-red-400' : 'text-green-400'}`}>
-                    {ROLE_NAMES[p.role]} · {p.team === 'werewolf' ? '狼人' : '好'}
+                  <div className={`text-xs mt-1 flex justify-between ${p.team === 'werewolf' ? 'text-red-400' : 'text-green-400'}`}>
+                    <span>{ROLE_NAMES[p.role]}</span>
+                    {ROLE_SKILLS[p.role] !== '平民' && <span className="text-yellow-500/80">{ROLE_SKILLS[p.role]}</span>}
                   </div>
-                  <div className="text-xs text-yellow-500/80 mt-0.5">{ROLE_SKILLS[p.role]}</div>
                 </div>
               );
             })}
@@ -303,7 +303,7 @@ export default function GameRunner() {
                         return (
                           <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} impacts={[...rel.directImpacts, ...rel.bystanderImpacts]} className="inline-block">
                             <span className={`text-xs px-2 py-1 rounded ${rel.friendly > 0 ? 'bg-green-900/30 text-green-400' : rel.friendly < 0 ? 'bg-red-900/30 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
-                              {displayName} {rel.friendly > 0 ? '+' : ''}{rel.friendly}
+                              {displayName} {rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}
                             </span>
                           </MemoryTooltip>
                         );
@@ -335,7 +335,7 @@ export default function GameRunner() {
                         <div className="text-xs text-slate-400 mb-1">长期</div>
                         <div className="space-y-1">
                           {activeResult.intentionState.longTerm.slice(0, 5).map((lt) => (
-                            <MemoryTooltip key={lt.id} title="支撑记忆" content={getMemoryTooltip(lt.basis, activeResult.memories, activePlayerId, initialPlayers)}>
+                            <MemoryTooltip key={lt.id} title="支撑记忆" content={getMemoryTooltip(lt.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={lt.traces?.flatMap((t) => t.basis) ?? []}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
                                 <span className="text-slate-300 truncate mr-1">{LONG_TERM_NAMES[lt.id] || lt.id}</span>
                                 <span className="text-amber-400 shrink-0">{(lt.priority * 100).toFixed(0)}%</span>
@@ -348,7 +348,7 @@ export default function GameRunner() {
                         <div className="text-xs text-slate-400 mb-1">短期</div>
                         <div className="space-y-1">
                           {activeResult.intentionState.shortTerm.slice(0, 5).map((st) => (
-                            <MemoryTooltip key={st.id} title="支撑记忆" content={getMemoryTooltip(st.basis, activeResult.memories, activePlayerId, initialPlayers)}>
+                            <MemoryTooltip key={st.id} title="支撑记忆" content={getMemoryTooltip(st.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={st.traces?.flatMap((t) => t.basis) ?? []}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
                                 <span className="text-slate-300 truncate mr-1">{SHORT_TERM_NAMES[st.id] || st.id}</span>
                                 <span className="text-purple-400 shrink-0">{st.weight.toFixed(1)}</span>
@@ -374,7 +374,7 @@ export default function GameRunner() {
                           const targetName = c.targetId ? getPlayerDisplay(c.targetId, initialPlayers) : '';
                           const isSelected = selected && c.action === selected.action && c.targetId === selected.targetId;
                           return (
-                            <MemoryTooltip key={i} title="支撑记忆" content={getMemoryTooltip(c.supportingMemories, activeResult.memories, activePlayerId, initialPlayers)}>
+                            <MemoryTooltip key={i} title="支撑记忆" content={getMemoryTooltip(c.supportingMemories, activeResult.memories, activePlayerId, initialPlayers)} impacts={c.traces?.flatMap((t) => t.basis) ?? []}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1.5">
                                 <span className={`truncate mr-1 ${isSelected ? 'text-amber-400 font-bold' : i === 0 && !selected ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
                                   {actionName}{targetName && <span className="text-purple-300"> → {targetName}</span>}

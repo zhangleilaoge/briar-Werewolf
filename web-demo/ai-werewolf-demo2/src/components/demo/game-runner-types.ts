@@ -1,3 +1,4 @@
+import type { CrisisTrace } from '@/types/trace';
 import type { IntentionState } from '@/types/decision';
 import type { Player, MemoryEntry } from '@/types';
 
@@ -24,7 +25,7 @@ export interface RoundResult {
 
 export interface PlayerResult {
   intentionState: IntentionState;
-  selfCrisis: { score: number; factors: Record<string, number>; basis: string[]; trace?: import('@/types/trace').CrisisTrace };
+  selfCrisis: { score: number; factors: CrisisTrace['factors']; basis: string[]; trace?: CrisisTrace };
   relations: import('@/relation').RelationDetail[];
   inferences: Map<string, { werewolfProb: number; villagerProb: number; basis: string[]; trace?: import('@/types/trace').RoleInferenceTrace }>;
   memories: MemoryEntry[];
