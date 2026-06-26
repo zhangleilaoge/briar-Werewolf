@@ -22,7 +22,7 @@ export default function InferenceDemo() {
   }, [scenarioId]);
 
   const sortedInferences = useMemo(() => {
-    return Array.from(inferences.entries()).sort((a, b) => b[1].werewolfProb - a[1].werewolfProb);
+    return Array.from(inferences.entries()).sort((a, b) => b[1].wolfProb - a[1].wolfProb);
   }, [inferences]);
 
   const roleEmoji = (id: string) => showTruth ? getPlayerEmoji(id, DEMO_PLAYERS) : '';
@@ -70,9 +70,11 @@ export default function InferenceDemo() {
             <h2 className="text-lg font-semibold text-sky-400 mb-4 pb-2 border-b border-slate-700">🎯 角色推理</h2>
             <div className="space-y-3">
               {sortedInferences.map(([playerId, inference]) => {
-                const wp = inference.werewolfProb;
+                const wp = inference.wolfProb;
+                const pp = inference.prophetProb;
                 const vp = inference.villagerProb;
                 const wolfPct = Math.round(wp * 100);
+                const prophetPct = Math.round(pp * 100);
                 const villagerPct = Math.round(vp * 100);
                 let borderColor = 'border-slate-600';
                 if (wp > 0.7) borderColor = 'border-red-500';
@@ -86,10 +88,12 @@ export default function InferenceDemo() {
                     </div>
                     <div className="h-5 rounded overflow-hidden flex mt-2 bg-slate-800">
                       <div className="bg-red-700 h-full transition-all duration-500" style={{ width: `${wolfPct}%` }} />
+                      <div className="bg-amber-700 h-full transition-all duration-500" style={{ width: `${prophetPct}%` }} />
                       <div className="bg-green-700 h-full transition-all duration-500" style={{ width: `${villagerPct}%` }} />
                     </div>
                     <div className="flex justify-between text-xs text-slate-400 mt-1">
                       <span className="text-red-300">🐺 {wolfPct}%</span>
+                      <span className="text-amber-300">🔮 {prophetPct}%</span>
                       <span className="text-green-300">👤 {villagerPct}%</span>
                     </div>
                     <div className="text-xs text-slate-500 mt-1">基于 {inference.basis.length} 条证据</div>

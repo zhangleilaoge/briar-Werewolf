@@ -7,12 +7,12 @@
 import type { Player } from '@/types';
 import type { MemStore } from '@/memory';
 import type { RoleInferenceTrace, CrisisTrace } from '@/types/trace';
-import type { RoleInference } from './role-inference';
+import type { RoleInference, RoleConfig } from './role-inference';
 import type { PlayerCrisis } from './crisis-inference';
-import { inferPlayer } from './role-inference';
+import { inferPlayer, applyGlobalConstraint } from './role-inference';
 import { inferCrisis } from './crisis-inference';
 
-export type { RoleInference, PlayerCrisis };
+export type { RoleInference, RoleConfig, PlayerCrisis };
 export type { RoleInferenceTrace, CrisisTrace };
 
 export class InferenceEngine {
@@ -26,11 +26,14 @@ export class InferenceEngine {
 
 	// ==================== 角色推理（Role Inference） ====================
 
-	inferAll(allPlayers: Player[]): Map<string, RoleInference> {
+	/** 对所有其他玩家进行角色推理，并应用全局约束校正（带完整溯源） */
+	inferAll(allPlayers: Player[], config?: RoleConfig): Map<string, RoleInference> {
 		const result = new Map<string, RoleInference>();
 		for (const player of allPlayers) {
-			if (player.id === this.selfId) continue;
-			result.set(player.id, inferPlayer(this.store, player.id));
+			result.set(player.id, inferPlayer(this.store, player.id, true));
+		}
+		if (config) {
+			return applyGlobalConstraint(result, config);
 		}
 		return result;
 	}

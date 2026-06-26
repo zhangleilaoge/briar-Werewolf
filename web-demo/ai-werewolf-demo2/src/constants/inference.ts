@@ -5,8 +5,12 @@
 // ---------- 默认概率（无证据时） ----------
 export const BELIEF_DEFAULT = {
   WEREWOLF_PROB: 0.3,
-  VILLAGER_PROB: 0.7,
+  PROPHET_PROB: 0.15,
+  VILLAGER_PROB: 0.55,
 } as const;
+
+// ---------- 默认信念权重（防止单一证据推到100%） ----------
+export const DEFAULT_BELIEF_WEIGHT = 1.0;
 
 // ---------- 声称权重因子 ----------
 export const CLAIM_WEIGHT_FACTOR = 0.5;
@@ -19,6 +23,8 @@ export const OBSERVE_WEIGHT = {
   ATTACK_WOLF: 0.8,
   /** 保护意图 → 村民权重 */
   PROTECT_VILLAGER: 0.6,
+  /** 保护意图 → 预言家权重（保护预言家是好人的重要行为） */
+  PROTECT_PROPHET: 0.3,
   /** 隐藏意图 → 狼人权重 */
   HIDE_WOLF: 0.3,
 } as const;

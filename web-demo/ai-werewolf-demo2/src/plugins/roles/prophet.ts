@@ -44,7 +44,7 @@ export const prophetPlugin: RolePlugin = {
 		const others = allPlayers.filter((p) => p.id !== self.id && p.alive);
 		for (const t of others) {
 			const inf = inferences.get(t.id);
-			const score = CANDIDATE_BASE_SCORE.CHECK + (inf ? (1 - inf.werewolfProb) * 10 : 0);
+			const score = CANDIDATE_BASE_SCORE.CHECK + (inf ? (1 - inf.wolfProb) * 10 : 0);
 			candidates.push({
 				action: 'check' as const,
 				targetId: t.id,

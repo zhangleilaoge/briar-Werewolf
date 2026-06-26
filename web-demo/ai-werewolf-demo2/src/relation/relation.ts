@@ -65,39 +65,53 @@ export class RelationTracker {
 	private _handleDirectImpact(memory: MemoryEntry): void {
 		let delta = 0;
 		let description = '';
+		let baseValue = 0;
+		let multiplier = 1;
+		let formula = '';
 		let impactType: 'direct' = 'direct';
 
 		switch (memory.eventType) {
 			case 'hear_accuse': {
-				delta = FRIENDLY_DELTA.hear_accuse;
+				baseValue = FRIENDLY_DELTA.hear_accuse;
+				delta = baseValue;
 				description = `${memory.actorId} 指控我`;
+				formula = `${baseValue}(被指控影响)`;
 				break;
 			}
 			case 'vote': {
-				delta = FRIENDLY_DELTA.vote;
+				baseValue = FRIENDLY_DELTA.vote;
+				delta = baseValue;
 				description = `${memory.actorId} 投票给我`;
+				formula = `${baseValue}(被投票影响)`;
 				break;
 			}
 			case 'hear_defend': {
-				delta = FRIENDLY_DELTA.hear_defend;
+				baseValue = FRIENDLY_DELTA.hear_defend;
+				delta = baseValue;
 				description = `${memory.actorId} 为我辩护`;
+				formula = `${baseValue}(被辩护影响)`;
 				break;
 			}
 			case 'hear_chat': {
-				// 【修复】hear_chat 的 content.success 读取
 				const success = getBoolean(memory.content, 'success');
-				delta = success ? FRIENDLY_DELTA.hear_chat_success : FRIENDLY_DELTA.hear_chat_fail;
+				baseValue = success ? FRIENDLY_DELTA.hear_chat_success : FRIENDLY_DELTA.hear_chat_fail;
+				delta = baseValue;
 				description = `${memory.actorId} 对我闲聊${success ? '（成功）' : '（失败）'}`;
+				formula = `${baseValue}(闲聊${success ? '成功' : '失败'})`;
 				break;
 			}
 			case 'hear_claim': {
 				const claimedResult = getString(memory.content, 'claimedResult');
 				if (claimedResult === 'werewolf') {
-					delta = FRIENDLY_DELTA.hear_claim_wolf;
+					baseValue = FRIENDLY_DELTA.hear_claim_wolf;
+					delta = baseValue;
 					description = `${memory.actorId} 声称查杀我`;
+					formula = `${baseValue}(被声称查杀)`;
 				} else if (claimedResult === 'villager') {
-					delta = FRIENDLY_DELTA.hear_claim_villager;
+					baseValue = FRIENDLY_DELTA.hear_claim_villager;
+					delta = baseValue;
 					description = `${memory.actorId} 声称我是金水`;
+					formula = `${baseValue}(被声称金水)`;
 				}
 				break;
 			}
@@ -105,11 +119,15 @@ export class RelationTracker {
 				const inferredIntention = getString(memory.content, 'inferredIntention');
 				const intentionTarget = getString(memory.content, 'intentionTarget');
 				if (inferredIntention === 'attack' && intentionTarget === this.selfId) {
-					delta = FRIENDLY_DELTA.observe_attack_me;
+					baseValue = FRIENDLY_DELTA.observe_attack_me;
+					delta = baseValue;
 					description = `观察到 ${memory.actorId} 攻击我`;
+					formula = `${baseValue}(观察到攻击)`;
 				} else if (inferredIntention === 'protect' && intentionTarget === this.selfId) {
-					delta = FRIENDLY_DELTA.observe_protect_me;
+					baseValue = FRIENDLY_DELTA.observe_protect_me;
+					delta = baseValue;
 					description = `观察到 ${memory.actorId} 保护我`;
+					formula = `${baseValue}(观察到保护)`;
 				}
 				break;
 			}
@@ -130,6 +148,9 @@ export class RelationTracker {
 					deltaScore: delta,
 					beforeScore: before,
 					afterScore: detail.friendly,
+					baseValue,
+					multiplier,
+					formula,
 				});
 			}
 		}
@@ -139,28 +160,38 @@ export class RelationTracker {
 	private _handleBystanderImpact(memory: MemoryEntry): void {
 		let delta = 0;
 		let description = '';
+		let baseValue = 0;
+		let multiplier = BYSTANDER_DECAY;
+		let formula = '';
 
 		switch (memory.eventType) {
 			case 'hear_accuse': {
-				delta = FRIENDLY_DELTA.hear_accuse * BYSTANDER_DECAY;
-				description = `我观察到 ${memory.actorId} 指控 ${memory.targetId}（旁观者衰减 ×${BYSTANDER_DECAY}）`;
+				baseValue = FRIENDLY_DELTA.hear_accuse;
+				delta = baseValue * multiplier;
+				description = `我观察到 ${memory.actorId} 指控 ${memory.targetId}`;
+				formula = `${baseValue}(被指控影响) × ${multiplier}(旁观者衰减系数) = ${delta.toFixed(1)}`;
 				break;
 			}
 			case 'vote': {
-				delta = FRIENDLY_DELTA.vote * BYSTANDER_DECAY;
-				description = `我观察到 ${memory.actorId} 投票给 ${memory.targetId}（旁观者衰减 ×${BYSTANDER_DECAY}）`;
+				baseValue = FRIENDLY_DELTA.vote;
+				delta = baseValue * multiplier;
+				description = `我观察到 ${memory.actorId} 投票给 ${memory.targetId}`;
+				formula = `${baseValue}(被投票影响) × ${multiplier}(旁观者衰减系数) = ${delta.toFixed(1)}`;
 				break;
 			}
 			case 'hear_defend': {
-				delta = FRIENDLY_DELTA.hear_defend * BYSTANDER_DECAY;
-				description = `我观察到 ${memory.actorId} 为 ${memory.targetId} 辩护（旁观者衰减 ×${BYSTANDER_DECAY}）`;
+				baseValue = FRIENDLY_DELTA.hear_defend;
+				delta = baseValue * multiplier;
+				description = `我观察到 ${memory.actorId} 为 ${memory.targetId} 辩护`;
+				formula = `${baseValue}(被辩护影响) × ${multiplier}(旁观者衰减系数) = ${delta.toFixed(1)}`;
 				break;
 			}
 			case 'hear_chat': {
 				const success = getBoolean(memory.content, 'success');
-				const baseDelta = success ? FRIENDLY_DELTA.hear_chat_success : FRIENDLY_DELTA.hear_chat_fail;
-				delta = baseDelta * BYSTANDER_DECAY;
-				description = `我观察到 ${memory.actorId} 对 ${memory.targetId} 闲聊${success ? '成功' : '失败'}（旁观者衰减 ×${BYSTANDER_DECAY}）`;
+				baseValue = success ? FRIENDLY_DELTA.hear_chat_success : FRIENDLY_DELTA.hear_chat_fail;
+				delta = baseValue * multiplier;
+				description = `我观察到 ${memory.actorId} 对 ${memory.targetId} 闲聊${success ? '成功' : '失败'}`;
+				formula = `${baseValue}(闲聊${success ? '成功' : '失败'}) × ${multiplier}(旁观者衰减系数) = ${delta.toFixed(1)}`;
 				break;
 			}
 		}
@@ -180,6 +211,9 @@ export class RelationTracker {
 					deltaScore: delta,
 					beforeScore: before,
 					afterScore: detail.friendly,
+					baseValue,
+					multiplier,
+					formula,
 				});
 			}
 		}

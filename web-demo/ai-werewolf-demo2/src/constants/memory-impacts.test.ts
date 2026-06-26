@@ -69,4 +69,29 @@ describe('MemoryImpactRegistry', () => {
     const voteRules = getImpactRules('vote', 'role');
     expect(voteRules[0].value).toBe(VOTE_ROLE_WEIGHT.ANTI_PUSH_WOLF);
   });
+
+  it('pressure rules exist for major event types', () => {
+    const eventsWithPressure = ['check_result', 'hear_claim', 'hear_accuse', 'hear_defend', 'hear_chat', 'vote', 'death', 'morning', 'peaceful_night', 'vote_result', 'observe_pattern', 'hear_silence'];
+    for (const t of eventsWithPressure) {
+      const rules = getImpactRules(t as any, 'pressure');
+      expect(rules.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('pressure rule values are reasonable', () => {
+    const accusePressure = getImpactRules('hear_accuse', 'pressure');
+    expect(accusePressure[0].value).toBe(1); // 被指控 +1
+
+    const votePressure = getImpactRules('vote', 'pressure');
+    expect(votePressure[0].value).toBe(2); // 被投票 +2
+
+    const claimPressure = getImpactRules('hear_claim', 'pressure').find(r => r.condition?.includes('werewolf'));
+    expect(claimPressure?.value).toBe(3); // 被声称查杀 +3
+
+    const defendPressure = getImpactRules('hear_defend', 'pressure');
+    expect(defendPressure[0].value).toBe(-1); // 被辩护 -1
+
+    const peacefulPressure = getImpactRules('peaceful_night', 'pressure');
+    expect(peacefulPressure[0].value).toBe(-1); // 平安夜 -1
+  });
 });

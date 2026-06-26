@@ -32,12 +32,14 @@ export class GameEngine {
   private base: number;
   private stepQueue: Array<() => GameLog>;
   private queueLabels: Array<{ subPhase: SubPhase; playerId?: string; label: string }>;
+  private config: GameConfig;
   dayRound: number; // 全局行动计数器（显示用）
   consecutiveSkip: number; // 连续沉默/观察计数
   todayActions: Map<string, Array<{ action: string; targetId?: string }>>;
   voteTargets: Record<string, string>;
 
   constructor(config: GameConfig) {
+    this.config = config;
     this.players = generatePlayers(config);
     this.store = new MemStore();
     this.deadPlayerIds = new Set();
@@ -270,8 +272,8 @@ export class GameEngine {
     let bestTarget: string | null = null;
     let bestProb = -1;
     for (const [pid, inf] of inferences.entries()) {
-      if (pid !== self.id && inf.werewolfProb > bestProb) {
-        bestProb = inf.werewolfProb;
+      if (pid !== self.id && inf.wolfProb > bestProb) {
+        bestProb = inf.wolfProb;
         bestTarget = pid;
       }
     }
@@ -397,11 +399,120 @@ export class GameEngine {
   // 广播记忆：单条共享，所有存活角色可见（通过 _getVisibleStore 过滤）
   private _broadcastMemory(opts: Omit<Parameters<MemStore['add']>[0], 'viewerId'> & { viewerId?: never }) {
     this.store.add({ ...opts });
+    this._updatePressureFromLastMemory();
   }
 
   // 写入单条记忆
   private _writeMemory(opts: Parameters<MemStore['add']>[0]) {
     this.store.add(opts);
+    this._updatePressureFromLastMemory();
+  }
+
+  // 根据最后一条新增记忆更新所有玩家压力
+  private _updatePressureFromLastMemory() {
+    const all = this.store.getAll();
+    const last = all[all.length - 1];
+    if (!last) return;
+
+    const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
+    const addPressure = (p: Player, delta: number) => {
+      p.pressure = Math.max(0, Math.min(20, p.pressure + delta));
+    };
+
+    switch (last.eventType) {
+      case 'self_role': {
+        if (last.viewerId) {
+          const p = this.players.find((x) => x.id === last.viewerId);
+          if (p) addPressure(p, -1);
+        }
+        break;
+      }
+      case 'hear_accuse': {
+        if (last.targetId) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, +1);
+        }
+        break;
+      }
+      case 'hear_defend': {
+        if (last.targetId) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, -1);
+        }
+        break;
+      }
+      case 'hear_claim': {
+        if (last.targetId && last.content?.claimedResult === 'werewolf') {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, +3);
+        }
+        if (last.targetId && last.content?.claimedResult === 'villager') {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, -1);
+        }
+        break;
+      }
+      case 'hear_chat': {
+        if (last.targetId && last.content?.success === true) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, -0.5);
+        }
+        if (last.targetId && last.content?.success === false) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, +0.5);
+        }
+        break;
+      }
+      case 'hear_silence': {
+        if (last.actorId) {
+          const p = this.players.find((x) => x.id === last.actorId);
+          if (p) addPressure(p, +0.5);
+        }
+        break;
+      }
+      case 'vote': {
+        if (last.targetId) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, +2);
+        }
+        break;
+      }
+      case 'check_result': {
+        if (last.viewerId) {
+          const p = this.players.find((x) => x.id === last.viewerId);
+          if (p) {
+            if (last.content?.result === 'werewolf') addPressure(p, +3);
+            else if (last.content?.result === 'villager') addPressure(p, -2);
+          }
+        }
+        break;
+      }
+      case 'death': {
+        for (const p of alive) addPressure(p, +1);
+        break;
+      }
+      case 'morning': {
+        for (const p of alive) addPressure(p, -0.5);
+        break;
+      }
+      case 'peaceful_night': {
+        for (const p of alive) addPressure(p, -1);
+        break;
+      }
+      case 'vote_result': {
+        for (const p of alive) addPressure(p, +1);
+        break;
+      }
+      case 'observe_pattern': {
+        if (last.content?.inferredIntention === 'attack' && last.targetId) {
+          const p = this.players.find((x) => x.id === last.targetId);
+          if (p) addPressure(p, +1);
+        }
+        break;
+      }
+      default:
+        break;
+    }
   }
 
   // 获取某个角色可见的记忆
@@ -425,7 +536,11 @@ export class GameEngine {
       const selfCrisis = inference.inferSelfCrisis();
       const relations = new RelationTracker(self.id, alive.map((p) => p.id));
       for (const m of store2.getAll()) relations.onMemoryAdded(m);
-      const inferences = inference.inferAll(alive);
+      const inferences = inference.inferAll(alive, {
+        wolfCount: this.config.werewolfCount,
+        prophetCount: this.config.prophetCount,
+        villagerCount: this.config.villagerCount,
+      });
       const visibleMemories = this.store.getAll().filter((m) => {
         if (m.isForgotten) return false;
         if (m.viewerId && m.viewerId !== self.id) return false;
@@ -442,7 +557,7 @@ export class GameEngine {
         intentionState,
         selfCrisis: { score: selfCrisis.score, factors: selfCrisis.factors, basis: selfCrisis.basis, trace: selfCrisis.trace },
         relations: relations.getAll(),
-        inferences: new Map(Array.from(inferences.entries()).map(([k, v]) => [k, { werewolfProb: v.werewolfProb, villagerProb: v.villagerProb, basis: v.basis, trace: v.trace }])),
+        inferences: new Map(Array.from(inferences.entries()).map(([k, v]) => [k, { wolfProb: v.wolfProb, prophetProb: v.prophetProb, villagerProb: v.villagerProb, basis: v.basis, trace: v.trace }])),
         memories: visibleMemories,
         forgottenMemories,
       });

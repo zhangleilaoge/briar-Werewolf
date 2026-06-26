@@ -108,7 +108,7 @@ export class IntentionEngine {
 			// fallback：当插件不存在时，保留通用硬编码逻辑
 			if (this.self.team === 'villager') {
 				let highest: RoleInference | null = null;
-				for (const inf of roleInferences.values()) { if (!highest || inf.werewolfProb > highest.werewolfProb) highest = inf; }
+				for (const inf of roleInferences.values()) { if (!highest || inf.wolfProb > highest.wolfProb) highest = inf; }
 				const findWolfPriority = highest ? Math.min(0.9, LONG_TERM_PRIORITY.FIND_WOLF) : LONG_TERM_PRIORITY.FIND_WOLF;
 				intentions.push({
 					id: 'find_werewolf',
@@ -151,7 +151,7 @@ export class IntentionEngine {
 				});
 
 				let lowest: RoleInference | null = null;
-				for (const inf of roleInferences.values()) { if (!lowest || inf.werewolfProb < lowest.werewolfProb) lowest = inf; }
+				for (const inf of roleInferences.values()) { if (!lowest || inf.wolfProb < lowest.wolfProb) lowest = inf; }
 				const misleadPriority = lowest ? Math.min(0.8, LONG_TERM_PRIORITY.MISLEAD) : LONG_TERM_PRIORITY.MISLEAD;
 				intentions.push({
 					id: 'mislead',
@@ -486,10 +486,10 @@ export class IntentionEngine {
 		if (!this.config.reasoningDisabled && candidate.targetId && roleInferences.has(candidate.targetId)) {
 			const inf = roleInferences.get(candidate.targetId)!;
 			if (candidate.action === 'suspect') {
-				roleBonus = 0.5 + inf.werewolfProb * 1.5;
-				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 狼人概率 ${(inf.werewolfProb * 100).toFixed(0)}% → 攻击加成`));
+				roleBonus = 0.5 + inf.wolfProb * 1.5;
+				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 狼人概率 ${(inf.wolfProb * 100).toFixed(0)}% → 攻击加成`));
 			} else if (candidate.action === 'defend') {
-				roleBonus = 0.5 + (1 - inf.werewolfProb) * 1.5;
+				roleBonus = 0.5 + (1 - inf.wolfProb) * 1.5;
 				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 村民概率 ${(inf.villagerProb * 100).toFixed(0)}% → 辩护加成`));
 			}
 		}

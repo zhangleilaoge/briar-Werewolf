@@ -22,6 +22,10 @@ export interface MemoryImpact {
 	deltaScore: number; // 分数变化量
 	beforeScore: number; // 变化前
 	afterScore: number; // 变化后
+	// 公式明细：原始数值 × 乘数 = 最终值
+	baseValue?: number; // 原始数值（乘数前）
+	multiplier?: number; // 乘数（如旁观者衰减 0.3）
+	formula?: string; // 计算式（如 "-2 × 0.3 = -0.6"）
 }
 
 // ---------- 计算步骤 ----------
@@ -42,10 +46,28 @@ export interface InferenceTrace {
 }
 
 // ---------- 角色推理溯源（专用于角色概率） ----------
+export interface RoleInference {
+	playerId: string;
+	wolfProb: number;
+	prophetProb: number;
+	villagerProb: number;
+	/** 是否被硬信息直接覆盖（用于全局约束时跳过缩放） */
+	hardInfoOverride: boolean;
+	basis: string[];
+	trace?: RoleInferenceTrace;
+}
+
 export interface RoleInferenceTrace extends InferenceTrace {
 	resultType: 'role';
-	werewolfProb: number;
+	wolfProb: number;
+	prophetProb: number;
 	villagerProb: number;
+	// 原始权重（用于展示概率如何从权重归一化而来）
+	wolfWeight: number;
+	prophetWeight: number;
+	villagerWeight: number;
+	totalWeight: number;
+	defaultWeight: number;
 	// 各阶段贡献
 	hardInfoOverride: boolean; // 是否被硬信息直接覆盖
 	claimContributions: { memoryId: string; weight: number; claimedResult: string }[];

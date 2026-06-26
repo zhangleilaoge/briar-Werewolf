@@ -31,7 +31,7 @@ export const werewolfPlugin: RolePlugin = {
 		// 误导村民：找 werewolfProb 最低的（最像村民的）
 		let lowest = null;
 		for (const inf of inferences.values()) {
-			if (!lowest || inf.werewolfProb < lowest.werewolfProb) lowest = inf;
+			if (!lowest || inf.wolfProb < lowest.wolfProb) lowest = inf;
 		}
 		const misleadPriority = lowest ? Math.min(0.8, LONG_TERM_PRIORITY.MISLEAD) : LONG_TERM_PRIORITY.MISLEAD;
 		longTerm.push({
@@ -50,7 +50,7 @@ export const werewolfPlugin: RolePlugin = {
 		const nonWerewolf = allPlayers.filter((p) => p.id !== self.id && p.alive && p.team !== 'werewolf');
 		for (const t of nonWerewolf) {
 			const inf = inferences.get(t.id);
-			const score = CANDIDATE_BASE_SCORE.KILL + (inf ? inf.werewolfProb * 10 : 0);
+			const score = CANDIDATE_BASE_SCORE.KILL + (inf ? inf.wolfProb * 10 : 0);
 			candidates.push({
 				action: 'kill' as const,
 				targetId: t.id,

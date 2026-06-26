@@ -46,7 +46,7 @@ export default function SystemPreview() {
   }, [scenarioId, selectedPlayer]);
 
   const sortedInferences = useMemo(() => {
-    return Array.from(inferences.entries()).sort((a, b) => b[1].werewolfProb - a[1].werewolfProb);
+    return Array.from(inferences.entries()).sort((a, b) => b[1].wolfProb - a[1].wolfProb);
   }, [inferences]);
 
   const tabs = [
@@ -137,8 +137,12 @@ export default function SystemPreview() {
                 <h2 className="text-lg font-semibold text-sky-400 mb-4">🎯 角色推理 <span className="text-xs text-slate-500">（hover 查看计算过程）</span></h2>
                 <div className="space-y-3">
                   {sortedInferences.map(([playerId, inference]) => {
-                    const wp = inference.werewolfProb;
+                    const wp = inference.wolfProb;
+                    const pp = inference.prophetProb;
+                    const vp = inference.villagerProb;
                     const wolfPct = Math.round(wp * 100);
+                    const prophetPct = Math.round(pp * 100);
+                    const villagerPct = Math.round(vp * 100);
                     let borderColor = 'border-slate-600';
                     if (wp > 0.7) borderColor = 'border-red-500';
                     else if (wp < 0.3) borderColor = 'border-green-500';
@@ -148,17 +152,19 @@ export default function SystemPreview() {
                         <div className="font-semibold text-sm">{getPlayerEmoji(playerId, DEMO_PLAYERS)} {playerId}</div>
                         <HoverCard
                           title={`🐺 ${playerId} 角色推理溯源`}
-                          subtitle={`狼人概率 ${(wp * 100).toFixed(1)}%`}
+                          subtitle={`狼人 ${(wp * 100).toFixed(1)}% | 预言家 ${(pp * 100).toFixed(1)}% | 村民 ${(vp * 100).toFixed(1)}%`}
                           trace={traced?.trace}
                         >
                           <div className="h-4 rounded overflow-hidden flex mt-2 bg-slate-800 cursor-help">
                             <div className="bg-red-700 h-full transition-all" style={{ width: `${wolfPct}%` }} />
-                            <div className="bg-green-700 h-full transition-all" style={{ width: `${100 - wolfPct}%` }} />
+                            <div className="bg-amber-700 h-full transition-all" style={{ width: `${prophetPct}%` }} />
+                            <div className="bg-green-700 h-full transition-all" style={{ width: `${villagerPct}%` }} />
                           </div>
                         </HoverCard>
                         <div className="flex justify-between text-xs text-slate-400 mt-1">
                           <span className="text-red-300">🐺 {wolfPct}%</span>
-                          <span className="text-green-300">👤 {100 - wolfPct}%</span>
+                          <span className="text-amber-300">🔮 {prophetPct}%</span>
+                          <span className="text-green-300">👤 {villagerPct}%</span>
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
                           基于 {inference.basis.length} 条证据

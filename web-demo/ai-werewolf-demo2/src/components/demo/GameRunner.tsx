@@ -301,7 +301,7 @@ export default function GameRunner() {
                       {activeResult.relations.map((rel) => {
                         const displayName = getPlayerDisplay(rel.playerId, initialPlayers);
                         return (
-                          <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} impacts={[...rel.directImpacts, ...rel.bystanderImpacts]} className="inline-block">
+                          <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} basis={rel.memoryIds} impacts={[...rel.directImpacts, ...rel.bystanderImpacts]} className="inline-block">
                             <span className={`text-xs px-2 py-1 rounded ${rel.friendly > 0 ? 'bg-green-900/30 text-green-400' : rel.friendly < 0 ? 'bg-red-900/30 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                               {displayName} {rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}
                             </span>
@@ -314,15 +314,28 @@ export default function GameRunner() {
                   {/* Inferences */}
                   <Drawer id="inferences" title="角色推理" openSections={openSections} toggleSection={toggleSection}>
                     <div className="flex flex-wrap gap-1">
-                      {Array.from(activeResult.inferences.entries()).sort((a, b) => b[1].werewolfProb - a[1].werewolfProb).map(([pid, inf]) => {
-                        const wp = Math.round(inf.werewolfProb * 100);
+                      {Array.from(activeResult.inferences.entries()).sort((a, b) => b[1].wolfProb - a[1].wolfProb).map(([pid, inf]) => {
+                        const wp = Math.round(inf.wolfProb * 100);
+                        const pp = Math.round(inf.prophetProb * 100);
+                        const vp = Math.round(inf.villagerProb * 100);
                         const displayName = getPlayerDisplay(pid, initialPlayers);
+                        const t = inf.trace;
+                        const wolfImpacts = t?.impacts?.filter(i => i.description.includes('狼人')) ?? [];
+                        const prophetImpacts = t?.impacts?.filter(i => i.description.includes('预言家')) ?? [];
+                        const villagerImpacts = t?.impacts?.filter(i => i.description.includes('村民')) ?? [];
                         return (
-                          <MemoryTooltip key={pid} title="支撑记忆" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={inf.trace?.impacts} className="inline-block">
-                            <span className={`text-xs px-2 py-1 rounded ${wp >= 50 ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
-                              {displayName} 🐺{wp}%
-                            </span>
-                          </MemoryTooltip>
+                          <span key={pid} className="text-xs px-2 py-1 rounded bg-slate-800">
+                            <span className="text-slate-300">{displayName}</span>
+                            <MemoryTooltip title="支撑记忆（狼人）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={wolfImpacts} className="inline-block">
+                              <span className="text-red-400 ml-1 cursor-help">🐺{wp}%({t?.wolfWeight.toFixed(2) ?? '?'})</span>
+                            </MemoryTooltip>
+                            <MemoryTooltip title="支撑记忆（预言家）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={prophetImpacts} className="inline-block">
+                              <span className="text-amber-400 ml-1 cursor-help">🔮{pp}%({t?.prophetWeight.toFixed(2) ?? '?'})</span>
+                            </MemoryTooltip>
+                            <MemoryTooltip title="支撑记忆（村民）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={villagerImpacts} className="inline-block">
+                              <span className="text-green-400 ml-1 cursor-help">👤{vp}%({t?.villagerWeight.toFixed(2) ?? '?'})</span>
+                            </MemoryTooltip>
+                          </span>
                         );
                       })}
                     </div>
@@ -335,7 +348,7 @@ export default function GameRunner() {
                         <div className="text-xs text-slate-400 mb-1">长期</div>
                         <div className="space-y-1">
                           {activeResult.intentionState.longTerm.slice(0, 5).map((lt) => (
-                            <MemoryTooltip key={lt.id} title="支撑记忆" content={getMemoryTooltip(lt.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={lt.traces?.flatMap((t) => t.basis) ?? []}>
+                            <MemoryTooltip key={lt.id} title="支撑记忆" content={getMemoryTooltip(lt.basis, activeResult.memories, activePlayerId, initialPlayers)}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
                                 <span className="text-slate-300 truncate mr-1">{LONG_TERM_NAMES[lt.id] || lt.id}</span>
                                 <span className="text-amber-400 shrink-0">{(lt.priority * 100).toFixed(0)}%</span>
@@ -348,7 +361,7 @@ export default function GameRunner() {
                         <div className="text-xs text-slate-400 mb-1">短期</div>
                         <div className="space-y-1">
                           {activeResult.intentionState.shortTerm.slice(0, 5).map((st) => (
-                            <MemoryTooltip key={st.id} title="支撑记忆" content={getMemoryTooltip(st.basis, activeResult.memories, activePlayerId, initialPlayers)} impacts={st.traces?.flatMap((t) => t.basis) ?? []}>
+                            <MemoryTooltip key={st.id} title="支撑记忆" content={getMemoryTooltip(st.basis, activeResult.memories, activePlayerId, initialPlayers)}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
                                 <span className="text-slate-300 truncate mr-1">{SHORT_TERM_NAMES[st.id] || st.id}</span>
                                 <span className="text-purple-400 shrink-0">{st.weight.toFixed(1)}</span>
@@ -374,7 +387,7 @@ export default function GameRunner() {
                           const targetName = c.targetId ? getPlayerDisplay(c.targetId, initialPlayers) : '';
                           const isSelected = selected && c.action === selected.action && c.targetId === selected.targetId;
                           return (
-                            <MemoryTooltip key={i} title="支撑记忆" content={getMemoryTooltip(c.supportingMemories, activeResult.memories, activePlayerId, initialPlayers)} impacts={c.traces?.flatMap((t) => t.basis) ?? []}>
+                            <MemoryTooltip key={i} title="支撑记忆" content={getMemoryTooltip(c.supportingMemories, activeResult.memories, activePlayerId, initialPlayers)} basis={c.supportingMemories} impacts={c.traces?.flatMap((t) => t.basis) ?? []}>
                               <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1.5">
                                 <span className={`truncate mr-1 ${isSelected ? 'text-amber-400 font-bold' : i === 0 && !selected ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
                                   {actionName}{targetName && <span className="text-purple-300"> → {targetName}</span>}

@@ -27,7 +27,7 @@ export interface PlayerResult {
   intentionState: IntentionState;
   selfCrisis: { score: number; factors: CrisisTrace['factors']; basis: string[]; trace?: CrisisTrace };
   relations: import('@/relation').RelationDetail[];
-  inferences: Map<string, { werewolfProb: number; villagerProb: number; basis: string[]; trace?: import('@/types/trace').RoleInferenceTrace }>;
+  inferences: Map<string, { wolfProb: number; prophetProb: number; villagerProb: number; basis: string[]; trace?: import('@/types/trace').RoleInferenceTrace }>;
   memories: MemoryEntry[];
   forgottenMemories: MemoryEntry[];
 }

@@ -24,7 +24,7 @@ export const villagerPlugin: RolePlugin = {
 		// 村民特有：寻找狼人
 		let highest = null;
 		for (const inf of inferences.values()) {
-			if (!highest || inf.werewolfProb > highest.werewolfProb) highest = inf;
+			if (!highest || inf.wolfProb > highest.wolfProb) highest = inf;
 		}
 		const findWolfPriority = highest ? Math.min(0.9, LONG_TERM_PRIORITY.FIND_WOLF) : LONG_TERM_PRIORITY.FIND_WOLF;
 		longTerm.push({
