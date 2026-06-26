@@ -5,8 +5,10 @@
 
 import type { MemoryEntry, MemorySource, MemoryEventType, Phase } from '@/types';
 import { getDefaultImportance, HARD_INFO_THRESHOLD, FORGETTING, CREDIBILITY, CREDIBILITY_DEFAULT } from '@/constants';
+import { MemoryView } from './memory-view';
+import type { MemoryStore } from './memory-store';
 
-export class MemStore {
+export class MemStore implements MemoryStore {
   private entries: Map<string, MemoryEntry> = new Map();
   private _idCounter = 0;
 
@@ -152,5 +154,14 @@ export class MemStore {
   clear(): void {
     this.entries.clear();
     this._idCounter = 0;
+  }
+
+  // ---- 视图 ----
+
+  /**
+   * 获取指定玩家的可见记忆视图
+   */
+  getView(viewerId: string): MemoryView {
+    return new MemoryView(this.entries, viewerId);
   }
 }

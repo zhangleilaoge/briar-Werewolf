@@ -1,4 +1,5 @@
 import { MemStore } from '@/memory';
+import type { MemoryView } from '@/memory';
 import { InferenceEngine } from '@/inference/inference-engine';
 import { IntentionEngine } from '@/intention/intention-engine';
 import { RelationTracker } from '@/relation';
@@ -7,6 +8,9 @@ import { PHASE_HEADERS, LOG_TEMPLATES, CREDIBILITY, MAX_ROUNDS } from '@/constan
 import { PERSONALITIES } from '@/intention/personalities';
 import { generatePlayers, randInt, formatTime } from './game-runner-utils';
 import type { GameConfig, GameLog, PlayerResult } from './game-runner-types';
+import { PressureSystem } from './pressure-system';
+import { VictoryChecker } from './victory-checker';
+import { MemoryBroadcaster } from './memory-broadcaster';
 
 export type SubPhase = 'init' | 'morning' | 'day' | 'vote' | 'result' | 'night' | 'victory';
 
@@ -37,6 +41,11 @@ export class GameEngine {
   consecutiveSkip: number; // 连续沉默/观察计数
   todayActions: Map<string, Array<{ action: string; targetId?: string }>>;
   voteTargets: Record<string, string>;
+  
+  // 新增的模块
+  private pressureSystem: PressureSystem;
+  private victoryChecker: VictoryChecker;
+  private memoryBroadcaster: MemoryBroadcaster;
 
   constructor(config: GameConfig) {
     this.config = config;
@@ -53,6 +62,11 @@ export class GameEngine {
     this.consecutiveSkip = 0;
     this.todayActions = new Map();
     this.voteTargets = {};
+
+    // 初始化模块
+    this.pressureSystem = new PressureSystem(this.players, this.deadPlayerIds);
+    this.victoryChecker = new VictoryChecker(this.players, this.deadPlayerIds);
+    this.memoryBroadcaster = new MemoryBroadcaster(this.store, this.pressureSystem);
 
     // 初始化记忆：每人知道自己的身份
     for (const p of this.players) {
@@ -78,9 +92,6 @@ export class GameEngine {
     this.store.applyForgetting(this.round);
     const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
     const r = this.round;
-
-    // 轮次标题
-    this._push(() => ({ time: this._nextTime(), isSystem: true, round: r, subPhase: 'init' as SubPhase, content: this._roundTitle(r) }));
 
     // 白天
     this._push(() => ({ time: this._nextTime(), isSystem: true, round: r, subPhase: 'day' as SubPhase, content: this._dayHeader() }));
@@ -134,9 +145,6 @@ export class GameEngine {
     return formatTime(this.base + this.logIdx++ * 1000);
   }
 
-  private _roundTitle(r: number): string {
-    return PHASE_HEADERS.ROUND_TITLE(r);
-  }
   private _dayHeader(): string { return PHASE_HEADERS.DAY; }
   private _voteHeader(): string { return PHASE_HEADERS.VOTE; }
   private _nightHeader(): string { return PHASE_HEADERS.NIGHT; }
@@ -383,147 +391,32 @@ export class GameEngine {
   }
 
   private _checkVictory(): GameLog {
-    const aW = this.players.filter((p) => p.team === 'werewolf' && !this.deadPlayerIds.has(p.id)).length;
-    const aV = this.players.filter((p) => p.team !== 'werewolf' && !this.deadPlayerIds.has(p.id)).length;
-    if (aW === 0 && aV > 0) {
-      this.winner = 'villager';
-    } else if (aW >= aV) {
-      this.winner = 'werewolf';
+    const { winner, log } = this.victoryChecker.check();
+    this.winner = winner;
+    if (log) {
+      log.time = this._nextTime();
+      log.round = this.round;
+      return log;
     }
-    if (this.winner) {
-      return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: PHASE_HEADERS.VICTORY(this.winner) };
-    }
+    // 理论上不会到这里，但为了类型安全
     return { time: this._nextTime(), isSystem: true, round: this.round, subPhase: 'victory', content: PHASE_HEADERS.GAME_CONTINUE };
   }
 
   // 广播记忆：单条共享，所有存活角色可见（通过 _getVisibleStore 过滤）
   private _broadcastMemory(opts: Omit<Parameters<MemStore['add']>[0], 'viewerId'> & { viewerId?: never }) {
-    this.store.add({ ...opts });
-    this._updatePressureFromLastMemory();
+    this.memoryBroadcaster.broadcast(opts);
   }
 
   // 写入单条记忆
   private _writeMemory(opts: Parameters<MemStore['add']>[0]) {
-    this.store.add(opts);
-    this._updatePressureFromLastMemory();
+    this.memoryBroadcaster.write(opts);
   }
 
-  // 根据最后一条新增记忆更新所有玩家压力
-  private _updatePressureFromLastMemory() {
-    const all = this.store.getAll();
-    const last = all[all.length - 1];
-    if (!last) return;
 
-    const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
-    const addPressure = (p: Player, delta: number) => {
-      p.pressure = Math.max(0, Math.min(20, p.pressure + delta));
-    };
-
-    switch (last.eventType) {
-      case 'self_role': {
-        if (last.viewerId) {
-          const p = this.players.find((x) => x.id === last.viewerId);
-          if (p) addPressure(p, -1);
-        }
-        break;
-      }
-      case 'hear_accuse': {
-        if (last.targetId) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, +1);
-        }
-        break;
-      }
-      case 'hear_defend': {
-        if (last.targetId) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, -1);
-        }
-        break;
-      }
-      case 'hear_claim': {
-        if (last.targetId && last.content?.claimedResult === 'werewolf') {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, +3);
-        }
-        if (last.targetId && last.content?.claimedResult === 'villager') {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, -1);
-        }
-        break;
-      }
-      case 'hear_chat': {
-        if (last.targetId && last.content?.success === true) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, -0.5);
-        }
-        if (last.targetId && last.content?.success === false) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, +0.5);
-        }
-        break;
-      }
-      case 'hear_silence': {
-        if (last.actorId) {
-          const p = this.players.find((x) => x.id === last.actorId);
-          if (p) addPressure(p, +0.5);
-        }
-        break;
-      }
-      case 'vote': {
-        if (last.targetId) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, +2);
-        }
-        break;
-      }
-      case 'check_result': {
-        if (last.viewerId) {
-          const p = this.players.find((x) => x.id === last.viewerId);
-          if (p) {
-            if (last.content?.result === 'werewolf') addPressure(p, +3);
-            else if (last.content?.result === 'villager') addPressure(p, -2);
-          }
-        }
-        break;
-      }
-      case 'death': {
-        for (const p of alive) addPressure(p, +1);
-        break;
-      }
-      case 'morning': {
-        for (const p of alive) addPressure(p, -0.5);
-        break;
-      }
-      case 'peaceful_night': {
-        for (const p of alive) addPressure(p, -1);
-        break;
-      }
-      case 'vote_result': {
-        for (const p of alive) addPressure(p, +1);
-        break;
-      }
-      case 'observe_pattern': {
-        if (last.content?.inferredIntention === 'attack' && last.targetId) {
-          const p = this.players.find((x) => x.id === last.targetId);
-          if (p) addPressure(p, +1);
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  }
 
   // 获取某个角色可见的记忆
-  private _getVisibleStore(selfId: string): MemStore {
-    const store2 = new MemStore();
-    for (const m of this.store.getAll()) {
-      if (m.isForgotten) continue;
-      if (m.viewerId && m.viewerId !== selfId) continue;
-      store2.import(m);
-    }
-    return store2;
+  private _getVisibleStore(selfId: string): MemoryView {
+    return this.memoryBroadcaster.getVisibleStore(selfId);
   }
 
   // 计算所有存活角色的当前结果

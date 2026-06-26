@@ -105,6 +105,7 @@ export interface IntentionTrace {
 	baseValue: number; // 修正前
 	delta: number; // 修正量
 	result: number; // 修正后
+	description?: string; // 人类可读的偏移说明
 	basis: MemoryImpact[]; // 支撑记忆
 }
 

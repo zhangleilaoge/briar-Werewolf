@@ -6,6 +6,7 @@
 
 import type { Player } from '@/types';
 import type { MemStore } from '@/memory';
+import type { MemoryStore } from '@/memory/memory-store';
 import type { RoleInferenceTrace, CrisisTrace } from '@/types/trace';
 import type { RoleInference, RoleConfig } from './role-inference';
 import type { PlayerCrisis } from './crisis-inference';
@@ -16,10 +17,10 @@ export type { RoleInference, RoleConfig, PlayerCrisis };
 export type { RoleInferenceTrace, CrisisTrace };
 
 export class InferenceEngine {
-	private store: MemStore;
+	private store: MemoryStore;
 	private selfId: string;
 
-	constructor(store: MemStore, selfId: string) {
+	constructor(store: MemoryStore, selfId: string) {
 		this.store = store;
 		this.selfId = selfId;
 	}

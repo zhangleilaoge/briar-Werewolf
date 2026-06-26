@@ -35,10 +35,11 @@ describe('RelationTracker', () => {
     expect(tracker.getFriendly('B')).toBe(FRIENDLY_RANGE.MIN);
   });
 
-  it('onMemoryAdded updates friendly based on event type', () => {
+  it('onMemoryAdded updates friendly based on event type and credibility', () => {
     const tracker = new RelationTracker('A', ['A', 'B']);
-    tracker.onMemoryAdded(makeMem('hear_accuse', 'B', 'A'));
-    expect(tracker.getFriendly('B')).toBe(FRIENDLY_DELTA.hear_accuse);
+    const mem = makeMem('hear_accuse', 'B', 'A');
+    tracker.onMemoryAdded(mem);
+    expect(tracker.getFriendly('B')).toBe(FRIENDLY_DELTA.hear_accuse * mem.credibility);
   });
 
   it('onMemoryAdded ignores self-actions', () => {

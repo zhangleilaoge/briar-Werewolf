@@ -134,6 +134,9 @@ export class RelationTracker {
 		}
 
 		if (delta !== 0) {
+			delta *= memory.credibility;
+			multiplier *= memory.credibility;
+			formula = `${formula} × ${memory.credibility}(可信度) = ${delta.toFixed(1)}`;
 			this.adjustFriendly(memory.actorId, delta, memory.id);
 			const detail = this.relationDetails.get(memory.actorId);
 			if (detail) {
@@ -197,6 +200,9 @@ export class RelationTracker {
 		}
 
 		if (delta !== 0) {
+			delta *= memory.credibility;
+			multiplier *= memory.credibility;
+			formula = `${formula} × ${memory.credibility}(可信度) = ${delta.toFixed(1)}`;
 			this.adjustFriendly(memory.actorId, delta, memory.id);
 			const detail = this.relationDetails.get(memory.actorId);
 			if (detail) {

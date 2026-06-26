@@ -99,7 +99,7 @@ export function HoverCard({ title, subtitle, trace, intentionTraces, children, c
                     </span>
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">
-                    {t.basis.length > 0 ? `${t.basis.length} 条记忆支撑` : '无记忆支撑'}
+                    {t.description || (t.basis.length > 0 ? `${t.basis.length} 条记忆支撑` : '无记忆支撑')}
                   </div>
                 </div>
               ))}

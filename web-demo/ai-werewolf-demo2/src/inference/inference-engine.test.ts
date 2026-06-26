@@ -115,4 +115,23 @@ describe('InferenceEngine', () => {
     const aInfer = result.get('A')!;
     expect(aInfer.wolfProb).toBeLessThan(1.0);
   });
+
+  it('global constraint updates probabilities but preserves raw trace weights', () => {
+    const store = new MemStore();
+    store.add({ round: 1, triggerAt: 'speech', eventType: 'hear_accuse', actorId: 'B', targetId: 'A', content: {}, source: 'speech' });
+    const engine = new InferenceEngine(store, 'B');
+    const players = makePlayers();
+    const result = engine.inferAll(players, { wolfCount: 1, prophetCount: 1, villagerCount: 1 });
+    for (const [pid, inf] of result) {
+      if (!inf.trace) continue;
+      const t = inf.trace;
+      // 概率应被约束且和为 1
+      expect(inf.wolfProb + inf.prophetProb + inf.villagerProb).toBeCloseTo(1, 5);
+      // trace 概率应与最终概率一致
+      expect(t.wolfProb).toBeCloseTo(inf.wolfProb, 5);
+      // 权重保留原始值（totalWeight > 0 时权重之和 == totalWeight）
+      const weightSum = t.wolfWeight + t.prophetWeight + t.villagerWeight;
+      expect(weightSum).toBeCloseTo(t.totalWeight, 5);
+    }
+  });
 });

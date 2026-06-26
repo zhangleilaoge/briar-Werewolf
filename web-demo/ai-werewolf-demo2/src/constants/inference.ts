@@ -56,3 +56,17 @@ export const CRISIS_WEIGHT = {
   DEFEND: -2,
   CLAIM_WOLF: 4, // 被声称查杀
 } as const;
+
+// ---------- 角色推理额外因子 ----------
+export const ROLE_INFERENCE_FACTOR = {
+  /** 预言家声称折扣：声称预言家的权重 = CLAIM_WEIGHT_FACTOR × 此因子 */
+  PROPHET_CLAIM_DISCOUNT: 0.5,
+  /** 辩护对村民权重的贡献因子 */
+  DEFEND_WEIGHT: 0.15,
+  /** 沉默对狼人权重的贡献因子 */
+  SILENCE_WEIGHT: 0.05,
+  /** 全局约束缩放的最小比例 */
+  MIN_SCALE_FACTOR: 0.01,
+  /** 默认投票角色权重（当 memory-impacts 未配置时的 fallback） */
+  VOTE_ROLE_FALLBACK: 0.4,
+} as const;

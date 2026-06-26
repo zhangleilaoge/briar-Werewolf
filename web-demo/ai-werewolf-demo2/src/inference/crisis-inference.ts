@@ -6,6 +6,7 @@
 import type { MemoryEntry, MemoryEventType } from '@/types';
 import { getString } from '@/types/guards';
 import type { MemStore } from '@/memory';
+import type { MemoryStore } from '@/memory/memory-store';
 import type { CrisisTrace, MemoryImpact, CalculationStep } from '@/types/trace';
 import { CRISIS_WEIGHT, ACCUSER_SPAM_WEIGHT } from '@/constants';
 
@@ -28,7 +29,7 @@ export interface PlayerCrisis {
 
 /** 核心危机度推理逻辑（带溯源） */
 export function inferCrisis(
-	store: MemStore,
+	store: MemoryStore,
 	playerId: string,
 	withTrace = false,
 ): PlayerCrisis {
@@ -107,6 +108,7 @@ export function inferCrisis(
 			}
 		}
 
+		delta *= mem.credibility;
 		factorDetails.push({ memoryId: mem.id, eventType: mem.eventType, actorId: mem.actorId, delta, decayed });
 
 		if (withTrace && delta !== 0) {
@@ -124,17 +126,12 @@ export function inferCrisis(
 		}
 	}
 
-	const score =
-		factors.accuseCount * CRISIS_WEIGHT.ACCUSE +
-		factors.voteCount * CRISIS_WEIGHT.VOTE +
-		factors.observeCount * CRISIS_WEIGHT.OBSERVE +
-		factors.claimWolfCount * CRISIS_WEIGHT.CLAIM_WOLF -
-		factors.defendCount * Math.abs(CRISIS_WEIGHT.DEFEND);
+	const score = factorDetails.reduce((sum, factor) => sum + factor.delta, 0);
 
 	if (withTrace) {
 		steps.push({
 			step: '危机度计算',
-			formula: `指控×${CRISIS_WEIGHT.ACCUSE} + 投票×${CRISIS_WEIGHT.VOTE} + 观察×${CRISIS_WEIGHT.OBSERVE} + 声称查杀×${CRISIS_WEIGHT.CLAIM_WOLF} - 辩护×${Math.abs(CRISIS_WEIGHT.DEFEND)}`,
+			formula: `Σ(事件基础危机值 × 记忆可信度)，指控×${CRISIS_WEIGHT.ACCUSE} + 投票×${CRISIS_WEIGHT.VOTE} + 观察×${CRISIS_WEIGHT.OBSERVE} + 声称查杀×${CRISIS_WEIGHT.CLAIM_WOLF} - 辩护×${Math.abs(CRISIS_WEIGHT.DEFEND)}`,
 			result: score,
 			basis: [...basis],
 		});

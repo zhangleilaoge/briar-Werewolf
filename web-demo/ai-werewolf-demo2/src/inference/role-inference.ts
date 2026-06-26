@@ -6,6 +6,7 @@
 import type { MemoryEntry, Player } from '@/types';
 import { getString, getNumber } from '@/types/guards';
 import type { MemStore } from '@/memory';
+import type { MemoryStore } from '@/memory/memory-store';
 import { getImpactRules } from '@/constants';
 import type { RoleInference, RoleInferenceTrace, MemoryImpact, CalculationStep } from '@/types/trace';
 import {
@@ -15,6 +16,7 @@ import {
 	HARD_INFO_THRESHOLD,
 	ACCUSER_SPAM_WEIGHT,
 	DEFAULT_BELIEF_WEIGHT,
+	ROLE_INFERENCE_FACTOR,
 } from '@/constants';
 
 export type { RoleInference };
@@ -107,7 +109,7 @@ export function applyHardInfo(
 
 /** 核心角色推理逻辑（带溯源）——三概率分布 */
 export function inferPlayer(
-	store: MemStore,
+	store: MemoryStore,
 	playerId: string,
 	withTrace = false,
 ): RoleInference {
@@ -201,25 +203,26 @@ export function inferPlayer(
 			if (mem.actorId === playerId && claimedRole === 'prophet') {
 				// 跳预言家增加自身预言家权重（但如果是狼人悍跳，则不会增加，因为狼人知道自己是狼）
 				// 这里从外部视角看：有人跳预言家 → 有一定概率真的是预言家
-				prophetWeight += weight * 0.5;
+				const prophetDiscount = ROLE_INFERENCE_FACTOR.PROPHET_CLAIM_DISCOUNT;
+				prophetWeight += weight * prophetDiscount;
 				basis.push(mem.id);
 				if (withTrace) {
-					claimContributions.push({ memoryId: mem.id, weight: weight * 0.5, claimedResult: 'prophet_claim' });
+					claimContributions.push({ memoryId: mem.id, weight: weight * prophetDiscount, claimedResult: 'prophet_claim' });
 					impacts.push({
 						memoryId: mem.id,
 						eventType: 'hear_claim',
 						actorId: mem.actorId,
 						targetId: mem.targetId,
 						impactType: 'indirect',
-						description: `${playerId} 声称自己是预言家，可信度 ${mem.credibility} × 0.5 × 0.5 = +${(weight * 0.5).toFixed(1)} 预言家权重`,
-						deltaScore: weight * 0.5,
+						description: `${playerId} 声称自己是预言家，可信度 ${mem.credibility} × ${CLAIM_WEIGHT_FACTOR} × ${prophetDiscount} = +${(weight * prophetDiscount).toFixed(1)} 预言家权重`,
+						deltaScore: weight * prophetDiscount,
 						beforeScore: prophetWeightAccum,
-						afterScore: prophetWeightAccum + weight * 0.5,
+						afterScore: prophetWeightAccum + weight * prophetDiscount,
 					});
-					stepProphet += weight * 0.5;
-							prophetWeightAccum += weight * 0.5;
+					stepProphet += weight * prophetDiscount;
+							prophetWeightAccum += weight * prophetDiscount;
 				}
-				totalWeight += weight * 0.5;
+				totalWeight += weight * prophetDiscount;
 			}
 		}
 	}
@@ -365,7 +368,7 @@ export function inferPlayer(
 
 	// 2d. 投票参与角色推理
 	const voteRoleRules = getImpactRules('vote', 'role');
-	const baseVoteWeight = voteRoleRules.length > 0 ? (voteRoleRules[0].value as number) : 0.4;
+	const baseVoteWeight = voteRoleRules.length > 0 ? (voteRoleRules[0].value as number) : ROLE_INFERENCE_FACTOR.VOTE_ROLE_FALLBACK;
 	let voteConsistencyBonus = 0;
 	for (const mem of store.getAll().filter((m) => !m.isForgotten && m.eventType === 'vote' && m.targetId === playerId)) {
 		const voterId = mem.actorId;
@@ -398,7 +401,7 @@ export function inferPlayer(
 
 	// 2e. 辩护增加村民权重
 	for (const mem of store.getAll().filter((m) => !m.isForgotten && m.eventType === 'hear_defend' && m.targetId === playerId)) {
-		const defendWeight = mem.credibility * 0.15;
+		const defendWeight = mem.credibility * ROLE_INFERENCE_FACTOR.DEFEND_WEIGHT;
 		villagerWeight += defendWeight;
 		basis.push(mem.id);
 		totalWeight += defendWeight;
@@ -409,7 +412,7 @@ export function inferPlayer(
 				actorId: mem.actorId,
 				targetId: playerId,
 				impactType: 'indirect',
-				description: `${mem.actorId} 辩护 ${playerId}，可信度 ${mem.credibility} × 0.15 = +${defendWeight.toFixed(1)} 村民权重`,
+				description: `${mem.actorId} 辩护 ${playerId}，可信度 ${mem.credibility} × ${ROLE_INFERENCE_FACTOR.DEFEND_WEIGHT} = +${defendWeight.toFixed(1)} 村民权重`,
 				deltaScore: defendWeight,
 				beforeScore: villagerWeightAccum,
 				afterScore: villagerWeightAccum + defendWeight,
@@ -421,7 +424,7 @@ export function inferPlayer(
 
 	// 2f. 沉默增加轻微狼人嫌疑
 	for (const mem of store.getAll().filter((m) => !m.isForgotten && m.eventType === 'hear_silence' && m.actorId === playerId)) {
-		const silenceWeight = mem.credibility * 0.05;
+		const silenceWeight = mem.credibility * ROLE_INFERENCE_FACTOR.SILENCE_WEIGHT;
 		wolfWeight += silenceWeight;
 		basis.push(mem.id);
 		totalWeight += silenceWeight;
@@ -432,7 +435,7 @@ export function inferPlayer(
 				actorId: mem.actorId,
 				targetId: playerId,
 				impactType: 'indirect',
-				description: `${playerId} 沉默，可信度 ${mem.credibility} × 0.05 = +${silenceWeight.toFixed(1)} 狼人权重`,
+				description: `${playerId} 沉默，可信度 ${mem.credibility} × ${ROLE_INFERENCE_FACTOR.SILENCE_WEIGHT} = +${silenceWeight.toFixed(1)} 狼人权重`,
 				deltaScore: silenceWeight,
 				beforeScore: wolfWeightAccum,
 				afterScore: wolfWeightAccum + silenceWeight,
@@ -469,10 +472,10 @@ export function inferPlayer(
 						wolfProb: BELIEF_DEFAULT.WEREWOLF_PROB,
 						prophetProb: BELIEF_DEFAULT.PROPHET_PROB,
 						villagerProb: BELIEF_DEFAULT.VILLAGER_PROB,
-						wolfWeight: 0,
-						prophetWeight: 0,
-						villagerWeight: 0,
-						totalWeight: 0,
+						wolfWeight: BELIEF_DEFAULT.WEREWOLF_PROB * DEFAULT_BELIEF_WEIGHT,
+						prophetWeight: BELIEF_DEFAULT.PROPHET_PROB * DEFAULT_BELIEF_WEIGHT,
+						villagerWeight: BELIEF_DEFAULT.VILLAGER_PROB * DEFAULT_BELIEF_WEIGHT,
+						totalWeight: DEFAULT_BELIEF_WEIGHT,
 						defaultWeight: DEFAULT_BELIEF_WEIGHT,
 						hardInfoOverride: false,
 						claimContributions: [],
@@ -577,7 +580,7 @@ export function applyGlobalConstraint(
 
 		// 狼人配额校正
 		if (wolfSum > 0 && wolfSum + fixedWolves > config.wolfCount) {
-			const scale = Math.max(0.01, (config.wolfCount - fixedWolves) / wolfSum);
+			const scale = Math.max(ROLE_INFERENCE_FACTOR.MIN_SCALE_FACTOR, (config.wolfCount - fixedWolves) / wolfSum);
 			for (const [, inf] of result) {
 				if (!inf.hardInfoOverride) {
 					inf.wolfProb *= scale;
@@ -588,7 +591,7 @@ export function applyGlobalConstraint(
 
 		// 预言家配额校正
 		if (prophetSum > 0 && prophetSum + fixedProphets > config.prophetCount) {
-			const scale = Math.max(0.01, (config.prophetCount - fixedProphets) / prophetSum);
+			const scale = Math.max(ROLE_INFERENCE_FACTOR.MIN_SCALE_FACTOR, (config.prophetCount - fixedProphets) / prophetSum);
 			for (const [, inf] of result) {
 				if (!inf.hardInfoOverride) {
 					inf.prophetProb *= scale;
@@ -612,7 +615,7 @@ export function applyGlobalConstraint(
 			inf.trace.prophetProb = inf.prophetProb;
 			inf.trace.villagerProb = inf.villagerProb;
 			inf.trace.finalValue = inf.wolfProb;
-			// 权重保持原始值，不缩放（权重是原始证据累加值，展示百分比如何从权重归一化而来）
+			// 权重保留原始累加值，不随约束缩放（与 impacts 的 beforeScore/afterScore 保持一致）
 		}
 	}
 }
