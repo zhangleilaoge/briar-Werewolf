@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { PopOverlay } from '@/components/ui/PopOverlay';
 import type { MemoryImpact } from '@/types/trace';
+import { formatNumber, formatSignedNumber } from './game-runner-utils';
 
 interface MemoryTooltipProps {
   title: string;
@@ -76,13 +77,13 @@ export function MemoryTooltip({ title, content, basis, impacts, children, classN
             if (visibleImpacts.length === 0) return null;
             return visibleImpacts.map((imp, j) => (
               <div key={`${i}-${j}`} className="bg-slate-800 rounded px-2 py-1 text-slate-300 font-mono text-[11px] flex items-center gap-1">
-                <span className="text-slate-400">{imp.beforeScore.toFixed(2)}</span>
+                <span className="text-slate-400">{formatNumber(imp.beforeScore, 2)}</span>
                 <span className={imp.deltaScore > 0 ? 'text-green-400' : imp.deltaScore < 0 ? 'text-red-400' : 'text-slate-400'}>
-                  {imp.deltaScore > 0 ? '+' : ''}{imp.deltaScore.toFixed(2)}
+                  {formatSignedNumber(imp.deltaScore, 2)}
                 </span>
                 <span className="text-slate-500 truncate">({line})</span>
                 <span className="text-slate-400">=</span>
-                <span className="text-slate-200">{imp.afterScore.toFixed(2)}</span>
+                <span className="text-slate-200">{formatNumber(imp.afterScore, 2)}</span>
               </div>
             ));
           }).flat().filter(Boolean)}

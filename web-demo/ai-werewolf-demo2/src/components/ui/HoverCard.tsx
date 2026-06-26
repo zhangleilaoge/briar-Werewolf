@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { formatNumber, formatSignedNumber } from '@/components/demo/game-runner-utils';
 import { PopOverlay } from './PopOverlay';
 import type { InferenceTrace, IntentionTrace, MemoryImpact } from '@/types/trace';
 
@@ -77,7 +78,7 @@ export function HoverCard({ title, subtitle, trace, intentionTraces, children, c
                 <div key={i} className="bg-slate-800/50 rounded px-2 py-1">
                   <div className="flex justify-between">
                     <span className="text-slate-400">{step.step}</span>
-                    <span className="font-mono text-amber-300">{typeof step.result === 'number' ? step.result.toFixed(1) : step.result}</span>
+                    <span className="font-mono text-amber-300">{typeof step.result === 'number' ? formatNumber(step.result) : step.result}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{step.formula}</div>
                 </div>
@@ -94,8 +95,8 @@ export function HoverCard({ title, subtitle, trace, intentionTraces, children, c
                   <div className="flex justify-between">
                     <span className="text-slate-400">{t.factor}</span>
                     <span className="font-mono text-amber-300">
-                      {t.baseValue.toFixed(2)} → {t.result.toFixed(2)}
-                      {t.delta !== 0 && <span className={t.delta > 0 ? 'text-green-400' : 'text-red-400'}> ({t.delta > 0 ? '+' : ''}{t.delta.toFixed(2)})</span>}
+                      {formatNumber(t.baseValue, 2)} → {formatNumber(t.result, 2)}
+                      {t.delta !== 0 && <span className={t.delta > 0 ? 'text-green-400' : 'text-red-400'}> ({formatSignedNumber(t.delta, 2)})</span>}
                     </span>
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">
@@ -141,7 +142,7 @@ function ImpactRow({ impact }: { impact: MemoryImpact }) {
           </div>
         </div>
         <div className={`font-mono font-bold ${color} ml-2 shrink-0`}>
-          {impact.deltaScore > 0 ? '+' : ''}{impact.deltaScore.toFixed(1)}
+          {formatSignedNumber(impact.deltaScore)}
         </div>
       </div>
     </div>

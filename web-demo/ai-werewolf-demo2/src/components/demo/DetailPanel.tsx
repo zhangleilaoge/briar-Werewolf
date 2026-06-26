@@ -2,7 +2,7 @@ import React from 'react';
 import { PERSONALITIES } from '@/intention/personalities';
 import type { Player } from '@/types';
 import { ROLE_EMOJIS, ROLE_NAMES, ATTRIBUTE_NAMES, ACTION_NAMES, LONG_TERM_NAMES, SHORT_TERM_NAMES, MEMORY_SOURCE_NAMES } from './game-runner-constants';
-import { getPlayerDisplay, getMemoryTooltip, getMemoryDescription, formatRoundDisplay } from './game-runner-utils';
+import { getPlayerDisplay, getMemoryTooltip, getMemoryDescription, formatRoundDisplay, formatNumber, formatSignedNumber, formatShortTermName } from './game-runner-utils';
 import { MemoryTooltip } from './MemoryTooltip';
 import { HoverCard } from '@/components/ui/HoverCard';
 import type { PlayerResult } from './game-runner-types';
@@ -49,9 +49,9 @@ export function DetailPanel({
               <span>·</span>
               <span>{PERSONALITIES[activePlayerObj?.personality || 'cautious']?.name}</span>
               <span>·</span>
-              <span>危机度 <span className={activeResult.selfCrisis.score >= 6 ? 'text-red-400' : activeResult.selfCrisis.score >= 3 ? 'text-amber-400' : 'text-green-400'}>{activeResult.selfCrisis.score}</span></span>
+              <span>危机度 <span className={activeResult.selfCrisis.score >= 6 ? 'text-red-400' : activeResult.selfCrisis.score >= 3 ? 'text-amber-400' : 'text-green-400'}>{formatNumber(activeResult.selfCrisis.score)}</span></span>
               <span>·</span>
-              <span>压力 <span className={(activePlayerObj?.pressure ?? 0) >= 10 ? 'text-red-400' : (activePlayerObj?.pressure ?? 0) >= 5 ? 'text-amber-400' : 'text-green-400'}>{activePlayerObj?.pressure ?? 0}</span></span>
+              <span>压力 <span className={(activePlayerObj?.pressure ?? 0) >= 10 ? 'text-red-400' : (activePlayerObj?.pressure ?? 0) >= 5 ? 'text-amber-400' : 'text-green-400'}>{formatNumber(activePlayerObj?.pressure ?? 0)}</span></span>
             </div>
           </div>
         </div>
@@ -159,7 +159,7 @@ function ThinkingTab({ activeResult, activePlayerId, initialPlayers, openSection
             return (
               <MemoryTooltip key={rel.playerId} title="支撑记忆" content={getMemoryTooltip(rel.memoryIds, activeResult.memories, activePlayerId, initialPlayers)} basis={rel.memoryIds} impacts={[...rel.directImpacts, ...rel.bystanderImpacts]} className="inline-block">
                 <span className={`text-xs px-2 py-1 rounded ${rel.friendly > 0 ? 'bg-green-900/30 text-green-400' : rel.friendly < 0 ? 'bg-red-900/30 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
-                  {displayName} {rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}
+                  {displayName} {formatSignedNumber(rel.friendly)}
                 </span>
               </MemoryTooltip>
             );
@@ -183,24 +183,24 @@ function ThinkingTab({ activeResult, activePlayerId, initialPlayers, openSection
                 <span className="text-slate-300">{displayName}</span>
                 {wolfImpacts.length > 0 ? (
                   <MemoryTooltip title="支撑记忆（狼人）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={wolfImpacts} className="inline-block">
-                    <span className="text-red-400 ml-1 cursor-help">🐺{wp}%({t?.wolfWeight.toFixed(2) ?? '?'})</span>
+                    <span className="text-red-400 ml-1 cursor-help">🐺{wp}%({formatNumber(t?.wolfWeight, 2)})</span>
                   </MemoryTooltip>
                 ) : (
-                  <span className="text-red-400 ml-1">🐺{wp}%({t?.wolfWeight.toFixed(2) ?? '?'})</span>
+                  <span className="text-red-400 ml-1">🐺{wp}%({formatNumber(t?.wolfWeight, 2)})</span>
                 )}
                 {prophetImpacts.length > 0 ? (
                   <MemoryTooltip title="支撑记忆（预言家）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={prophetImpacts} className="inline-block">
-                    <span className="text-amber-400 ml-1 cursor-help">🔮{pp}%({t?.prophetWeight.toFixed(2) ?? '?'})</span>
+                    <span className="text-amber-400 ml-1 cursor-help">🔮{pp}%({formatNumber(t?.prophetWeight, 2)})</span>
                   </MemoryTooltip>
                 ) : (
-                  <span className="text-amber-400 ml-1">🔮{pp}%({t?.prophetWeight.toFixed(2) ?? '?'})</span>
+                  <span className="text-amber-400 ml-1">🔮{pp}%({formatNumber(t?.prophetWeight, 2)})</span>
                 )}
                 {villagerImpacts.length > 0 ? (
                   <MemoryTooltip title="支撑记忆（村民）" content={getMemoryTooltip(inf.basis, activeResult.memories, activePlayerId, initialPlayers)} basis={inf.basis} impacts={villagerImpacts} className="inline-block">
-                    <span className="text-green-400 ml-1 cursor-help">👤{vp}%({t?.villagerWeight.toFixed(2) ?? '?'})</span>
+                    <span className="text-green-400 ml-1 cursor-help">👤{vp}%({formatNumber(t?.villagerWeight, 2)})</span>
                   </MemoryTooltip>
                 ) : (
-                  <span className="text-green-400 ml-1">👤{vp}%({t?.villagerWeight.toFixed(2) ?? '?'})</span>
+                  <span className="text-green-400 ml-1">👤{vp}%({formatNumber(t?.villagerWeight, 2)})</span>
                 )}
               </span>
             );
@@ -217,13 +217,13 @@ function ThinkingTab({ activeResult, activePlayerId, initialPlayers, openSection
                 <HoverCard
                   key={lt.id}
                   title={`长期意图：${LONG_TERM_NAMES[lt.id] || lt.id}`}
-                  subtitle={`优先级 ${(lt.priority * 100).toFixed(0)}%`}
+                  subtitle={`优先级 ${formatNumber(lt.priority * 100, 0)}%`}
                   intentionTraces={lt.traces}
                   width={360}
                 >
                   <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
                     <span className="text-slate-300 truncate mr-1">{LONG_TERM_NAMES[lt.id] || lt.id}</span>
-                    <span className="text-amber-400 shrink-0">{(lt.priority * 100).toFixed(0)}%</span>
+                    <span className="text-amber-400 shrink-0">{formatNumber(lt.priority * 100, 0)}%</span>
                   </div>
                 </HoverCard>
               ))}
@@ -232,20 +232,23 @@ function ThinkingTab({ activeResult, activePlayerId, initialPlayers, openSection
           <div>
             <div className="text-xs text-slate-400 mb-1">短期</div>
             <div className="space-y-1">
-              {activeResult.intentionState.shortTerm.slice(0, 5).map((st: any) => (
-                <HoverCard
-                  key={st.id}
-                  title={`短期意图：${SHORT_TERM_NAMES[st.id] || st.id}`}
-                  subtitle={`权重 ${st.weight.toFixed(2)}`}
-                  intentionTraces={st.traces}
-                  width={360}
-                >
-                  <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
-                    <span className="text-slate-300 truncate mr-1">{SHORT_TERM_NAMES[st.id] || st.id}</span>
-                    <span className="text-purple-400 shrink-0">{st.weight.toFixed(1)}</span>
-                  </div>
-                </HoverCard>
-              ))}
+              {activeResult.intentionState.shortTerm.slice(0, 5).map((st: any) => {
+                const shortTermName = formatShortTermName(st.id, initialPlayers);
+                return (
+                  <HoverCard
+                    key={st.id}
+                    title={`短期意图：${shortTermName}`}
+                    subtitle={`权重 ${formatNumber(st.weight, 2)}`}
+                    intentionTraces={st.traces}
+                    width={360}
+                  >
+                    <div className="flex justify-between text-xs bg-slate-800 rounded px-2 py-1">
+                      <span className="text-slate-300 truncate mr-1">{shortTermName}</span>
+                      <span className="text-purple-400 shrink-0">{formatNumber(st.weight)}</span>
+                    </div>
+                  </HoverCard>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -269,7 +272,7 @@ function ThinkingTab({ activeResult, activePlayerId, initialPlayers, openSection
                     <span className={`truncate mr-1 ${isSelected ? 'text-amber-400 font-bold' : i === 0 && !selected ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
                       {actionName}{targetName && <span className="text-purple-300"> → {targetName}</span>}
                     </span>
-                    <span className="text-slate-500 shrink-0">{c.score.toFixed(1)}</span>
+                    <span className="text-slate-500 shrink-0">{formatNumber(c.score)}</span>
                   </div>
                 </MemoryTooltip>
               );

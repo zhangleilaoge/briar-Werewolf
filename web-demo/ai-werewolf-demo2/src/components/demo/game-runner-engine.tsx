@@ -93,6 +93,9 @@ export class GameEngine {
     const alive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
     const r = this.round;
 
+    // 轮次标题
+    this._push(() => ({ time: this._nextTime(), isSystem: true, round: r, subPhase: 'init' as SubPhase, content: PHASE_HEADERS.ROUND_TITLE(r) }));
+
     // 白天
     this._push(() => ({ time: this._nextTime(), isSystem: true, round: r, subPhase: 'day' as SubPhase, content: this._dayHeader() }));
     this._pushDayRoundActions(alive);

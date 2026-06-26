@@ -23,7 +23,7 @@ export const PLAYER_ID_BASE_CHAR_CODE = 65;
 
 // ---------- 阶段标题 ----------
 export const PHASE_HEADERS = {
-  ROUND_TITLE: (r: number) => `🌙 === 第 ${r} 轮 ===`,
+  ROUND_TITLE: (r: number) => `=== 第 ${r} 轮 ===`,
   DAY: '💬 白天：所有人发言',
   VOTE: '🗳️ 投票阶段',
   NIGHT: '🌙 夜晚降临...',

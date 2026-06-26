@@ -1,7 +1,7 @@
 import { PERSONALITIES } from '@/intention/personalities';
 import type { Player, MemoryEntry } from '@/types';
 import { ATTRIBUTE_RANGE, PLAYER_INITIAL, PLAYER_ID_BASE_CHAR_CODE } from '@/constants';
-import { ROLE_NAMES } from './game-runner-constants';
+import { ROLE_NAMES, SHORT_TERM_NAMES } from './game-runner-constants';
 import type { GameConfig } from './game-runner-types';
 
 export function shuffle<T>(arr: T[]): T[] {
@@ -47,6 +47,25 @@ export function getPlayerDisplay(playerId: string, players: Player[]): string {
   const ROLE_EMOJIS: Record<string, string> = { werewolf: '🐺', prophet: '🔮', villager: '👤' };
   const p = players.find((x) => x.id === playerId);
   return p ? `${p.name}${ROLE_EMOJIS[p.role]}` : playerId;
+}
+
+export function formatNumber(value: number | null | undefined, digits = 1): string {
+  if (value == null || Number.isNaN(value)) return '?';
+  const rounded = Number(value.toFixed(digits));
+  return Object.is(rounded, -0) ? '0' : String(rounded);
+}
+
+export function formatSignedNumber(value: number, digits = 1): string {
+  const formatted = formatNumber(value, digits);
+  return value > 0 ? `+${formatted}` : formatted;
+}
+
+export function formatShortTermName(id: string, players: Player[]): string {
+  const pointedPrefixes = ['attack', 'observe', 'protect'];
+  const prefix = pointedPrefixes.find((p) => id.startsWith(`${p}_`));
+  if (!prefix) return SHORT_TERM_NAMES[id] || id;
+  const targetId = id.slice(prefix.length + 1);
+  return `${SHORT_TERM_NAMES[prefix] || prefix} ${getPlayerDisplay(targetId, players)}`;
 }
 
 export function getMemoryDescription(mem: MemoryEntry, selfId: string, players: Player[]): string {
