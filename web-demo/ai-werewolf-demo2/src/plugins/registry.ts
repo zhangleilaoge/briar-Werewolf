@@ -38,7 +38,7 @@ export interface RolePlugin {
 
 	/**
 	 * 生成夜间行动候选
-	 * 替代 GameEngine 中 _executeProphetCheck / _executeWerewolfKill 的硬编码
+	 * GameEngine 按 hasNightAction 调度夜间角色，具体候选由插件提供
 	 */
 	getNightActionCandidates(
 		self: Player,

@@ -7,6 +7,8 @@ import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { PERSONALITIES } from '@/intention/personalities';
 import { HoverCard } from '@/components/ui/HoverCard';
 import { getPlayerEmoji, getRoleEmoji } from './game-runner-constants';
+import { formatNumber, formatSignedNumber, getMemoryTooltip } from './game-runner-utils';
+import { MemoryTooltip } from './MemoryTooltip';
 import type { IntentionState, LongTermIntention, ShortTermIntention, ActionCandidate } from '@/types/decision';
 import type { RoleInference, PlayerCrisis } from '@/inference/inference-engine';
 
@@ -31,8 +33,7 @@ export default function SystemPreview() {
     const playerWithPersonality = player ? { ...player } : null;
     let intentionState: IntentionState | null = null;
     if (playerWithPersonality) {
-      const relation = new RelationTracker(selectedPlayer, DEMO_PLAYERS.map((p) => p.id));
-      const engine = new IntentionEngine(inference, relation, playerWithPersonality, DEMO_PLAYERS);
+      const engine = new IntentionEngine(inference, relations, playerWithPersonality, DEMO_PLAYERS);
       intentionState = engine.generateDayAction();
     }
     // 带 trace 的版本（用于 hover 展示）
@@ -152,7 +153,7 @@ export default function SystemPreview() {
                         <div className="font-semibold text-sm">{getPlayerEmoji(playerId, DEMO_PLAYERS)} {playerId}</div>
                         <HoverCard
                           title={`🐺 ${playerId} 角色推理溯源`}
-                          subtitle={`狼人 ${(wp * 100).toFixed(1)}% | 预言家 ${(pp * 100).toFixed(1)}% | 村民 ${(vp * 100).toFixed(1)}%`}
+                          subtitle={`狼人 ${formatNumber(wp * 100, 0)}% | 预言家 ${formatNumber(pp * 100, 0)}% | 村民 ${formatNumber(vp * 100, 0)}%`}
                           trace={traced?.trace}
                         >
                           <div className="h-4 rounded overflow-hidden flex mt-2 bg-slate-800 cursor-help">
@@ -168,8 +169,8 @@ export default function SystemPreview() {
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
                           基于 {inference.basis.length} 条证据
-                          {traced?.trace?.accuserSpamPenalty ? ` | 搅屎棍惩罚 +${traced.trace.accuserSpamPenalty.toFixed(1)}` : ''}
-                          {traced?.trace?.voteConsistencyBonus ? ` | 投票一致 +${traced.trace.voteConsistencyBonus.toFixed(1)}` : ''}
+                          {traced?.trace?.accuserSpamPenalty ? ` | 搅屎棍惩罚 ${formatSignedNumber(traced.trace.accuserSpamPenalty)}` : ''}
+                          {traced?.trace?.voteConsistencyBonus ? ` | 投票一致 ${formatSignedNumber(traced.trace.voteConsistencyBonus)}` : ''}
                         </div>
                       </div>
                     );
@@ -190,7 +191,7 @@ export default function SystemPreview() {
                         <div className="flex-1">
                           <div className="font-semibold text-sm">{getRoleEmoji(c.playerId)} {c.playerId}</div>
                           <div className="flex flex-wrap gap-1 mt-1 text-xs text-slate-400">
-                            <span className="bg-slate-800 px-1.5 py-0.5 rounded">指控:{c.factors.accuseCount.toFixed(1)}</span>
+                            <span className="bg-slate-800 px-1.5 py-0.5 rounded">指控:{formatNumber(c.factors.accuseCount)}</span>
                             <span className="bg-slate-800 px-1.5 py-0.5 rounded">投票:{c.factors.voteCount}</span>
                             <span className="bg-slate-800 px-1.5 py-0.5 rounded">辩护:{c.factors.defendCount}</span>
                             {c.factors.claimWolfCount > 0 && (
@@ -200,10 +201,10 @@ export default function SystemPreview() {
                         </div>
                         <HoverCard
                           title={`⚠️ ${c.playerId} 危机度溯源`}
-                          subtitle={`危机度 ${c.score.toFixed(1)}`}
+                          subtitle={`危机度 ${formatNumber(c.score)}`}
                           trace={traced?.trace}
                         >
-                          <div className={`text-2xl font-bold ${scoreColor} cursor-help`}>{c.score.toFixed(1)}</div>
+                          <div className={`text-2xl font-bold ${scoreColor} cursor-help`}>{formatNumber(c.score)}</div>
                         </HoverCard>
                       </div>
                     );
@@ -222,7 +223,7 @@ export default function SystemPreview() {
                     <div className="font-semibold text-sm">{getRoleEmoji(rel.playerId)} {rel.playerId}</div>
                     <HoverCard
                       title={`💕 对 ${rel.playerId} 的友好度溯源`}
-                      subtitle={`友好度 ${rel.friendly > 0 ? '+' : ''}${rel.friendly.toFixed(1)}`}
+                      subtitle={`友好度 ${formatSignedNumber(rel.friendly)}`}
                       trace={{
                         resultType: 'relation',
                         targetId: rel.playerId,
@@ -235,7 +236,7 @@ export default function SystemPreview() {
                       }}
                     >
                       <div className={`text-lg font-bold mt-1 cursor-help ${rel.friendly > 0 ? 'text-green-400' : rel.friendly < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                        {rel.friendly > 0 ? '+' : ''}{rel.friendly.toFixed(1)}
+                        {formatSignedNumber(rel.friendly)}
                       </div>
                     </HoverCard>
                     <div className="text-xs text-slate-500">
@@ -259,13 +260,14 @@ export default function SystemPreview() {
                     <div key={lt.id} className={`bg-slate-900 rounded-lg p-3 border-l-4 border-blue-500`}>
                       <div className="flex justify-between items-center">
                         <strong className="text-sm">{lt.id}</strong>
-                        <HoverCard
+                        <MemoryTooltip
                           title={`🎯 长期意图: ${lt.id}`}
-                          subtitle={`优先级 ${(lt.priority * 100).toFixed(0)}%`}
-                          intentionTraces={lt.traces}
+                          content={getMemoryTooltip(lt.basis ?? [], store.getAll(), selectedPlayer, DEMO_PLAYERS)}
+                          basis={lt.basis ?? []}
+                          impacts={lt.traces?.flatMap((t) => t.basis) ?? []}
                         >
-                          <span className="text-amber-400 text-sm font-bold cursor-help">{(lt.priority * 100).toFixed(0)}%</span>
-                        </HoverCard>
+                          <span className="text-amber-400 text-sm font-bold cursor-help">{formatNumber(lt.priority * 100, 0)}%</span>
+                        </MemoryTooltip>
                       </div>
                       <div className="text-xs text-slate-400 mt-1">{lt.description}</div>
                       {lt.targetPlayer && <div className="text-xs text-indigo-300 mt-1">→ {lt.targetPlayer}</div>}
@@ -281,13 +283,14 @@ export default function SystemPreview() {
                     <div key={st.id} className={`bg-slate-900 rounded-lg p-3 border-l-4 ${st.type === 'pointed' ? 'border-purple-500' : 'border-slate-600'}`}>
                       <div className="flex justify-between items-center">
                         <strong className="text-sm">{st.id}</strong>
-                        <HoverCard
+                        <MemoryTooltip
                           title={`⚡ 短期意图: ${st.id}`}
-                          subtitle={`权重 ${st.weight.toFixed(2)}`}
-                          intentionTraces={st.traces}
+                          content={getMemoryTooltip(st.basis ?? [], store.getAll(), selectedPlayer, DEMO_PLAYERS)}
+                          basis={st.basis ?? []}
+                          impacts={st.traces?.flatMap((t) => t.basis) ?? []}
                         >
-                          <span className="text-amber-400 text-sm font-bold cursor-help">{st.weight.toFixed(2)}</span>
-                        </HoverCard>
+                          <span className="text-amber-400 text-sm font-bold cursor-help">{formatNumber(st.weight)}</span>
+                        </MemoryTooltip>
                       </div>
                       <div className="text-xs text-slate-400 mt-1">{st.description}</div>
                       {st.targetId && <div className="text-xs text-purple-300 mt-1">→ {st.targetId}</div>}
@@ -305,13 +308,14 @@ export default function SystemPreview() {
                         <strong>{c.action}</strong>
                         {c.targetId && <span className="text-purple-300"> → {c.targetId}</span>}
                       </span>
-                      <HoverCard
+                      <MemoryTooltip
                         title={`🎲 候选: ${c.action}${c.targetId ? ` → ${c.targetId}` : ''}`}
-                        subtitle={`得分 ${c.score.toFixed(1)}`}
-                        intentionTraces={c.traces}
+                        content={getMemoryTooltip(c.supportingMemories ?? [], store.getAll(), selectedPlayer, DEMO_PLAYERS)}
+                        basis={c.supportingMemories ?? []}
+                        impacts={c.traces?.flatMap((t) => t.basis) ?? []}
                       >
-                        <span className="text-slate-400 cursor-help">{c.score.toFixed(1)}</span>
-                      </HoverCard>
+                        <span className="text-slate-400 cursor-help">{formatNumber(c.score)}</span>
+                      </MemoryTooltip>
                     </div>
                   ))}
                 </div>
@@ -326,14 +330,14 @@ export default function SystemPreview() {
                       {intentionState.selected.targetId && <span className="text-purple-300 text-lg"> → {intentionState.selected.targetId}</span>}
                     </div>
                     <div className="text-slate-400 text-sm mt-2">{intentionState.selected.reason}</div>
-                    <div className="text-amber-400 text-sm font-bold mt-2">最终得分：{intentionState.selected.score.toFixed(1)}</div>
+                    <div className="text-amber-400 text-sm font-bold mt-2">最终得分：{formatNumber(intentionState.selected.score)}</div>
                     {intentionState.selected.traces && intentionState.selected.traces.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <div className="text-[10px] text-slate-500 uppercase">得分计算轨迹</div>
                         {intentionState.selected.traces.map((t, i) => (
                           <div key={i} className="text-[10px] text-slate-400 flex justify-between">
                             <span>{t.factor}</span>
-                            <span className="font-mono">{t.baseValue.toFixed(2)} → {t.result.toFixed(2)}</span>
+                            <span className="font-mono">当前 {formatNumber(t.result)}</span>
                           </div>
                         ))}
                       </div>

@@ -106,8 +106,10 @@ npm run test
 
 预留：`PERSONALITY.md`、`PRESSURE.md`、`STATE.md`、`TRAIT.md`、`ITEM.md`
 
-## Not Implemented Yet
+## Implementation Status
 
+- ✅ 压力系统：已有 `PressureSystem`，由 `GameEngine` 初始化，并通过 `MemoryBroadcaster` 在记忆写入/广播时更新压力
+- ⚠️ 投票机制：已有简化实现，尚未抽象为可插拔行动执行器
+- ⚠️ 插件系统：角色长期意图和夜间候选已插件化；夜间调度入口已读取插件注册表，具体行动结果写入仍在 `GameEngine` 中处理
 - ❌ 女巫、猎人、窃贼、验尸官角色
-- ❌ 投票机制（目前简化实现）
-- ❌ 压力系统 / 状态系统（美德/崩溃）/ 物品系统
+- ❌ 状态系统（美德/崩溃）/ 物品系统

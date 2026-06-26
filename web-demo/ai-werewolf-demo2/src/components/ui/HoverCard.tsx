@@ -1,19 +1,18 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { formatNumber, formatSignedNumber } from '@/components/demo/game-runner-utils';
 import { PopOverlay } from './PopOverlay';
-import type { InferenceTrace, IntentionTrace, MemoryImpact } from '@/types/trace';
+import type { InferenceTrace, MemoryImpact } from '@/types/trace';
 
 interface HoverCardProps {
   title: string;
   subtitle?: string;
   trace?: InferenceTrace;
-  intentionTraces?: IntentionTrace[];
   children: React.ReactNode;
   className?: string;
   width?: number;
 }
 
-export function HoverCard({ title, subtitle, trace, intentionTraces, children, className, width = 420 }: HoverCardProps) {
+export function HoverCard({ title, subtitle, trace, children, className, width = 420 }: HoverCardProps) {
   const triggerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const pinnedRef = useRef(false);
@@ -81,27 +80,6 @@ export function HoverCard({ title, subtitle, trace, intentionTraces, children, c
                     <span className="font-mono text-amber-300">{typeof step.result === 'number' ? formatNumber(step.result) : step.result}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{step.formula}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 意图轨迹 */}
-          {intentionTraces && intentionTraces.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">得分计算</div>
-              {intentionTraces.map((t, i) => (
-                <div key={i} className="bg-slate-800/50 rounded px-2 py-1">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">{t.factor}</span>
-                    <span className="font-mono text-amber-300">
-                      {formatNumber(t.baseValue, 2)} → {formatNumber(t.result, 2)}
-                      {t.delta !== 0 && <span className={t.delta > 0 ? 'text-green-400' : 'text-red-400'}> ({formatSignedNumber(t.delta, 2)})</span>}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
-                    {t.description || (t.basis.length > 0 ? `${t.basis.length} 条记忆支撑` : '无记忆支撑')}
-                  </div>
                 </div>
               ))}
             </div>

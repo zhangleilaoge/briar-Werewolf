@@ -5,6 +5,7 @@ import { IntentionEngine } from '@/intention/intention-engine';
 import { RelationTracker } from '@/relation';
 import type { Player } from '@/types';
 import { PHASE_HEADERS, LOG_TEMPLATES, CREDIBILITY, MAX_ROUNDS } from '@/constants';
+import { pluginRegistry } from '@/plugins';
 import { PERSONALITIES } from '@/intention/personalities';
 import { generatePlayers, randInt, formatTime } from './game-runner-utils';
 import type { GameConfig, GameLog, PlayerResult } from './game-runner-types';
@@ -122,21 +123,28 @@ export class GameEngine {
 
     // 夜晚
     this._push(() => ({ time: this._nextTime(), isSystem: true, round: r, subPhase: 'night' as SubPhase, content: this._nightHeader() }));
-    // 预言家查验
     const nightAlive = this.players.filter((p) => !this.deadPlayerIds.has(p.id));
-    for (const p of nightAlive) {
-      if (p.role === 'prophet') {
-        this._push(() => this._executeProphetCheck(p, nightAlive), 'night', p.id);
-      }
-    }
-    // 狼人投票
-    this._push(() => this._executeWerewolfKill(nightAlive), 'night');
+    this._pushNightActions(nightAlive);
 
     // 早晨
     this._push(() => this._executeMorning(r + 1), 'morning');
 
     // 检查胜利条件
     this._push(() => this._checkVictory(), 'victory');
+  }
+
+  private _pushNightActions(nightAlive: Player[]) {
+    const handledTeams = new Set<string>();
+    for (const p of nightAlive) {
+      const plugin = pluginRegistry.getRole(p.role);
+      if (!plugin?.hasNightAction) continue;
+      if (p.role === 'prophet') {
+        this._push(() => this._executeProphetCheck(p, nightAlive), 'night', p.id);
+      } else if (plugin.team === 'werewolf' && !handledTeams.has(plugin.team)) {
+        handledTeams.add(plugin.team);
+        this._push(() => this._executeWerewolfKill(nightAlive), 'night');
+      }
+    }
   }
 
   private _push(fn: () => GameLog, subPhase?: SubPhase, playerId?: string) {

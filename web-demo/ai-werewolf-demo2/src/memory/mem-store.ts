@@ -3,10 +3,11 @@
 // 所有 AI 的原始记忆都在这里，不可变内容，但会遗忘
 // ============================================================
 
-import type { MemoryEntry, MemorySource, MemoryEventType, Phase } from '@/types';
-import { getDefaultImportance, HARD_INFO_THRESHOLD, FORGETTING, CREDIBILITY, CREDIBILITY_DEFAULT } from '@/constants';
+import type { MemoryEntry, MemorySource, MemoryEventType } from '@/types';
+import { getDefaultImportance, FORGETTING, CREDIBILITY, CREDIBILITY_DEFAULT } from '@/constants';
 import { MemoryView } from './memory-view';
 import type { MemoryStore } from './memory-store';
+import * as query from './memory-query';
 
 export class MemStore implements MemoryStore {
   private entries: Map<string, MemoryEntry> = new Map();
@@ -54,61 +55,31 @@ export class MemStore implements MemoryStore {
 
   // ---- 条件查询 ----
 
-  aboutPlayer(playerId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.actorId === playerId || e.targetId === playerId);
-  }
+  aboutPlayer(playerId: string): MemoryEntry[] { return query.aboutPlayer(this, playerId); }
 
-  byActor(actorId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.actorId === actorId);
-  }
+  byActor(actorId: string): MemoryEntry[] { return query.byActor(this, actorId); }
 
-  byTarget(targetId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.targetId === targetId);
-  }
+  byTarget(targetId: string): MemoryEntry[] { return query.byTarget(this, targetId); }
 
-  byType(type: MemoryEventType): MemoryEntry[] {
-    return this.getAll().filter((e) => e.eventType === type);
-  }
+  byType(type: MemoryEventType): MemoryEntry[] { return query.byType(this, type); }
 
-  bySource(source: MemorySource): MemoryEntry[] {
-    return this.getAll().filter((e) => e.source === source);
-  }
+  bySource(source: MemorySource): MemoryEntry[] { return query.bySource(this, source); }
 
-  byRound(round: number): MemoryEntry[] {
-    return this.getAll().filter((e) => e.round === round);
-  }
+  byRound(round: number): MemoryEntry[] { return query.byRound(this, round); }
 
-  hardInfo(): MemoryEntry[] {
-    return this.getAll().filter((e) => e.credibility >= HARD_INFO_THRESHOLD);
-  }
+  hardInfo(): MemoryEntry[] { return query.hardInfo(this); }
 
-  hardInfoAboutPlayer(playerId: string): MemoryEntry[] {
-    return this.hardInfo().filter((e) => e.actorId === playerId || e.targetId === playerId);
-  }
+  hardInfoAboutPlayer(playerId: string): MemoryEntry[] { return query.hardInfoAboutPlayer(this, playerId); }
 
-  claimsByPlayer(playerId: string): MemoryEntry[] {
-    return this.getAll().filter(
-      (e) => e.actorId === playerId && (e.eventType === 'hear_claim')
-    );
-  }
+  claimsByPlayer(playerId: string): MemoryEntry[] { return query.claimsByPlayer(this, playerId); }
 
-  accusationsAgainst(targetId: string): MemoryEntry[] {
-    return this.getAll().filter(
-      (e) => e.targetId === targetId && e.eventType === 'hear_accuse'
-    );
-  }
+  accusationsAgainst(targetId: string): MemoryEntry[] { return query.accusationsAgainst(this, targetId); }
 
-  defensesFor(targetId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.targetId === targetId && e.eventType === 'hear_defend');
-  }
+  defensesFor(targetId: string): MemoryEntry[] { return query.defensesFor(this, targetId); }
 
-  deaths(): MemoryEntry[] {
-    return this.getAll().filter((e) => e.eventType === 'death');
-  }
+  deaths(): MemoryEntry[] { return query.deaths(this); }
 
-  isDead(playerId: string): boolean {
-    return this.deaths().some((e) => e.targetId === playerId || e.content.playerId === playerId);
-  }
+  isDead(playerId: string): boolean { return query.isDead(this, playerId); }
 
   // ---- 遗忘机制 ----
 

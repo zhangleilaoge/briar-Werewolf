@@ -6,6 +6,7 @@ import { IntentionEngine } from '@/intention/intention-engine';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { PERSONALITIES } from '@/intention/personalities';
 import { getPlayerEmoji } from './game-runner-constants';
+import { formatNumber } from './game-runner-utils';
 import type { IntentionState, LongTermIntention, ShortTermIntention, ActionCandidate } from '@/types/decision';
 
 export default function IntentionDemo() {
@@ -121,7 +122,7 @@ export default function IntentionDemo() {
                   <div key={lt.id} className={`bg-slate-900 rounded-lg p-3 border-l-4 ${getLongTermBorderColor(lt.id)}`}>
                     <div className="flex justify-between items-center">
                       <strong className="text-sm">{lt.id}</strong>
-                      <span className="text-amber-400 text-sm font-bold">{(lt.priority * 100).toFixed(0)}%</span>
+                      <span className="text-amber-400 text-sm font-bold">{formatNumber(lt.priority * 100, 0)}%</span>
                     </div>
                     <div className="text-xs text-slate-400 mt-1">{lt.description}</div>
                     {lt.targetPlayer && <div className="text-xs text-indigo-300 mt-1">→ {lt.targetPlayer}</div>}
@@ -138,7 +139,7 @@ export default function IntentionDemo() {
                   <div key={st.id} className={`bg-slate-900 rounded-lg p-3 border-l-4 ${getShortTermBorderColor(st.id)}`}>
                     <div className="flex justify-between items-center">
                       <strong className="text-sm">{st.id}</strong>
-                      <span className="text-amber-400 text-sm font-bold">{st.weight.toFixed(1)}</span>
+                      <span className="text-amber-400 text-sm font-bold">{formatNumber(st.weight)}</span>
                     </div>
                     <div className="text-xs text-slate-400 mt-1">{st.description}</div>
                     {st.targetId && <div className="text-xs text-purple-300 mt-1">→ {st.targetId}</div>}
@@ -157,7 +158,7 @@ export default function IntentionDemo() {
                       <strong>{c.action}</strong>
                       {c.targetId && <span className="text-purple-300"> → {c.targetId}</span>}
                     </span>
-                    <span className="text-slate-400">{c.score.toFixed(1)}</span>
+                    <span className="text-slate-400">{formatNumber(c.score)}</span>
                   </div>
                 ))}
               </div>
@@ -173,7 +174,7 @@ export default function IntentionDemo() {
                     {intentionState.selected.targetId && <span className="text-purple-300 text-lg"> → {intentionState.selected.targetId}</span>}
                   </div>
                   <div className="text-slate-400 text-sm mt-2">{intentionState.selected.reason}</div>
-                  <div className="text-amber-400 text-sm font-bold mt-2">最终得分：{intentionState.selected.score.toFixed(1)}</div>
+                  <div className="text-amber-400 text-sm font-bold mt-2">最终得分：{formatNumber(intentionState.selected.score)}</div>
                 </div>
               ) : (
                 <div className="text-slate-500">无候选</div>

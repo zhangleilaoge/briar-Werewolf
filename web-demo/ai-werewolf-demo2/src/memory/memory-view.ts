@@ -4,8 +4,8 @@
 // ============================================================
 
 import type { MemoryEntry, MemorySource, MemoryEventType } from '@/types';
-import { HARD_INFO_THRESHOLD } from '@/constants';
 import type { MemoryStore } from './memory-store';
+import * as query from './memory-query';
 
 export class MemoryView implements MemoryStore {
   private source: Map<string, MemoryEntry>;
@@ -43,95 +43,65 @@ export class MemoryView implements MemoryStore {
   /**
    * 获取关于指定玩家的记忆
    */
-  aboutPlayer(playerId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.actorId === playerId || e.targetId === playerId);
-  }
+  aboutPlayer(playerId: string): MemoryEntry[] { return query.aboutPlayer(this, playerId); }
 
   /**
    * 获取指定演员的记忆
    */
-  byActor(actorId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.actorId === actorId);
-  }
+  byActor(actorId: string): MemoryEntry[] { return query.byActor(this, actorId); }
 
   /**
    * 获取指定目标的记忆
    */
-  byTarget(targetId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.targetId === targetId);
-  }
+  byTarget(targetId: string): MemoryEntry[] { return query.byTarget(this, targetId); }
 
   /**
    * 获取指定类型的记忆
    */
-  byType(type: MemoryEventType): MemoryEntry[] {
-    return this.getAll().filter((e) => e.eventType === type);
-  }
+  byType(type: MemoryEventType): MemoryEntry[] { return query.byType(this, type); }
 
   /**
    * 获取指定来源的记忆
    */
-  bySource(source: MemorySource): MemoryEntry[] {
-    return this.getAll().filter((e) => e.source === source);
-  }
+  bySource(source: MemorySource): MemoryEntry[] { return query.bySource(this, source); }
 
   /**
    * 获取指定回合的记忆
    */
-  byRound(round: number): MemoryEntry[] {
-    return this.getAll().filter((e) => e.round === round);
-  }
+  byRound(round: number): MemoryEntry[] { return query.byRound(this, round); }
 
   /**
    * 获取硬信息
    */
-  hardInfo(): MemoryEntry[] {
-    return this.getAll().filter((e) => e.credibility >= HARD_INFO_THRESHOLD);
-  }
+  hardInfo(): MemoryEntry[] { return query.hardInfo(this); }
 
   /**
    * 获取关于指定玩家的硬信息
    */
-  hardInfoAboutPlayer(playerId: string): MemoryEntry[] {
-    return this.hardInfo().filter((e) => e.actorId === playerId || e.targetId === playerId);
-  }
+  hardInfoAboutPlayer(playerId: string): MemoryEntry[] { return query.hardInfoAboutPlayer(this, playerId); }
 
   /**
    * 获取指定玩家的声明
    */
-  claimsByPlayer(playerId: string): MemoryEntry[] {
-    return this.getAll().filter(
-      (e) => e.actorId === playerId && (e.eventType === 'hear_claim')
-    );
-  }
+  claimsByPlayer(playerId: string): MemoryEntry[] { return query.claimsByPlayer(this, playerId); }
 
   /**
    * 获取针对指定玩家的指控
    */
-  accusationsAgainst(targetId: string): MemoryEntry[] {
-    return this.getAll().filter(
-      (e) => e.targetId === targetId && e.eventType === 'hear_accuse'
-    );
-  }
+  accusationsAgainst(targetId: string): MemoryEntry[] { return query.accusationsAgainst(this, targetId); }
 
   /**
    * 获取为指定玩家的辩护
    */
-  defensesFor(targetId: string): MemoryEntry[] {
-    return this.getAll().filter((e) => e.targetId === targetId && e.eventType === 'hear_defend');
-  }
+  defensesFor(targetId: string): MemoryEntry[] { return query.defensesFor(this, targetId); }
 
   /**
    * 获取死亡记录
    */
-  deaths(): MemoryEntry[] {
-    return this.getAll().filter((e) => e.eventType === 'death');
-  }
+  deaths(): MemoryEntry[] { return query.deaths(this); }
 
   /**
    * 检查玩家是否死亡
    */
-  isDead(playerId: string): boolean {
-    return this.deaths().some((e) => e.targetId === playerId || e.content.playerId === playerId);
-  }
+  isDead(playerId: string): boolean { return query.isDead(this, playerId); }
 }

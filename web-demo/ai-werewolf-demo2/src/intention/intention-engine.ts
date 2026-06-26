@@ -31,6 +31,9 @@ import {
 	PROFICIENCY_MAP,
 } from '@/constants';
 
+const fmt = (value: number, digits = 1): string => String(Number(value.toFixed(digits)));
+const pct = (value: number): string => `${fmt(value * 100, 0)}%`;
+
 export interface IntentionConfig {
 	randomness: number;
 	reasoningDisabled: boolean;
@@ -132,13 +135,13 @@ export class IntentionEngine {
 					shortTerm.push({
 						id: lt.targetPlayer ? `attack_${lt.targetPlayer}` : 'attack', type: 'pointed', targetId: lt.targetPlayer, weight: attackWeight,
 						description: '攻击', basis: lt.basis,
-						traces: [baseTrace, this._makeTrace('short_term', 'attackConfidence', weight, attackWeight - weight, attackWeight, lt.basis, `狼人概率 ${(confidence * 100).toFixed(0)}% → 攻击因子 ${attackFactor.toFixed(2)}`)],
+						traces: [baseTrace, this._makeTrace('short_term', 'attackConfidence', weight, attackWeight - weight, attackWeight, lt.basis, `狼人概率 ${pct(confidence)} → 攻击因子 ${fmt(attackFactor)}`)],
 					});
 					shortTerm.push({
 						id: lt.targetPlayer ? `observe_${lt.targetPlayer}` : 'observe', type: 'pointed', targetId: lt.targetPlayer,
 						weight: observeWeight,
 						description: '观察', basis: lt.basis,
-						traces: [baseTrace, this._makeTrace('short_term', 'observeUncertainty', weight, observeWeight - weight, observeWeight, lt.basis, `狼人概率 ${(confidence * 100).toFixed(0)}% → 观察因子 ${observeFactor.toFixed(2)}`)],
+						traces: [baseTrace, this._makeTrace('short_term', 'observeUncertainty', weight, observeWeight - weight, observeWeight, lt.basis, `狼人概率 ${pct(confidence)} → 观察因子 ${fmt(observeFactor)}`)],
 					});
 					break;
 				}
@@ -382,12 +385,12 @@ export class IntentionEngine {
 		const crisisDelta = selfCrisis.score * LONG_TERM_DYNAMIC.SURVIVE_CRISIS_WEIGHT;
 		let before = priority;
 		priority += crisisDelta;
-		traces.push(this._makeTrace('long_term', 'selfCrisis', before, crisisDelta, priority, selfCrisis.basis, `自身危机度 ${selfCrisis.score} × ${LONG_TERM_DYNAMIC.SURVIVE_CRISIS_WEIGHT}`));
+		traces.push(this._makeTrace('long_term', 'selfCrisis', before, crisisDelta, priority, selfCrisis.basis, `自身危机度 ${fmt(selfCrisis.score)} × ${fmt(LONG_TERM_DYNAMIC.SURVIVE_CRISIS_WEIGHT, 2)}`));
 
 		const pressureDelta = this.self.pressure * LONG_TERM_DYNAMIC.SURVIVE_PRESSURE_WEIGHT;
 		before = priority;
 		priority += pressureDelta;
-		traces.push(this._makeTrace('long_term', 'pressure', before, pressureDelta, priority, [], `压力 ${this.self.pressure} × ${LONG_TERM_DYNAMIC.SURVIVE_PRESSURE_WEIGHT}`));
+		traces.push(this._makeTrace('long_term', 'pressure', before, pressureDelta, priority, [], `压力 ${fmt(this.self.pressure)} × ${fmt(LONG_TERM_DYNAMIC.SURVIVE_PRESSURE_WEIGHT, 2)}`));
 
 		const clamped = this._clamp(priority, LONG_TERM_DYNAMIC.SURVIVE_MIN, LONG_TERM_DYNAMIC.SURVIVE_MAX);
 		if (clamped !== priority) {
@@ -397,7 +400,7 @@ export class IntentionEngine {
 		return {
 			id: 'survive',
 			priority: clamped,
-			description: `生存优先级：${(clamped * 100).toFixed(0)}%`,
+			description: `生存优先级：${pct(clamped)}`,
 			basis: selfCrisis.basis,
 			traces,
 		};
@@ -440,7 +443,7 @@ export class IntentionEngine {
 			const before = priority;
 			const delta = target.wolfProb * LONG_TERM_DYNAMIC.FIND_WOLF_PROB_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'wolfProbability', before, delta, priority, target.basis, `${target.playerId} 狼人概率 ${(target.wolfProb * 100).toFixed(0)}% × ${LONG_TERM_DYNAMIC.FIND_WOLF_PROB_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'wolfProbability', before, delta, priority, target.basis, `${target.playerId} 狼人概率 ${pct(target.wolfProb)} × ${fmt(LONG_TERM_DYNAMIC.FIND_WOLF_PROB_WEIGHT, 2)}`));
 		}
 
 		const personalityDelta = this.self.personality === 'suspicious'
@@ -458,7 +461,7 @@ export class IntentionEngine {
 		return {
 			...intention,
 			priority: clamped,
-			description: `找狼优先级：${(clamped * 100).toFixed(0)}%`,
+			description: `找狼优先级：${pct(clamped)}`,
 			basis: target?.basis ?? intention.basis,
 			traces,
 		};
@@ -483,21 +486,21 @@ export class IntentionEngine {
 			const before = priority;
 			const delta = targetCrisis.score * LONG_TERM_DYNAMIC.PROTECT_CRISIS_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'targetCrisis', before, delta, priority, targetCrisis.basis, `${targetId} 危机度 ${targetCrisis.score} × ${LONG_TERM_DYNAMIC.PROTECT_CRISIS_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'targetCrisis', before, delta, priority, targetCrisis.basis, `${targetId} 危机度 ${fmt(targetCrisis.score)} × ${fmt(LONG_TERM_DYNAMIC.PROTECT_CRISIS_WEIGHT, 2)}`));
 		}
 
 		if (targetInference) {
 			const before = priority;
 			const delta = targetInference.villagerProb * LONG_TERM_DYNAMIC.PROTECT_VILLAGER_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'villagerProbability', before, delta, priority, targetInference.basis, `${targetId} 村民概率 ${(targetInference.villagerProb * 100).toFixed(0)}% × ${LONG_TERM_DYNAMIC.PROTECT_VILLAGER_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'villagerProbability', before, delta, priority, targetInference.basis, `${targetId} 村民概率 ${pct(targetInference.villagerProb)} × ${fmt(LONG_TERM_DYNAMIC.PROTECT_VILLAGER_WEIGHT, 2)}`));
 		}
 
 		if (relation) {
 			const before = priority;
 			const delta = Math.max(0, relation.friendly) * LONG_TERM_DYNAMIC.PROTECT_RELATION_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'relation', before, delta, priority, relation.memoryIds, `${targetId} 友好度 ${relation.friendly} × ${LONG_TERM_DYNAMIC.PROTECT_RELATION_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'relation', before, delta, priority, relation.memoryIds, `${targetId} 友好度 ${fmt(relation.friendly)} × ${fmt(LONG_TERM_DYNAMIC.PROTECT_RELATION_WEIGHT, 2)}`));
 		}
 
 		if (this.self.personality === 'loyal') {
@@ -510,7 +513,7 @@ export class IntentionEngine {
 		return {
 			...intention,
 			priority: clamped,
-			description: `保护 ${targetId}：${(clamped * 100).toFixed(0)}%`,
+			description: `保护 ${targetId}：${pct(clamped)}`,
 			basis: [...new Set([...(targetCrisis?.basis ?? []), ...(targetInference?.basis ?? []), ...(relation?.memoryIds ?? [])])],
 			traces,
 		};
@@ -528,28 +531,28 @@ export class IntentionEngine {
 		let before = priority;
 		const attrDelta = (this.self.attributes.leadership / ATTRIBUTE_RANGE.MAX) * LONG_TERM_DYNAMIC.LEAD_ATTRIBUTE_WEIGHT;
 		priority += attrDelta;
-		traces.push(this._makeTrace('long_term', 'leadership', before, attrDelta, priority, [], `领导力 ${this.self.attributes.leadership}/${ATTRIBUTE_RANGE.MAX} × ${LONG_TERM_DYNAMIC.LEAD_ATTRIBUTE_WEIGHT}`));
+		traces.push(this._makeTrace('long_term', 'leadership', before, attrDelta, priority, [], `领导力 ${this.self.attributes.leadership}/${ATTRIBUTE_RANGE.MAX} × ${fmt(LONG_TERM_DYNAMIC.LEAD_ATTRIBUTE_WEIGHT, 2)}`));
 
 		const fieldScore = fieldCrisis?.mostAtRisk.score ?? 0;
 		if (fieldScore > 0) {
 			before = priority;
 			const delta = fieldScore * LONG_TERM_DYNAMIC.LEAD_FIELD_CRISIS_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'fieldCrisis', before, delta, priority, fieldCrisis?.mostAtRisk.basis ?? [], `最高场上危机 ${fieldScore} × ${LONG_TERM_DYNAMIC.LEAD_FIELD_CRISIS_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'fieldCrisis', before, delta, priority, fieldCrisis?.mostAtRisk.basis ?? [], `最高场上危机 ${fmt(fieldScore)} × ${fmt(LONG_TERM_DYNAMIC.LEAD_FIELD_CRISIS_WEIGHT, 2)}`));
 		}
 
 		if (selfCrisis.score > 0) {
 			before = priority;
 			const delta = -selfCrisis.score * LONG_TERM_DYNAMIC.LEAD_SELF_CRISIS_PENALTY;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'selfCrisisPenalty', before, delta, priority, selfCrisis.basis, `自身危机 ${selfCrisis.score} × -${LONG_TERM_DYNAMIC.LEAD_SELF_CRISIS_PENALTY}`));
+			traces.push(this._makeTrace('long_term', 'selfCrisisPenalty', before, delta, priority, selfCrisis.basis, `自身危机 ${fmt(selfCrisis.score)} × -${fmt(LONG_TERM_DYNAMIC.LEAD_SELF_CRISIS_PENALTY, 2)}`));
 		}
 
 		const clamped = this._clamp(priority, LONG_TERM_DYNAMIC.LEAD_MIN, LONG_TERM_DYNAMIC.LEAD_MAX);
 		return {
 			...intention,
 			priority: clamped,
-			description: `主导局势：${(clamped * 100).toFixed(0)}%`,
+			description: `主导局势：${pct(clamped)}`,
 			basis: [...new Set([...(fieldCrisis?.mostAtRisk.basis ?? []), ...selfCrisis.basis])],
 			traces,
 		};
@@ -566,18 +569,18 @@ export class IntentionEngine {
 		let before = priority;
 		const crisisDelta = selfCrisis.score * LONG_TERM_DYNAMIC.HIDE_CRISIS_WEIGHT;
 		priority += crisisDelta;
-		traces.push(this._makeTrace('long_term', 'selfCrisis', before, crisisDelta, priority, selfCrisis.basis, `自身危机 ${selfCrisis.score} × ${LONG_TERM_DYNAMIC.HIDE_CRISIS_WEIGHT}`));
+		traces.push(this._makeTrace('long_term', 'selfCrisis', before, crisisDelta, priority, selfCrisis.basis, `自身危机 ${fmt(selfCrisis.score)} × ${fmt(LONG_TERM_DYNAMIC.HIDE_CRISIS_WEIGHT, 2)}`));
 
 		before = priority;
 		const pressureDelta = this.self.pressure * LONG_TERM_DYNAMIC.HIDE_PRESSURE_WEIGHT;
 		priority += pressureDelta;
-		traces.push(this._makeTrace('long_term', 'pressure', before, pressureDelta, priority, [], `压力 ${this.self.pressure} × ${LONG_TERM_DYNAMIC.HIDE_PRESSURE_WEIGHT}`));
+		traces.push(this._makeTrace('long_term', 'pressure', before, pressureDelta, priority, [], `压力 ${fmt(this.self.pressure)} × ${fmt(LONG_TERM_DYNAMIC.HIDE_PRESSURE_WEIGHT, 2)}`));
 
 		const clamped = this._clamp(priority, 0, LONG_TERM_DYNAMIC.HIDE_MAX);
 		return {
 			...intention,
 			priority: clamped,
-			description: `隐藏身份：${(clamped * 100).toFixed(0)}%`,
+			description: `隐藏身份：${pct(clamped)}`,
 			basis: selfCrisis.basis,
 			traces,
 		};
@@ -596,14 +599,14 @@ export class IntentionEngine {
 			const before = priority;
 			const delta = target.villagerProb * LONG_TERM_DYNAMIC.MISLEAD_TARGET_VILLAGER_WEIGHT;
 			priority += delta;
-			traces.push(this._makeTrace('long_term', 'targetVillagerProbability', before, delta, priority, target.basis, `${target.playerId} 村民概率 ${(target.villagerProb * 100).toFixed(0)}% × ${LONG_TERM_DYNAMIC.MISLEAD_TARGET_VILLAGER_WEIGHT}`));
+			traces.push(this._makeTrace('long_term', 'targetVillagerProbability', before, delta, priority, target.basis, `${target.playerId} 村民概率 ${pct(target.villagerProb)} × ${fmt(LONG_TERM_DYNAMIC.MISLEAD_TARGET_VILLAGER_WEIGHT, 2)}`));
 		}
 
 		const clamped = this._clamp(priority, 0, LONG_TERM_DYNAMIC.MISLEAD_MAX);
 		return {
 			...intention,
 			priority: clamped,
-			description: `误导村民：${(clamped * 100).toFixed(0)}%`,
+			description: `误导村民：${pct(clamped)}`,
 			basis: target?.basis ?? intention.basis,
 			traces,
 		};
@@ -622,17 +625,18 @@ export class IntentionEngine {
 		basis: string[],
 		description?: string
 	): IntentionTrace {
+		const chainedResult = baseValue + delta;
 		return {
-			stage, factor, baseValue, delta, result, description,
+			stage, factor, baseValue, delta, result: chainedResult, description,
 			basis: basis.map((id) => ({
 				memoryId: id,
 				eventType: 'unknown',
 				actorId: '',
 				impactType: 'indirect',
-				description: description || '',
+				description: description || factor,
 				deltaScore: delta,
 				beforeScore: baseValue,
-				afterScore: result,
+				afterScore: chainedResult,
 			})),
 		};
 	}
@@ -660,15 +664,15 @@ export class IntentionEngine {
 			const inf = roleInferences.get(candidate.targetId)!;
 			if (candidate.action === 'suspect') {
 				roleBonus = 0.5 + inf.wolfProb * 1.5;
-				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 狼人概率 ${(inf.wolfProb * 100).toFixed(0)}% → 攻击加成`));
+				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 狼人概率 ${pct(inf.wolfProb)} → 攻击加成`));
 			} else if (candidate.action === 'defend') {
 				roleBonus = 0.5 + (1 - inf.wolfProb) * 1.5;
-				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 村民概率 ${(inf.villagerProb * 100).toFixed(0)}% → 辩护加成`));
+				traces.push(this._makeTrace('selection', 'roleBonus', 1.0, roleBonus - 1.0, roleBonus, inf.basis, `${candidate.targetId} 村民概率 ${pct(inf.villagerProb)} → 辩护加成`));
 			}
 		}
 		roleBonus = Math.max(BONUS.MIN, Math.min(BONUS.MAX, roleBonus));
 		score = score * roleBonus;
-		traces.push(this._makeTrace('selection', 'roleBonus_applied', baseScore, score - baseScore, score, candidate.supportingMemories, `roleBonus ${roleBonus.toFixed(2)}`));
+		traces.push(this._makeTrace('selection', 'roleBonus_applied', baseScore, score - baseScore, score, candidate.supportingMemories, `roleBonus ${fmt(roleBonus)}`));
 
 		// 3. situationBonus
 		let situationBonus = 1.0;
@@ -677,23 +681,23 @@ export class IntentionEngine {
 			if (crisis) {
 				if (candidate.action === 'defend') {
 					situationBonus = 0.5 + Math.min(crisis.score / 10, 1) * 1.5;
-					traces.push(this._makeTrace('selection', 'situationBonus', 1.0, situationBonus - 1.0, situationBonus, crisis.basis, `${candidate.targetId} 危机度 ${crisis.score} → 辩护加成`));
+					traces.push(this._makeTrace('selection', 'situationBonus', 1.0, situationBonus - 1.0, situationBonus, crisis.basis, `${candidate.targetId} 危机度 ${fmt(crisis.score)} → 辩护加成`));
 				} else if (candidate.action === 'suspect') {
 					situationBonus = 0.5 + Math.min(crisis.dominant / 10, 1) * 1.5;
-					traces.push(this._makeTrace('selection', 'situationBonus', 1.0, situationBonus - 1.0, situationBonus, crisis.basis, `${candidate.targetId} 主导度 ${crisis.dominant} → 攻击加成`));
+					traces.push(this._makeTrace('selection', 'situationBonus', 1.0, situationBonus - 1.0, situationBonus, crisis.basis, `${candidate.targetId} 主导度 ${fmt(crisis.dominant)} → 攻击加成`));
 				}
 			}
 		}
 		situationBonus = Math.max(BONUS.MIN, Math.min(BONUS.MAX, situationBonus));
 		const afterSituation = score;
 		score = score * situationBonus;
-		traces.push(this._makeTrace('selection', 'situationBonus_applied', afterSituation, score - afterSituation, score, candidate.supportingMemories, `situationBonus ${situationBonus.toFixed(2)}`));
+		traces.push(this._makeTrace('selection', 'situationBonus_applied', afterSituation, score - afterSituation, score, candidate.supportingMemories, `situationBonus ${fmt(situationBonus)}`));
 
 		// 4. personalityBonus
 		const personalityBonus = personality.actionWeightMods[candidate.action] ?? 1.0;
 		const afterPersonality = score;
 		score = score * personalityBonus;
-		traces.push(this._makeTrace('selection', 'personalityBonus', afterPersonality, score - afterPersonality, score, [], `personalityBonus ${personalityBonus.toFixed(2)} (${personality.name})`));
+		traces.push(this._makeTrace('selection', 'personalityBonus', afterPersonality, score - afterPersonality, score, [], `personalityBonus ${fmt(personalityBonus)} (${personality.name})`));
 
 		// 4.5 relationBonus（关系影响行动可行度）
 		let relationBonus = 1.0;
@@ -707,7 +711,7 @@ export class IntentionEngine {
 				relationBonus = Math.max(BONUS.MIN, Math.min(BONUS.MAX, relationBonus));
 				const afterRelation = score;
 				score = score * relationBonus;
-				traces.push(this._makeTrace('selection', 'relationBonus_applied', afterRelation, score - afterRelation, score, candidate.supportingMemories, `relationBonus ${relationBonus.toFixed(2)}`));
+				traces.push(this._makeTrace('selection', 'relationBonus_applied', afterRelation, score - afterRelation, score, candidate.supportingMemories, `relationBonus ${fmt(relationBonus)}`));
 			}
 		}
 
@@ -717,14 +721,14 @@ export class IntentionEngine {
 			pressureBonus = PRESSURE.GENERAL_REDUCTION;
 			const afterPressure = score;
 			score = score * pressureBonus;
-			traces.push(this._makeTrace('selection', 'pressureBonus', afterPressure, score - afterPressure, score, [], `pressureBonus ${pressureBonus.toFixed(2)} (高压力)`));
+			traces.push(this._makeTrace('selection', 'pressureBonus', afterPressure, score - afterPressure, score, [], `pressureBonus ${fmt(pressureBonus)} (高压力)`));
 		}
 
 		// 6. proficiencyBonus
 		const proficiencyBonus = this._calcProficiency(candidate.action);
 		const afterProficiency = score;
 		score = score * proficiencyBonus;
-		traces.push(this._makeTrace('selection', 'proficiencyBonus', afterProficiency, score - afterProficiency, score, [], `proficiencyBonus ${proficiencyBonus.toFixed(2)}`));
+		traces.push(this._makeTrace('selection', 'proficiencyBonus', afterProficiency, score - afterProficiency, score, [], `proficiencyBonus ${fmt(proficiencyBonus)}`));
 
 		// 狼人硬约束：不攻击队友
 		if (this.self.team === 'werewolf' && candidate.action === 'suspect' && candidate.targetId) {
@@ -754,10 +758,10 @@ export class IntentionEngine {
 	}
 
 	private _describeRelationFeasibility(action: ActionType, targetId: string, friendly: number, bonus: number): string {
-		if (action === 'suspect') return `${targetId} 友好度 ${friendly} → 指认可行度 ${bonus.toFixed(2)}`;
-		if (action === 'defend') return `${targetId} 友好度 ${friendly} → 保护可行度 ${bonus.toFixed(2)}`;
-		if (action === 'claim_identity') return `${targetId} 友好度 ${friendly} → 声称可行度 ${bonus.toFixed(2)}`;
-		return `${targetId} 友好度 ${friendly} → 行动可行度 ${bonus.toFixed(2)}`;
+		if (action === 'suspect') return `${targetId} 友好度 ${fmt(friendly)} → 指认可行度 ${fmt(bonus)}`;
+		if (action === 'defend') return `${targetId} 友好度 ${fmt(friendly)} → 保护可行度 ${fmt(bonus)}`;
+		if (action === 'claim_identity') return `${targetId} 友好度 ${fmt(friendly)} → 声称可行度 ${fmt(bonus)}`;
+		return `${targetId} 友好度 ${fmt(friendly)} → 行动可行度 ${fmt(bonus)}`;
 	}
 
 	private _calcProficiency(action: ActionType): number {

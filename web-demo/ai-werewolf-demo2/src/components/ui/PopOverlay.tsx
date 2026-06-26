@@ -463,7 +463,7 @@ export function FactorTooltip({
                     <span className="text-gray-300">{b.label}</span>{' '}
                     <span className="font-mono text-gray-200">
                       {typeof b.value === 'number'
-                        ? b.value.toFixed(2)
+                        ? String(Number(b.value.toFixed(1)))
                         : b.value}
                     </span>
                   </div>

@@ -48,8 +48,10 @@ export function MemoryTooltip({ title, content, basis, impacts, children, classN
     return map;
   }, [impacts]);
 
-  // 如果弹窗内容为空（无支撑记忆），不展示弹窗，只返回纯文本
-  if (content === '无支撑记忆') {
+  const hasVisibleImpacts = impacts?.some((imp) => Math.abs(imp.deltaScore) >= 0.005) ?? false;
+
+  // 如果弹窗内容为空且没有有效影响，不展示弹窗，只返回纯文本
+  if (content === '无支撑记忆' && !hasVisibleImpacts) {
     return <>{children}</>;
   }
 
@@ -70,25 +72,33 @@ export function MemoryTooltip({ title, content, basis, impacts, children, classN
         hoverTrigger={false}
       >
         <div className="text-xs text-slate-300 space-y-1 max-h-[60vh] overflow-y-auto">
-          {lines.map((line, i) => {
-            const memId = basis?.[i];
-            const lineImpacts = memId ? impactsByMemoryId.get(memId) ?? [] : [];
-            const visibleImpacts = lineImpacts.filter((imp) => Math.abs(imp.deltaScore) >= 0.005);
-            if (visibleImpacts.length === 0) return null;
-            return visibleImpacts.map((imp, j) => (
-              <div key={`${i}-${j}`} className="bg-slate-800 rounded px-2 py-1 text-slate-300 font-mono text-[11px] flex items-center gap-1">
-                <span className="text-slate-400">{formatNumber(imp.beforeScore, 2)}</span>
-                <span className={imp.deltaScore > 0 ? 'text-green-400' : imp.deltaScore < 0 ? 'text-red-400' : 'text-slate-400'}>
-                  {formatSignedNumber(imp.deltaScore, 2)}
-                </span>
-                <span className="text-slate-500 truncate">({line})</span>
-                <span className="text-slate-400">=</span>
-                <span className="text-slate-200">{formatNumber(imp.afterScore, 2)}</span>
-              </div>
-            ));
-          }).flat().filter(Boolean)}
+          {(lines.length > 0
+            ? lines.map((line, i) => {
+              const memId = basis?.[i];
+              const lineImpacts = memId ? impactsByMemoryId.get(memId) ?? [] : [];
+              const visibleImpacts = lineImpacts.filter((imp) => Math.abs(imp.deltaScore) >= 0.005);
+              if (visibleImpacts.length === 0) return null;
+              return visibleImpacts.map((imp, j) => <ImpactLine key={`${i}-${j}`} impact={imp} label={line} />);
+            }).flat().filter(Boolean)
+            : impacts?.filter((imp) => Math.abs(imp.deltaScore) >= 0.005).map((imp, i) => (
+              <ImpactLine key={i} impact={imp} label={imp.description} />
+            )))}
         </div>
       </PopOverlay>
     </>
+  );
+}
+
+function ImpactLine({ impact, label }: { impact: MemoryImpact; label: string }) {
+  return (
+    <div className="bg-slate-800 rounded px-2 py-1 text-slate-300 font-mono text-[11px] flex items-center gap-1">
+      <span className="text-slate-400">{formatNumber(impact.beforeScore)}</span>
+      <span className={impact.deltaScore > 0 ? 'text-green-400' : impact.deltaScore < 0 ? 'text-red-400' : 'text-slate-400'}>
+        {formatSignedNumber(impact.deltaScore)}
+      </span>
+      <span className="text-slate-500 truncate">({label})</span>
+      <span className="text-slate-400">=</span>
+      <span className="text-slate-200">{formatNumber(impact.afterScore)}</span>
+    </div>
   );
 }

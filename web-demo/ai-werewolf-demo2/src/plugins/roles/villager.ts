@@ -31,7 +31,7 @@ export const villagerPlugin: RolePlugin = {
 			id: 'find_werewolf',
 			priority: findWolfPriority,
 			targetPlayer: highest?.playerId,
-			description: `找狼优先级：${(findWolfPriority * 100).toFixed(0)}%`,
+			description: `找狼优先级：${Math.round(findWolfPriority * 100)}%`,
 			basis: highest?.basis ?? [],
 			traces: [],
 		});

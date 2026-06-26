@@ -3,6 +3,7 @@ import { MemStore } from '@/memory';
 import { InferenceEngine } from '@/inference/inference-engine';
 import { DEMO_PLAYERS, SCENARIOS } from '@/data/scenarios';
 import { getPlayerEmoji } from './game-runner-constants';
+import { formatNumber } from './game-runner-utils';
 import type { RoleInference, PlayerCrisis } from '@/inference/inference-engine';
 import type { Scenario } from '@/data/scenarios';
 
@@ -124,7 +125,7 @@ export default function InferenceDemo() {
                         <span className="bg-slate-800 px-2 py-0.5 rounded">辩护:{c.factors.defendCount}</span>
                       </div>
                     </div>
-                    <div className={`text-2xl font-bold ${scoreColor}`}>{c.score.toFixed(1)}</div>
+                    <div className={`text-2xl font-bold ${scoreColor}`}>{formatNumber(c.score)}</div>
                   </div>
                 );
               })}
